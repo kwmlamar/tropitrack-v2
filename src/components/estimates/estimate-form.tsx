@@ -1,0 +1,772 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { createClient } from "@/lib/supabase/client";
+import { formatCurrency } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/lib/auth-context";
+import {
+  Plus,
+  Trash2,
+  Loader2,
+  Save,
+  Calculator,
+} from "lucide-react";
+import type {
+  Estimate,
+  EstimateLineItem,
+  EstimateLineCategory,
+  Client,
+  Material,
+  Worker,
+  Equipment,
+} from "@/types";
+
+interface EstimateFormProps {
+  estimate?: Estimate;
+  lineItems?: EstimateLineItem[];
+  mode: "create" | "edit";
+}
+
+interface LineItemFormData {
+  id?: string;
+  category: EstimateLineCategory;
+  description: string;
+  quantity: number;
+  unit: string;
+  unit_rate: number;
+  worker_id?: string;
+  material_id?: string;
+  equipment_id?: string;
+  notes?: string;
+}
+
+export function EstimateForm({ estimate, lineItems = [], mode }: EstimateFormProps) {
+  const router = useRouter();
+  const supabase = createClient();
+  const { toast } = useToast();
+  const { profile } = useAuth();
+
+  const [saving, setSaving] = useState(false);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [materials, setMaterials] = useState<Material[]>([]);
+  const [workers, setWorkers] = useState<Worker[]>([]);
+  const [equipment, setEquipment] = useState<Equipment[]>([]);
+
+  // Form state
+  const [formData, setFormData] = useState({
+    client_id: estimate?.client_id || "",
+    client_name: estimate?.client_name || "",
+    client_email: estimate?.client_email || "",
+    client_phone: estimate?.client_phone || "",
+    client_address: estimate?.client_address || "",
+    title: estimate?.title || "",
+    description: estimate?.description || "",
+    issue_date: estimate?.issue_date || new Date().toISOString().split("T")[0],
+    valid_until: estimate?.valid_until || "",
+    overhead_markup_percent: estimate?.overhead_markup_percent || 0,
+    profit_margin_percent: estimate?.profit_margin_percent || 0,
+    tax_rate: estimate?.tax_rate || 0,
+    notes: estimate?.notes || "",
+    terms_and_conditions: estimate?.terms_and_conditions ||
+      "This estimate is valid for 30 days from the issue date. Prices are subject to change based on material costs and project scope changes. A 50% deposit is required to begin work.",
+  });
+
+  const [items, setItems] = useState<LineItemFormData[]>(
+    lineItems.length > 0
+      ? lineItems.map((item) => ({
+          id: item.id,
+          category: item.category,
+          description: item.description,
+          quantity: item.quantity,
+          unit: item.unit || "",
+          unit_rate: item.unit_rate,
+          worker_id: item.worker_id,
+          material_id: item.material_id,
+          equipment_id: item.equipment_id,
+          notes: item.notes,
+        }))
+      : [{ category: "labor" as EstimateLineCategory, description: "", quantity: 1, unit: "hours", unit_rate: 0 }]
+  );
+
+  useEffect(() => {
+    fetchReferenceData();
+  }, []);
+
+  const fetchReferenceData = async () => {
+    try {
+      const [clientsRes, materialsRes, workersRes, equipmentRes] = await Promise.all([
+        supabase.from("clients").select("*").order("name"),
+        supabase.from("materials").select("*").order("name"),
+        supabase.from("workers").select("*").eq("status", "active").order("last_name"),
+        supabase.from("equipment").select("*").eq("status", "available").order("name"),
+      ]);
+
+      if (clientsRes.data) setClients(clientsRes.data);
+      if (materialsRes.data) setMaterials(materialsRes.data);
+      if (workersRes.data) setWorkers(workersRes.data);
+      if (equipmentRes.data) setEquipment(equipmentRes.data);
+    } catch (error) {
+      console.error("Error fetching reference data:", error);
+    }
+  };
+
+  const handleClientChange = (clientId: string) => {
+    const client = clients.find((c) => c.id === clientId);
+    if (client) {
+      setFormData({
+        ...formData,
+        client_id: clientId,
+        client_name: client.name,
+        client_email: client.email || "",
+        client_phone: client.phone || "",
+        client_address: `${client.address || ""}${client.city ? `, ${client.city}` : ""}`,
+      });
+    }
+  };
+
+  const addLineItem = () => {
+    setItems([
+      ...items,
+      { category: "labor", description: "", quantity: 1, unit: "hours", unit_rate: 0 },
+    ]);
+  };
+
+  const removeLineItem = (index: number) => {
+    if (items.length > 1) {
+      setItems(items.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateLineItem = (index: number, field: keyof LineItemFormData, value: any) => {
+    const newItems = [...items];
+    newItems[index] = { ...newItems[index], [field]: value };
+
+    // Auto-fill rate based on selection
+    if (field === "material_id" && value) {
+      const material = materials.find((m) => m.id === value);
+      if (material) {
+        newItems[index].description = material.name;
+        newItems[index].unit_rate = material.unit_cost;
+        newItems[index].unit = material.unit;
+      }
+    }
+    if (field === "worker_id" && value) {
+      const worker = workers.find((w) => w.id === value);
+      if (worker) {
+        newItems[index].description = `${worker.first_name} ${worker.last_name} - Labor`;
+        newItems[index].unit_rate = worker.hourly_rate || 0;
+        newItems[index].unit = "hours";
+      }
+    }
+    if (field === "equipment_id" && value) {
+      const equip = equipment.find((e) => e.id === value);
+      if (equip) {
+        newItems[index].description = equip.name;
+        newItems[index].unit_rate = equip.daily_rate || equip.hourly_rate;
+        newItems[index].unit = equip.daily_rate > 0 ? "days" : "hours";
+      }
+    }
+
+    setItems(newItems);
+  };
+
+  // Calculate totals
+  const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unit_rate, 0);
+  const overheadAmount = subtotal * (formData.overhead_markup_percent / 100);
+  const profitAmount = (subtotal + overheadAmount) * (formData.profit_margin_percent / 100);
+  const taxableAmount = subtotal + overheadAmount + profitAmount;
+  const taxAmount = taxableAmount * (formData.tax_rate / 100);
+  const totalAmount = taxableAmount + taxAmount;
+
+  const generateEstimateNumber = () => {
+    const prefix = "EST";
+    const date = new Date().toISOString().slice(2, 10).replace(/-/g, "");
+    const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+    return `${prefix}-${date}-${random}`;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+
+    try {
+      if (!formData.client_name || !formData.title) {
+        throw new Error("Client name and title are required");
+      }
+
+      if (items.some((item) => !item.description || item.unit_rate <= 0)) {
+        throw new Error("All line items must have a description and rate");
+      }
+
+      if (mode === "create") {
+        // Create estimate
+        const { data: newEstimate, error: estimateError } = await supabase
+          .from("estimates")
+          .insert({
+            estimate_number: generateEstimateNumber(),
+            client_id: formData.client_id || null,
+            client_name: formData.client_name,
+            client_email: formData.client_email || null,
+            client_phone: formData.client_phone || null,
+            client_address: formData.client_address || null,
+            title: formData.title,
+            description: formData.description || null,
+            issue_date: formData.issue_date,
+            valid_until: formData.valid_until || null,
+            overhead_markup_percent: formData.overhead_markup_percent,
+            profit_margin_percent: formData.profit_margin_percent,
+            tax_rate: formData.tax_rate,
+            notes: formData.notes || null,
+            terms_and_conditions: formData.terms_and_conditions || null,
+            status: "draft",
+            created_by: profile?.id,
+          })
+          .select()
+          .single();
+
+        if (estimateError) throw estimateError;
+
+        // Create line items
+        const lineItemsToInsert = items.map((item, index) => ({
+          estimate_id: newEstimate.id,
+          category: item.category,
+          description: item.description,
+          quantity: item.quantity,
+          unit: item.unit || null,
+          unit_rate: item.unit_rate,
+          amount: item.quantity * item.unit_rate,
+          worker_id: item.worker_id || null,
+          material_id: item.material_id || null,
+          equipment_id: item.equipment_id || null,
+          notes: item.notes || null,
+          order_index: index,
+        }));
+
+        const { error: itemsError } = await supabase
+          .from("estimate_line_items")
+          .insert(lineItemsToInsert);
+
+        if (itemsError) throw itemsError;
+
+        toast({
+          title: "Estimate created",
+          description: `Estimate ${newEstimate.estimate_number} has been created.`,
+        });
+
+        router.push(`/estimates/${newEstimate.id}`);
+      } else {
+        // Update estimate
+        const { error: estimateError } = await supabase
+          .from("estimates")
+          .update({
+            client_id: formData.client_id || null,
+            client_name: formData.client_name,
+            client_email: formData.client_email || null,
+            client_phone: formData.client_phone || null,
+            client_address: formData.client_address || null,
+            title: formData.title,
+            description: formData.description || null,
+            issue_date: formData.issue_date,
+            valid_until: formData.valid_until || null,
+            overhead_markup_percent: formData.overhead_markup_percent,
+            profit_margin_percent: formData.profit_margin_percent,
+            tax_rate: formData.tax_rate,
+            notes: formData.notes || null,
+            terms_and_conditions: formData.terms_and_conditions || null,
+          })
+          .eq("id", estimate!.id);
+
+        if (estimateError) throw estimateError;
+
+        // Delete existing line items
+        await supabase.from("estimate_line_items").delete().eq("estimate_id", estimate!.id);
+
+        // Create new line items
+        const lineItemsToInsert = items.map((item, index) => ({
+          estimate_id: estimate!.id,
+          category: item.category,
+          description: item.description,
+          quantity: item.quantity,
+          unit: item.unit || null,
+          unit_rate: item.unit_rate,
+          amount: item.quantity * item.unit_rate,
+          worker_id: item.worker_id || null,
+          material_id: item.material_id || null,
+          equipment_id: item.equipment_id || null,
+          notes: item.notes || null,
+          order_index: index,
+        }));
+
+        const { error: itemsError } = await supabase
+          .from("estimate_line_items")
+          .insert(lineItemsToInsert);
+
+        if (itemsError) throw itemsError;
+
+        toast({
+          title: "Estimate updated",
+          description: "Your changes have been saved.",
+        });
+
+        router.push(`/estimates/${estimate!.id}`);
+      }
+    } catch (error: any) {
+      console.error("Error saving estimate:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save estimate",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const categoryOptions: { value: EstimateLineCategory; label: string }[] = [
+    { value: "labor", label: "Labor" },
+    { value: "material", label: "Material" },
+    { value: "equipment", label: "Equipment" },
+    { value: "subcontractor", label: "Subcontractor" },
+    { value: "other", label: "Other" },
+  ];
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Client Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Client Information</CardTitle>
+            <CardDescription>Select existing client or enter manually</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Select Existing Client</Label>
+              <Select value={formData.client_id} onValueChange={handleClientChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a client..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {clients.map((client) => (
+                    <SelectItem key={client.id} value={client.id}>
+                      {client.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Separator />
+            <div className="space-y-2">
+              <Label htmlFor="client_name">Client Name *</Label>
+              <Input
+                id="client_name"
+                value={formData.client_name}
+                onChange={(e) => setFormData({ ...formData, client_name: e.target.value })}
+                placeholder="Enter client name"
+                required
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="client_email">Email</Label>
+                <Input
+                  id="client_email"
+                  type="email"
+                  value={formData.client_email}
+                  onChange={(e) => setFormData({ ...formData, client_email: e.target.value })}
+                  placeholder="client@email.com"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="client_phone">Phone</Label>
+                <Input
+                  id="client_phone"
+                  value={formData.client_phone}
+                  onChange={(e) => setFormData({ ...formData, client_phone: e.target.value })}
+                  placeholder="(242) 555-0100"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="client_address">Address</Label>
+              <Input
+                id="client_address"
+                value={formData.client_address}
+                onChange={(e) => setFormData({ ...formData, client_address: e.target.value })}
+                placeholder="Street, City"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Estimate Details */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Estimate Details</CardTitle>
+            <CardDescription>Basic information about this estimate</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="title">Project Title *</Label>
+              <Input
+                id="title"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                placeholder="e.g., Kitchen Renovation"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Brief description of the work..."
+                rows={3}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="issue_date">Issue Date *</Label>
+                <Input
+                  id="issue_date"
+                  type="date"
+                  value={formData.issue_date}
+                  onChange={(e) => setFormData({ ...formData, issue_date: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="valid_until">Valid Until</Label>
+                <Input
+                  id="valid_until"
+                  type="date"
+                  value={formData.valid_until}
+                  onChange={(e) => setFormData({ ...formData, valid_until: e.target.value })}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Line Items */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Line Items</CardTitle>
+              <CardDescription>Add labor, materials, equipment, and other costs</CardDescription>
+            </div>
+            <Button type="button" variant="outline" onClick={addLineItem}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Item
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {items.map((item, index) => (
+            <div
+              key={index}
+              className="grid gap-4 p-4 border rounded-lg bg-muted/50"
+            >
+              <div className="grid gap-4 md:grid-cols-6">
+                <div className="space-y-2">
+                  <Label>Category</Label>
+                  <Select
+                    value={item.category}
+                    onValueChange={(value) => updateLineItem(index, "category", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categoryOptions.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {item.category === "material" && (
+                  <div className="space-y-2">
+                    <Label>From Inventory</Label>
+                    <Select
+                      value={item.material_id || ""}
+                      onValueChange={(value) => updateLineItem(index, "material_id", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {materials.map((m) => (
+                          <SelectItem key={m.id} value={m.id}>
+                            {m.name} ({formatCurrency(m.unit_cost)}/{m.unit})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {item.category === "labor" && (
+                  <div className="space-y-2">
+                    <Label>Worker</Label>
+                    <Select
+                      value={item.worker_id || ""}
+                      onValueChange={(value) => updateLineItem(index, "worker_id", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {workers.map((w) => (
+                          <SelectItem key={w.id} value={w.id}>
+                            {w.first_name} {w.last_name} ({formatCurrency(w.hourly_rate || 0)}/hr)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {item.category === "equipment" && (
+                  <div className="space-y-2">
+                    <Label>Equipment</Label>
+                    <Select
+                      value={item.equipment_id || ""}
+                      onValueChange={(value) => updateLineItem(index, "equipment_id", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {equipment.map((e) => (
+                          <SelectItem key={e.id} value={e.id}>
+                            {e.name} ({formatCurrency(e.daily_rate || e.hourly_rate)}/day)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                <div className={`space-y-2 ${["material", "labor", "equipment"].includes(item.category) ? "md:col-span-2" : "md:col-span-3"}`}>
+                  <Label>Description *</Label>
+                  <Input
+                    value={item.description}
+                    onChange={(e) => updateLineItem(index, "description", e.target.value)}
+                    placeholder="Item description"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Qty</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={item.quantity}
+                    onChange={(e) => updateLineItem(index, "quantity", parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Unit</Label>
+                  <Input
+                    value={item.unit}
+                    onChange={(e) => updateLineItem(index, "unit", e.target.value)}
+                    placeholder="hours, pcs"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Rate (BSD)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={item.unit_rate}
+                    onChange={(e) => updateLineItem(index, "unit_rate", parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-muted-foreground">
+                  Line Total: <span className="font-medium text-foreground">{formatCurrency(item.quantity * item.unit_rate)}</span>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => removeLineItem(index)}
+                  disabled={items.length === 1}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      {/* Pricing & Summary */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calculator className="h-5 w-5" />
+              Markup & Tax
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="overhead">Overhead %</Label>
+                <Input
+                  id="overhead"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value={formData.overhead_markup_percent}
+                  onChange={(e) =>
+                    setFormData({ ...formData, overhead_markup_percent: parseFloat(e.target.value) || 0 })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="profit">Profit Margin %</Label>
+                <Input
+                  id="profit"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value={formData.profit_margin_percent}
+                  onChange={(e) =>
+                    setFormData({ ...formData, profit_margin_percent: parseFloat(e.target.value) || 0 })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="tax">Tax Rate %</Label>
+                <Input
+                  id="tax"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value={formData.tax_rate}
+                  onChange={(e) =>
+                    setFormData({ ...formData, tax_rate: parseFloat(e.target.value) || 0 })
+                  }
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Estimate Summary</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Subtotal</span>
+              <span>{formatCurrency(subtotal)}</span>
+            </div>
+            {overheadAmount > 0 && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">
+                  Overhead ({formData.overhead_markup_percent}%)
+                </span>
+                <span>{formatCurrency(overheadAmount)}</span>
+              </div>
+            )}
+            {profitAmount > 0 && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">
+                  Profit ({formData.profit_margin_percent}%)
+                </span>
+                <span>{formatCurrency(profitAmount)}</span>
+              </div>
+            )}
+            {taxAmount > 0 && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Tax ({formData.tax_rate}%)</span>
+                <span>{formatCurrency(taxAmount)}</span>
+              </div>
+            )}
+            <Separator />
+            <div className="flex justify-between text-lg font-bold">
+              <span>Total</span>
+              <span>{formatCurrency(totalAmount)}</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Notes & Terms */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Notes & Terms</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="notes">Internal Notes</Label>
+            <Textarea
+              id="notes"
+              value={formData.notes}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              placeholder="Internal notes (not shown to client)..."
+              rows={2}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="terms">Terms & Conditions</Label>
+            <Textarea
+              id="terms"
+              value={formData.terms_and_conditions}
+              onChange={(e) => setFormData({ ...formData, terms_and_conditions: e.target.value })}
+              placeholder="Payment terms, warranty information, etc."
+              rows={4}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Submit */}
+      <div className="flex items-center justify-end gap-4">
+        <Button type="button" variant="outline" onClick={() => router.back()}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={saving}>
+          {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+          <Save className="h-4 w-4 mr-2" />
+          {mode === "create" ? "Create Estimate" : "Save Changes"}
+        </Button>
+      </div>
+    </form>
+  );
+}
