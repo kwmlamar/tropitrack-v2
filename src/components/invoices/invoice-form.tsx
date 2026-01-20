@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Select,
   SelectContent,
@@ -37,6 +38,7 @@ import {
   FolderKanban,
   Calculator,
 } from "lucide-react";
+import { AIDescriptionField } from "@/components/ai/ai-description-field";
 import type {
   Invoice,
   InvoiceLineItem,
@@ -763,21 +765,19 @@ export function InvoiceForm({ invoice, lineItems = [], mode }: InvoiceFormProps)
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="issue_date">Issue Date *</Label>
-                <Input
+                <DatePicker
                   id="issue_date"
-                  type="date"
                   value={formData.issue_date}
-                  onChange={(e) => setFormData({ ...formData, issue_date: e.target.value })}
+                  onChange={(value) => setFormData({ ...formData, issue_date: value })}
                   required
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="due_date">Due Date *</Label>
-                <Input
+                <DatePicker
                   id="due_date"
-                  type="date"
                   value={formData.due_date}
-                  onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+                  onChange={(value) => setFormData({ ...formData, due_date: value })}
                   required
                 />
               </div>
@@ -903,16 +903,26 @@ export function InvoiceForm({ invoice, lineItems = [], mode }: InvoiceFormProps)
             <CardTitle>Notes & Terms</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notes</Label>
-              <Textarea
-                id="notes"
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                placeholder="Additional notes..."
-                rows={2}
-              />
-            </div>
+            <AIDescriptionField
+              id="notes"
+              label="Notes"
+              value={formData.notes}
+              onChange={(value) => setFormData({ ...formData, notes: value })}
+              placeholder="Additional notes for the client..."
+              rows={2}
+              contentType="invoice_description"
+              context={{
+                client_name: formData.client_name,
+                project_name: selectedProject?.name,
+                invoice_type: formData.invoice_type,
+                line_items: items.map((item) => ({
+                  category: item.category,
+                  description: item.description,
+                  quantity: item.quantity,
+                  unit: item.unit,
+                })),
+              }}
+            />
             <div className="space-y-2">
               <Label htmlFor="terms">Terms</Label>
               <Textarea
@@ -959,7 +969,6 @@ export function InvoiceForm({ invoice, lineItems = [], mode }: InvoiceFormProps)
         </Button>
         <Button type="submit" disabled={saving}>
           {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-          <Save className="h-4 w-4 mr-2" />
           {mode === "create" ? "Create Invoice" : "Save Changes"}
         </Button>
       </div>

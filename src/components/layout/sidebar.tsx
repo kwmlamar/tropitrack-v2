@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 import {
-  Building2,
   LayoutDashboard,
   FolderKanban,
   Users,
@@ -21,6 +21,7 @@ import {
   ChevronRight,
   FileText,
   Receipt,
+  CalendarDays,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -31,6 +32,7 @@ import { useState } from "react";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { name: "Schedule", href: "/schedule", icon: CalendarDays },
   { name: "Projects", href: "/projects", icon: FolderKanban },
   { name: "Estimates", href: "/estimates", icon: FileText },
   { name: "Invoices", href: "/invoices", icon: Receipt },
@@ -57,27 +59,38 @@ export function Sidebar() {
       )}
     >
       {/* Logo */}
-      <div className="flex h-16 items-center justify-between px-4 border-b">
-        <Link href="/dashboard" className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
-            <Building2 className="h-5 w-5 text-white" />
+      <div className={cn(
+        "flex h-16 items-center border-b",
+        collapsed ? "justify-center" : "justify-between"
+      )}>
+        <Link href="/dashboard" className={cn(
+          "flex items-center",
+          collapsed ? "justify-center" : "gap-2 px-2"
+        )}>
+          <div className="h-16 w-16 flex items-center justify-center flex-shrink-0 relative">
+            <Image
+              src="/logo.png"
+              alt="TropiTrack Logo"
+              width={64}
+              height={64}
+              className="object-contain"
+              priority
+            />
           </div>
           {!collapsed && (
             <span className="font-bold text-lg">TropiTrack</span>
           )}
         </Link>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8"
-          onClick={() => setCollapsed(!collapsed)}
-        >
-          {collapsed ? (
-            <ChevronRight className="h-4 w-4" />
-          ) : (
+        {!collapsed && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 mr-2"
+            onClick={() => setCollapsed(!collapsed)}
+          >
             <ChevronLeft className="h-4 w-4" />
-          )}
-        </Button>
+          </Button>
+        )}
       </div>
 
       {/* Navigation */}

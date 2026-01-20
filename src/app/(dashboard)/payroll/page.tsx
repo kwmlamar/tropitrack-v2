@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Select,
   SelectContent,
@@ -51,6 +52,11 @@ import {
 } from "lucide-react";
 import type { PayPeriod, Worker } from "@/types";
 
+// NIB Constants (Bahamian National Insurance Board)
+const NIB_EMPLOYEE_RATE = 0.0465; // 4.65%
+const NIB_EMPLOYER_RATE = 0.0665; // 6.65%
+const NIB_WEEKLY_MAX_INSURABLE = 550; // $550 per week max insurable wages
+
 interface PayrollEntry {
   id: string;
   worker_id: string;
@@ -61,9 +67,15 @@ interface PayrollEntry {
   gross_pay: number;
   deductions: number;
   net_pay: number;
+  deduction_details?: {
+    nib_employee?: number;
+    nib_employer?: number;
+    nib_insurable_wages?: number;
+  };
   worker?: {
     first_name: string;
     last_name: string;
+    nib_enabled?: boolean;
   };
 }
 
@@ -127,7 +139,7 @@ export default function PayrollPage() {
       .from("payroll_entries")
       .select(`
         *,
-        worker:workers(first_name, last_name)
+        worker:workers(first_name, last_name, nib_enabled)
       `)
       .eq("pay_period_id", period.id);
 
@@ -179,14 +191,15 @@ export default function PayrollPage() {
 
     setSubmitting(true);
     try {
-      // Fetch time entries for the pay period
+      // Fetch time entries for the pay period with worker NIB settings
       const { data: timeEntries } = await supabase
         .from("time_entries")
         .select(`
           worker_id,
           regular_hours,
           overtime_hours,
-          workers(hourly_rate, overtime_rate_multiplier)
+          date,
+          workers(hourly_rate, overtime_rate_multiplier, nib_enabled)
         `)
         .gte("date", selectedPeriod.start_date)
         .lte("date", selectedPeriod.end_date);
@@ -201,12 +214,19 @@ export default function PayrollPage() {
         return;
       }
 
+      // Calculate number of weeks in pay period for NIB max calculation
+      const startDate = new Date(selectedPeriod.start_date);
+      const endDate = new Date(selectedPeriod.end_date);
+      const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      const weeksInPeriod = Math.ceil(daysDiff / 7);
+
       // Aggregate by worker
       const workerTotals: Record<string, {
         regular_hours: number;
         overtime_hours: number;
         hourly_rate: number;
         overtime_multiplier: number;
+        nib_enabled: boolean;
       }> = {};
 
       timeEntries.forEach((entry: any) => {
@@ -216,19 +236,38 @@ export default function PayrollPage() {
             overtime_hours: 0,
             hourly_rate: entry.workers?.hourly_rate || 0,
             overtime_multiplier: entry.workers?.overtime_rate_multiplier || 1.5,
+            nib_enabled: entry.workers?.nib_enabled ?? true,
           };
         }
         workerTotals[entry.worker_id].regular_hours += entry.regular_hours;
         workerTotals[entry.worker_id].overtime_hours += entry.overtime_hours;
       });
 
-      // Create payroll entries
+      // Create payroll entries with proper NIB calculations
       const payrollEntries = Object.entries(workerTotals).map(([worker_id, totals]) => {
         const regularPay = totals.regular_hours * totals.hourly_rate;
         const overtimePay = totals.overtime_hours * totals.hourly_rate * totals.overtime_multiplier;
         const grossPay = regularPay + overtimePay;
-        const deductions = grossPay * 0.0385; // NIB contribution ~3.85%
-        const netPay = grossPay - deductions;
+
+        // Calculate NIB deductions if enabled
+        let nibEmployeeDeduction = 0;
+        let nibEmployerContribution = 0;
+        let nibInsurableWages = 0;
+
+        if (totals.nib_enabled) {
+          // Max insurable wages for the pay period (based on number of weeks)
+          const maxInsurableWages = NIB_WEEKLY_MAX_INSURABLE * weeksInPeriod;
+
+          // Insurable wages is the lesser of gross pay or max
+          nibInsurableWages = Math.min(grossPay, maxInsurableWages);
+
+          // Calculate NIB contributions
+          nibEmployeeDeduction = nibInsurableWages * NIB_EMPLOYEE_RATE;
+          nibEmployerContribution = nibInsurableWages * NIB_EMPLOYER_RATE;
+        }
+
+        const totalDeductions = nibEmployeeDeduction;
+        const netPay = grossPay - totalDeductions;
 
         return {
           pay_period_id: selectedPeriod.id,
@@ -238,9 +277,13 @@ export default function PayrollPage() {
           regular_rate: totals.hourly_rate,
           overtime_rate: totals.hourly_rate * totals.overtime_multiplier,
           gross_pay: grossPay,
-          deductions,
+          deductions: totalDeductions,
           net_pay: netPay,
-          deduction_details: { nib: deductions },
+          deduction_details: {
+            nib_employee: nibEmployeeDeduction,
+            nib_employer: nibEmployerContribution,
+            nib_insurable_wages: nibInsurableWages,
+          },
         };
       });
 
@@ -318,6 +361,8 @@ export default function PayrollPage() {
   const totalGrossPay = selectedPeriod?.entries?.reduce((sum, e) => sum + e.gross_pay, 0) || 0;
   const totalDeductions = selectedPeriod?.entries?.reduce((sum, e) => sum + e.deductions, 0) || 0;
   const totalNetPay = selectedPeriod?.entries?.reduce((sum, e) => sum + e.net_pay, 0) || 0;
+  const totalNibEmployee = selectedPeriod?.entries?.reduce((sum, e) => sum + (e.deduction_details?.nib_employee || 0), 0) || 0;
+  const totalNibEmployer = selectedPeriod?.entries?.reduce((sum, e) => sum + (e.deduction_details?.nib_employer || 0), 0) || 0;
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -338,21 +383,19 @@ export default function PayrollPage() {
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
                   <Label htmlFor="start_date">Start Date</Label>
-                  <Input
+                  <DatePicker
                     id="start_date"
-                    type="date"
                     value={periodForm.start_date}
-                    onChange={(e) => setPeriodForm({ ...periodForm, start_date: e.target.value })}
+                    onChange={(value) => setPeriodForm({ ...periodForm, start_date: value })}
                     required
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="end_date">End Date</Label>
-                  <Input
+                  <DatePicker
                     id="end_date"
-                    type="date"
                     value={periodForm.end_date}
-                    onChange={(e) => setPeriodForm({ ...periodForm, end_date: e.target.value })}
+                    onChange={(value) => setPeriodForm({ ...periodForm, end_date: value })}
                     required
                   />
                 </div>
@@ -462,7 +505,6 @@ export default function PayrollPage() {
                     )}
                     {selectedPeriod.status === "processing" && (
                       <Button onClick={handleMarkPaid}>
-                        <CheckCircle className="h-4 w-4 mr-2" />
                         Mark as Paid
                       </Button>
                     )}
@@ -470,7 +512,7 @@ export default function PayrollPage() {
                 </CardHeader>
                 <CardContent>
                   {/* Summary Cards */}
-                  <div className="grid gap-4 md:grid-cols-3 mb-6">
+                  <div className="grid gap-4 md:grid-cols-4 mb-6">
                     <Card>
                       <CardContent className="p-4">
                         <div className="flex items-center gap-2">
@@ -483,10 +525,20 @@ export default function PayrollPage() {
                     <Card>
                       <CardContent className="p-4">
                         <div className="flex items-center gap-2">
-                          <AlertCircle className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">Deductions</span>
+                          <AlertCircle className="h-4 w-4 text-orange-500" />
+                          <span className="text-sm text-muted-foreground">NIB Employee (4.65%)</span>
                         </div>
-                        <p className="text-2xl font-bold mt-1">{formatCurrency(totalDeductions)}</p>
+                        <p className="text-2xl font-bold mt-1">{formatCurrency(totalNibEmployee)}</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-2">
+                          <AlertCircle className="h-4 w-4 text-blue-500" />
+                          <span className="text-sm text-muted-foreground">NIB Employer (6.65%)</span>
+                        </div>
+                        <p className="text-2xl font-bold mt-1 text-blue-600">{formatCurrency(totalNibEmployer)}</p>
+                        <p className="text-xs text-muted-foreground mt-1">Company expense</p>
                       </CardContent>
                     </Card>
                     <Card>
@@ -508,24 +560,39 @@ export default function PayrollPage() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Worker</TableHead>
-                          <TableHead>Regular Hrs</TableHead>
-                          <TableHead>OT Hrs</TableHead>
-                          <TableHead>Gross Pay</TableHead>
-                          <TableHead>Deductions</TableHead>
-                          <TableHead>Net Pay</TableHead>
+                          <TableHead className="text-right">Hours</TableHead>
+                          <TableHead className="text-right">Gross Pay</TableHead>
+                          <TableHead className="text-right">NIB (EE)</TableHead>
+                          <TableHead className="text-right">NIB (ER)</TableHead>
+                          <TableHead className="text-right">Net Pay</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {selectedPeriod.entries.map((entry) => (
                           <TableRow key={entry.id}>
-                            <TableCell className="font-medium">
-                              {entry.worker?.first_name} {entry.worker?.last_name}
+                            <TableCell>
+                              <div className="font-medium">
+                                {entry.worker?.first_name} {entry.worker?.last_name}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {entry.regular_hours.toFixed(1)} reg + {entry.overtime_hours.toFixed(1)} OT
+                              </div>
                             </TableCell>
-                            <TableCell>{entry.regular_hours.toFixed(1)}</TableCell>
-                            <TableCell>{entry.overtime_hours.toFixed(1)}</TableCell>
-                            <TableCell>{formatCurrency(entry.gross_pay)}</TableCell>
-                            <TableCell>{formatCurrency(entry.deductions)}</TableCell>
-                            <TableCell className="font-medium">
+                            <TableCell className="text-right">
+                              {(entry.regular_hours + entry.overtime_hours).toFixed(1)}
+                            </TableCell>
+                            <TableCell className="text-right">{formatCurrency(entry.gross_pay)}</TableCell>
+                            <TableCell className="text-right text-orange-600">
+                              {entry.deduction_details?.nib_employee
+                                ? formatCurrency(entry.deduction_details.nib_employee)
+                                : "-"}
+                            </TableCell>
+                            <TableCell className="text-right text-blue-600">
+                              {entry.deduction_details?.nib_employer
+                                ? formatCurrency(entry.deduction_details.nib_employer)
+                                : "-"}
+                            </TableCell>
+                            <TableCell className="text-right font-medium text-green-600">
                               {formatCurrency(entry.net_pay)}
                             </TableCell>
                           </TableRow>

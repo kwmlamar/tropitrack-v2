@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Select,
   SelectContent,
@@ -26,6 +27,7 @@ import {
   Save,
   Calculator,
 } from "lucide-react";
+import { AIDescriptionField } from "@/components/ai/ai-description-field";
 import type {
   Estimate,
   EstimateLineItem,
@@ -431,34 +433,42 @@ export function EstimateForm({ estimate, lineItems = [], mode }: EstimateFormPro
                 required
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Brief description of the work..."
-                rows={3}
-              />
-            </div>
+            <AIDescriptionField
+              id="description"
+              label="Description"
+              value={formData.description}
+              onChange={(value) => setFormData({ ...formData, description: value })}
+              placeholder="Brief description of the work..."
+              rows={3}
+              contentType="estimate_description"
+              context={{
+                title: formData.title,
+                client_name: formData.client_name,
+                project_type: "Construction",
+                line_items: items.map((item) => ({
+                  category: item.category,
+                  description: item.description,
+                  quantity: item.quantity,
+                  unit: item.unit,
+                })),
+              }}
+            />
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="issue_date">Issue Date *</Label>
-                <Input
+                <DatePicker
                   id="issue_date"
-                  type="date"
                   value={formData.issue_date}
-                  onChange={(e) => setFormData({ ...formData, issue_date: e.target.value })}
+                  onChange={(value) => setFormData({ ...formData, issue_date: value })}
                   required
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="valid_until">Valid Until</Label>
-                <Input
+                <DatePicker
                   id="valid_until"
-                  type="date"
                   value={formData.valid_until}
-                  onChange={(e) => setFormData({ ...formData, valid_until: e.target.value })}
+                  onChange={(value) => setFormData({ ...formData, valid_until: value })}
                 />
               </div>
             </div>
@@ -763,7 +773,6 @@ export function EstimateForm({ estimate, lineItems = [], mode }: EstimateFormPro
         </Button>
         <Button type="submit" disabled={saving}>
           {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-          <Save className="h-4 w-4 mr-2" />
           {mode === "create" ? "Create Estimate" : "Save Changes"}
         </Button>
       </div>

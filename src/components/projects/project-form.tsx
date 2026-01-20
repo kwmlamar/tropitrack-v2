@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Select,
   SelectContent,
@@ -284,10 +285,12 @@ export function ProjectForm({ project, isEditing = false }: ProjectFormProps) {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="start_date">Start Date *</Label>
-              <Input
+              <DatePicker
                 id="start_date"
-                type="date"
-                {...register("start_date")}
+                value={watch("start_date")}
+                onChange={(value) => setValue("start_date", value)}
+                required
+                error={!!errors.start_date}
               />
               {errors.start_date && (
                 <p className="text-sm text-destructive">{errors.start_date.message}</p>
@@ -296,10 +299,10 @@ export function ProjectForm({ project, isEditing = false }: ProjectFormProps) {
 
             <div className="space-y-2">
               <Label htmlFor="estimated_end_date">Estimated End Date</Label>
-              <Input
+              <DatePicker
                 id="estimated_end_date"
-                type="date"
-                {...register("estimated_end_date")}
+                value={watch("estimated_end_date")}
+                onChange={(value) => setValue("estimated_end_date", value)}
               />
             </div>
           </CardContent>
@@ -356,7 +359,6 @@ export function ProjectForm({ project, isEditing = false }: ProjectFormProps) {
         </Button>
         <Button type="submit" disabled={loading}>
           {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-          <Save className="h-4 w-4 mr-2" />
           {isEditing ? "Update Project" : "Create Project"}
         </Button>
       </div>

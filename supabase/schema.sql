@@ -145,6 +145,9 @@ CREATE TABLE public.workers (
     emergency_contact_name TEXT,
     emergency_contact_phone TEXT,
     notes TEXT,
+    -- NIB (National Insurance Board) settings
+    nib_enabled BOOLEAN DEFAULT true,
+    nib_number TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -154,8 +157,14 @@ ALTER TABLE public.workers ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view workers" ON public.workers
     FOR SELECT USING (auth.role() = 'authenticated');
 
-CREATE POLICY "Admins can manage workers" ON public.workers
-    FOR ALL USING (
+CREATE POLICY "Users can create workers" ON public.workers
+    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Users can update workers" ON public.workers
+    FOR UPDATE USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Admins can delete workers" ON public.workers
+    FOR DELETE USING (
         EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
     );
 
@@ -1206,3 +1215,109 @@ INSERT INTO public.materials (name, category, unit, unit_cost, quantity_in_stock
 ('Interior Paint (5 gal)', 'finishing', 'bucket', 125.00, 30, 10),
 ('Deck Screws (5lb box)', 'hardware', 'box', 28.00, 50, 10);
 */
+
+-- ============================================
+-- AI FEATURES TABLES
+-- ============================================
+
+-- Search query history for Smart Search
+CREATE TABLE public.search_queries (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+    query_text TEXT NOT NULL,
+    parsed_intent JSONB,
+    generated_sql TEXT,
+    results_count INTEGER DEFAULT 0,
+    successful BOOLEAN DEFAULT true,
+    execution_time_ms INTEGER,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.search_queries ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own search history" ON public.search_queries
+    FOR SELECT USING (user_id = auth.uid());
+
+CREATE POLICY "Users can create search queries" ON public.search_queries
+    FOR INSERT WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "Users can delete own search history" ON public.search_queries
+    FOR DELETE USING (user_id = auth.uid());
+
+CREATE INDEX idx_search_queries_user ON public.search_queries(user_id);
+CREATE INDEX idx_search_queries_created ON public.search_queries(created_at DESC);
+
+-- AI generation tracking for auto-draft descriptions
+CREATE TABLE public.ai_generations (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+    content_type VARCHAR(50) NOT NULL,
+    input_context JSONB NOT NULL,
+    generated_text TEXT NOT NULL,
+    accepted BOOLEAN DEFAULT false,
+    edited BOOLEAN DEFAULT false,
+    final_text TEXT,
+    tokens_used INTEGER,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.ai_generations ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own AI generations" ON public.ai_generations
+    FOR SELECT USING (user_id = auth.uid());
+
+CREATE POLICY "Users can create AI generations" ON public.ai_generations
+    FOR INSERT WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "Users can update own AI generations" ON public.ai_generations
+    FOR UPDATE USING (user_id = auth.uid());
+
+CREATE INDEX idx_ai_generations_user ON public.ai_generations(user_id);
+CREATE INDEX idx_ai_generations_type ON public.ai_generations(content_type);
+CREATE INDEX idx_ai_generations_created ON public.ai_generations(created_at DESC);
+
+-- User AI preferences
+CREATE TABLE public.user_ai_preferences (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE UNIQUE NOT NULL,
+    tone VARCHAR(20) DEFAULT 'professional' CHECK (tone IN ('professional', 'concise', 'detailed')),
+    search_history_enabled BOOLEAN DEFAULT true,
+    auto_draft_enabled BOOLEAN DEFAULT true,
+    daily_search_count INTEGER DEFAULT 0,
+    last_search_reset DATE DEFAULT CURRENT_DATE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.user_ai_preferences ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own AI preferences" ON public.user_ai_preferences
+    FOR SELECT USING (user_id = auth.uid());
+
+CREATE POLICY "Users can create own AI preferences" ON public.user_ai_preferences
+    FOR INSERT WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "Users can update own AI preferences" ON public.user_ai_preferences
+    FOR UPDATE USING (user_id = auth.uid());
+
+-- Function to increment search count and check rate limit
+CREATE OR REPLACE FUNCTION public.increment_search_count(p_user_id UUID)
+RETURNS INTEGER AS $$
+DECLARE
+    v_count INTEGER;
+BEGIN
+    INSERT INTO public.user_ai_preferences (user_id, daily_search_count, last_search_reset)
+    VALUES (p_user_id, 1, CURRENT_DATE)
+    ON CONFLICT (user_id) DO UPDATE
+    SET daily_search_count =
+        CASE
+            WHEN user_ai_preferences.last_search_reset < CURRENT_DATE THEN 1
+            ELSE user_ai_preferences.daily_search_count + 1
+        END,
+        last_search_reset = CURRENT_DATE,
+        updated_at = NOW()
+    RETURNING daily_search_count INTO v_count;
+
+    RETURN v_count;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;

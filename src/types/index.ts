@@ -82,6 +82,9 @@ export interface Worker {
   emergency_contact_name?: string;
   emergency_contact_phone?: string;
   notes?: string;
+  // NIB (National Insurance Board) settings
+  nib_enabled?: boolean;
+  nib_number?: string;
   created_at: string;
   updated_at: string;
 }
@@ -385,6 +388,9 @@ export interface WorkerFormData {
   emergency_contact_name?: string;
   emergency_contact_phone?: string;
   notes?: string;
+  // NIB (National Insurance Board) settings
+  nib_enabled?: boolean;
+  nib_number?: string;
 }
 
 export interface TimeEntryFormData {
@@ -707,4 +713,155 @@ export interface ParsedReceiptLineItem {
 export interface PurchaseOrderWithReceipt extends PurchaseOrder {
   receipt_image_path?: string;
   ocr_raw_text?: string;
+}
+
+// ============================================
+// AI Features Types
+// ============================================
+
+export type AITone = "professional" | "concise" | "detailed";
+
+export type AIContentType =
+  | "estimate_description"
+  | "invoice_description"
+  | "material_description"
+  | "line_item"
+  | "project_description";
+
+export interface SearchQuery {
+  id: string;
+  user_id: string;
+  query_text: string;
+  parsed_intent?: {
+    entity_type: string;
+    filters: Record<string, unknown>;
+    action: string;
+  };
+  generated_sql?: string;
+  results_count: number;
+  successful: boolean;
+  execution_time_ms?: number;
+  created_at: string;
+}
+
+export interface AIGeneration {
+  id: string;
+  user_id: string;
+  content_type: AIContentType;
+  input_context: Record<string, unknown>;
+  generated_text: string;
+  accepted: boolean;
+  edited: boolean;
+  final_text?: string;
+  tokens_used?: number;
+  created_at: string;
+}
+
+export interface UserAIPreferences {
+  id: string;
+  user_id: string;
+  tone: AITone;
+  search_history_enabled: boolean;
+  auto_draft_enabled: boolean;
+  daily_search_count: number;
+  last_search_reset: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// Smart Search Types
+export interface SearchResult {
+  id: string;
+  type: "project" | "invoice" | "estimate" | "worker" | "material" | "vendor" | "purchase_order" | "client";
+  title: string;
+  subtitle?: string;
+  url: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface SmartSearchResponse {
+  success: boolean;
+  query: string;
+  summary: string;
+  results: SearchResult[];
+  resultCount: number;
+  executionTimeMs: number;
+  error?: string;
+}
+
+// AI Generation Request/Response
+export interface GenerateDescriptionRequest {
+  content_type: AIContentType;
+  context: Record<string, unknown>;
+  tone?: AITone;
+}
+
+export interface GenerateDescriptionResponse {
+  success: boolean;
+  generated_text: string;
+  tokens_used?: number;
+  error?: string;
+}
+
+// ============================================
+// CALENDAR TYPES
+// ============================================
+
+export type CalendarViewMode = "month" | "week" | "day" | "agenda";
+
+export type CalendarEventType =
+  | "project"
+  | "milestone"
+  | "worker"
+  | "material_delivery"
+  | "invoice_due"
+  | "timesheet"
+  | "equipment";
+
+export interface CalendarEvent {
+  id: string;
+  type: CalendarEventType;
+  title: string;
+  subtitle?: string;
+  date: string;
+  endDate?: string;
+  allDay?: boolean;
+  startTime?: string;
+  endTime?: string;
+  color?: string;
+  url?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface CalendarFilters {
+  showProjects?: boolean;
+  showMilestones?: boolean;
+  showWorkers?: boolean;
+  showDeliveries?: boolean;
+  showInvoices?: boolean;
+  showTimesheets?: boolean;
+  showEquipment?: boolean;
+}
+
+export interface CalendarProps {
+  mode?: CalendarViewMode;
+  selectedDate?: Date;
+  onDateSelect?: (date: Date) => void;
+  onEventClick?: (event: CalendarEvent) => void;
+  events?: CalendarEvent[];
+  filters?: CalendarFilters;
+  enableRangeSelect?: boolean;
+  highlightToday?: boolean;
+  minDate?: Date;
+  maxDate?: Date;
+  className?: string;
+}
+
+export interface CalendarDayData {
+  date: Date;
+  isToday: boolean;
+  isSelected: boolean;
+  isCurrentMonth: boolean;
+  isWeekend: boolean;
+  events: CalendarEvent[];
 }

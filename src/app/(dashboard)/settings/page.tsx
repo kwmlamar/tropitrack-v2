@@ -19,13 +19,24 @@ import {
   Bell,
   Shield,
   Loader2,
-  Save,
+  Sparkles,
+  Wallet,
+  Info,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import type { AITone } from "@/types";
 
 export default function SettingsPage() {
-  const { profile, refreshProfile } = useAuth();
+  const { profile, session, refreshProfile } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
   const supabase = createClient();
 
   const [profileForm, setProfileForm] = useState({
@@ -38,6 +49,71 @@ export default function SettingsPage() {
     new_password: "",
     confirm_password: "",
   });
+
+  const [aiPreferences, setAiPreferences] = useState({
+    tone: "professional" as AITone,
+    search_history_enabled: true,
+    auto_draft_enabled: true,
+  });
+
+  // Load AI preferences on mount
+  useState(() => {
+    const loadAiPreferences = async () => {
+      if (!profile?.id) return;
+
+      const { data } = await supabase
+        .from("user_ai_preferences")
+        .select("*")
+        .eq("user_id", profile.id)
+        .single();
+
+      if (data) {
+        setAiPreferences({
+          tone: data.tone || "professional",
+          search_history_enabled: data.search_history_enabled ?? true,
+          auto_draft_enabled: data.auto_draft_enabled ?? true,
+        });
+      }
+    };
+
+    loadAiPreferences();
+  });
+
+  const handleAiPreferencesUpdate = async () => {
+    if (!profile?.id) return;
+
+    setAiLoading(true);
+    try {
+      const { error } = await supabase
+        .from("user_ai_preferences")
+        .upsert({
+          user_id: profile.id,
+          tone: aiPreferences.tone,
+          search_history_enabled: aiPreferences.search_history_enabled,
+          auto_draft_enabled: aiPreferences.auto_draft_enabled,
+          updated_at: new Date().toISOString(),
+        }, {
+          onConflict: "user_id",
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "AI preferences saved",
+        description: "Your AI settings have been updated.",
+        variant: "success",
+      });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "An error occurred";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -145,9 +221,17 @@ export default function SettingsPage() {
               <Building2 className="h-4 w-4" />
               Company
             </TabsTrigger>
+            <TabsTrigger value="payroll" className="flex items-center gap-2">
+              <Wallet className="h-4 w-4" />
+              Payroll
+            </TabsTrigger>
             <TabsTrigger value="notifications" className="flex items-center gap-2">
               <Bell className="h-4 w-4" />
               Notifications
+            </TabsTrigger>
+            <TabsTrigger value="ai" className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4" />
+              AI Settings
             </TabsTrigger>
           </TabsList>
 
@@ -227,7 +311,6 @@ export default function SettingsPage() {
                   <div className="flex justify-end">
                     <Button type="submit" disabled={loading}>
                       {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                      <Save className="h-4 w-4 mr-2" />
                       Save Changes
                     </Button>
                   </div>
@@ -332,9 +415,96 @@ export default function SettingsPage() {
                     </div>
                   </div>
                   <Button>
-                    <Save className="h-4 w-4 mr-2" />
                     Save Company Settings
                   </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="payroll">
+            <Card>
+              <CardHeader>
+                <CardTitle>Payroll Settings</CardTitle>
+                <CardDescription>
+                  National Insurance Board (NIB) deduction rates and payroll configurations
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* NIB Information Section */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <Wallet className="h-5 w-5 text-primary" />
+                    NIB (National Insurance Board) Contributions
+                  </h3>
+
+                  <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+                    <div className="flex gap-3">
+                      <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                      <div className="text-sm text-blue-800 dark:text-blue-200">
+                        <p className="font-medium mb-1">Mandatory Payroll Deductions</p>
+                        <p>NIB contributions are mandatory for all employed persons in The Bahamas.
+                        The rates below are set by law and apply to all workers.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div className="bg-muted/50 rounded-lg p-4 text-center">
+                      <p className="text-sm text-muted-foreground mb-1">Employee Contribution</p>
+                      <p className="text-2xl font-bold text-primary">4.65%</p>
+                      <p className="text-xs text-muted-foreground mt-1">Deducted from gross wages</p>
+                    </div>
+                    <div className="bg-muted/50 rounded-lg p-4 text-center">
+                      <p className="text-sm text-muted-foreground mb-1">Employer Contribution</p>
+                      <p className="text-2xl font-bold text-primary">6.65%</p>
+                      <p className="text-xs text-muted-foreground mt-1">Paid by employer</p>
+                    </div>
+                    <div className="bg-muted/50 rounded-lg p-4 text-center">
+                      <p className="text-sm text-muted-foreground mb-1">Weekly Max Insurable</p>
+                      <p className="text-2xl font-bold text-primary">$550</p>
+                      <p className="text-xs text-muted-foreground mt-1">Maximum weekly wages</p>
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* How NIB is calculated */}
+                <div>
+                  <h4 className="font-medium mb-3">How NIB Deductions Are Calculated</h4>
+                  <div className="space-y-3 text-sm text-muted-foreground">
+                    <div className="flex items-start gap-2">
+                      <span className="bg-primary/10 text-primary rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5 text-xs font-medium">1</span>
+                      <p>Calculate gross wages for the pay period (regular hours × rate + overtime hours × OT rate)</p>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="bg-primary/10 text-primary rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5 text-xs font-medium">2</span>
+                      <p>Cap weekly wages at $550 for NIB calculation purposes</p>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="bg-primary/10 text-primary rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5 text-xs font-medium">3</span>
+                      <p>Employee deduction: Capped wages × 4.65% (deducted from paycheck)</p>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="bg-primary/10 text-primary rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5 text-xs font-medium">4</span>
+                      <p>Employer contribution: Capped wages × 6.65% (company expense, not deducted)</p>
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Worker NIB Settings Note */}
+                <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+                  <div className="flex gap-3">
+                    <Info className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm text-amber-800 dark:text-amber-200">
+                      <p className="font-medium mb-1">Per-Worker NIB Settings</p>
+                      <p>NIB deductions can be enabled or disabled for individual workers in their profile.
+                      Go to Workers → Edit Worker to manage NIB settings and enter their NIB number.</p>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -387,8 +557,111 @@ export default function SettingsPage() {
                     <input type="checkbox" defaultChecked className="h-5 w-5" />
                   </div>
                   <Button>
-                    <Save className="h-4 w-4 mr-2" />
                     Save Preferences
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="ai">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                  AI Features
+                </CardTitle>
+                <CardDescription>
+                  Configure AI-powered search and content generation
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6 max-w-md">
+                  <div className="space-y-3">
+                    <Label htmlFor="ai_tone">Default Writing Tone</Label>
+                    <Select
+                      value={aiPreferences.tone}
+                      onValueChange={(value: AITone) =>
+                        setAiPreferences({ ...aiPreferences, tone: value })
+                      }
+                    >
+                      <SelectTrigger id="ai_tone">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="professional">
+                          Professional - Formal business language
+                        </SelectItem>
+                        <SelectItem value="concise">
+                          Concise - Brief and to-the-point
+                        </SelectItem>
+                        <SelectItem value="detailed">
+                          Detailed - Comprehensive with technical details
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      This affects how AI generates descriptions for estimates, invoices, and other content
+                    </p>
+                  </div>
+
+                  <Separator />
+
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Smart Search History</p>
+                        <p className="text-sm text-muted-foreground">
+                          Save your search queries for quick access
+                        </p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={aiPreferences.search_history_enabled}
+                        onChange={(e) =>
+                          setAiPreferences({
+                            ...aiPreferences,
+                            search_history_enabled: e.target.checked,
+                          })
+                        }
+                        className="h-5 w-5"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Auto-Draft Descriptions</p>
+                        <p className="text-sm text-muted-foreground">
+                          Show AI generation button on description fields
+                        </p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={aiPreferences.auto_draft_enabled}
+                        onChange={(e) =>
+                          setAiPreferences({
+                            ...aiPreferences,
+                            auto_draft_enabled: e.target.checked,
+                          })
+                        }
+                        className="h-5 w-5"
+                      />
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div className="bg-muted/50 rounded-lg p-4">
+                    <p className="text-sm font-medium mb-2">Usage Limits</p>
+                    <div className="text-sm text-muted-foreground space-y-1">
+                      <p>Smart searches: 50 per day</p>
+                      <p>Content generations: 100 per day</p>
+                    </div>
+                  </div>
+
+                  <Button onClick={handleAiPreferencesUpdate} disabled={aiLoading}>
+                    {aiLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Save AI Settings
                   </Button>
                 </div>
               </CardContent>

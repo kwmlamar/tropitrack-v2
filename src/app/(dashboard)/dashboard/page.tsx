@@ -18,6 +18,7 @@ import {
   Clock,
   ArrowRight,
   Plus,
+  Zap,
 } from "lucide-react";
 import Link from "next/link";
 import type { Project, Worker, Material } from "@/types";
@@ -141,12 +142,20 @@ export default function DashboardPage() {
         title="Dashboard"
         description="Welcome to TropiTrack - Your construction management hub"
       >
-        <Link href="/projects/new">
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            New Project
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/time-tracking/quick">
+            <Button variant="default">
+              <Zap className="h-4 w-4 mr-2" />
+              Quick Time Entry
+            </Button>
+          </Link>
+          <Link href="/projects/new">
+            <Button variant="outline">
+              <Plus className="h-4 w-4 mr-2" />
+              New Project
+            </Button>
+          </Link>
+        </div>
       </Header>
 
       <div className="flex-1 p-6 space-y-6">

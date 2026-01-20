@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Select,
   SelectContent,
@@ -661,13 +662,13 @@ export default function InvoiceDetailPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="payment_date">Payment Date *</Label>
-                <Input
+                <DatePicker
                   id="payment_date"
-                  type="date"
                   value={paymentForm.payment_date}
-                  onChange={(e) =>
-                    setPaymentForm({ ...paymentForm, payment_date: e.target.value })
+                  onChange={(value) =>
+                    setPaymentForm({ ...paymentForm, payment_date: value })
                   }
+                  required
                 />
               </div>
               <div className="space-y-2">
@@ -720,7 +721,6 @@ export default function InvoiceDetailPage() {
             </Button>
             <Button onClick={handleRecordPayment} disabled={recordingPayment}>
               {recordingPayment && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              <CheckCircle className="h-4 w-4 mr-2" />
               Record Payment
             </Button>
           </DialogFooter>

@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Select,
   SelectContent,
@@ -19,7 +20,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Save } from "lucide-react";
+import { Loader2, Wallet, Info } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import type { Worker } from "@/types";
 
 const workerSchema = z.object({
@@ -38,6 +40,9 @@ const workerSchema = z.object({
   emergency_contact_name: z.string().optional(),
   emergency_contact_phone: z.string().optional(),
   notes: z.string().optional(),
+  // NIB fields
+  nib_enabled: z.boolean().default(true),
+  nib_number: z.string().optional(),
 });
 
 type WorkerFormData = z.infer<typeof workerSchema>;
@@ -77,6 +82,8 @@ export function WorkerForm({ worker, isEditing = false }: WorkerFormProps) {
       emergency_contact_name: worker?.emergency_contact_name || "",
       emergency_contact_phone: worker?.emergency_contact_phone || "",
       notes: worker?.notes || "",
+      nib_enabled: worker?.nib_enabled ?? true,
+      nib_number: worker?.nib_number || "",
     },
   });
 
@@ -90,6 +97,7 @@ export function WorkerForm({ worker, isEditing = false }: WorkerFormProps) {
         email: data.email || null,
         hourly_rate: data.worker_type === "hourly" ? data.hourly_rate : null,
         salary_amount: data.worker_type === "salary" ? data.salary_amount : null,
+        nib_number: data.nib_number || null,
       };
 
       if (isEditing && worker) {
@@ -309,10 +317,12 @@ export function WorkerForm({ worker, isEditing = false }: WorkerFormProps) {
 
             <div className="space-y-2">
               <Label htmlFor="hire_date">Hire Date *</Label>
-              <Input
+              <DatePicker
                 id="hire_date"
-                type="date"
-                {...register("hire_date")}
+                value={watch("hire_date")}
+                onChange={(value) => setValue("hire_date", value)}
+                required
+                error={!!errors.hire_date}
               />
               {errors.hire_date && (
                 <p className="text-sm text-destructive">{errors.hire_date.message}</p>
@@ -343,6 +353,57 @@ export function WorkerForm({ worker, isEditing = false }: WorkerFormProps) {
                 placeholder="(242) 555-5678"
                 {...register("emergency_contact_phone")}
               />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* NIB Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Wallet className="h-5 w-5 text-primary" />
+              NIB Settings
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-start space-x-3">
+              <Checkbox
+                id="nib_enabled"
+                checked={watch("nib_enabled")}
+                onCheckedChange={(checked) => setValue("nib_enabled", checked === true)}
+              />
+              <div className="space-y-1">
+                <Label htmlFor="nib_enabled" className="font-medium cursor-pointer">
+                  Enable NIB Deductions
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Automatically calculate NIB contributions for this worker&apos;s payroll
+                </p>
+              </div>
+            </div>
+
+            {watch("nib_enabled") && (
+              <div className="space-y-2 pt-2">
+                <Label htmlFor="nib_number">NIB Number</Label>
+                <Input
+                  id="nib_number"
+                  placeholder="Enter NIB number"
+                  {...register("nib_number")}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Worker&apos;s National Insurance Board registration number
+                </p>
+              </div>
+            )}
+
+            <div className="bg-muted/50 rounded-lg p-3 mt-4">
+              <div className="flex gap-2">
+                <Info className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                <div className="text-xs text-muted-foreground">
+                  <p className="font-medium mb-1">NIB Rates (Bahamian Law)</p>
+                  <p>Employee: 4.65% • Employer: 6.65% • Max weekly: $550</p>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -378,7 +439,6 @@ export function WorkerForm({ worker, isEditing = false }: WorkerFormProps) {
         </Button>
         <Button type="submit" disabled={loading}>
           {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-          <Save className="h-4 w-4 mr-2" />
           {isEditing ? "Update Worker" : "Add Worker"}
         </Button>
       </div>

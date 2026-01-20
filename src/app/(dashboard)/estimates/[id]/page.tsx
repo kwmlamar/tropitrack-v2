@@ -365,7 +365,6 @@ export default function EstimateDetailPage() {
                 className="text-green-600"
                 onClick={() => handleStatusChange("approved")}
               >
-                <CheckCircle className="h-4 w-4 mr-2" />
                 Approve
               </Button>
               <Button

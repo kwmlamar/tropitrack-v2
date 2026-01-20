@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Select,
   SelectContent,
@@ -610,11 +611,10 @@ export default function VendorsPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="po_date">Order Date</Label>
-                <Input
+                <DatePicker
                   id="po_date"
-                  type="date"
                   value={poForm.order_date}
-                  onChange={(e) => setPoForm({ ...poForm, order_date: e.target.value })}
+                  onChange={(value) => setPoForm({ ...poForm, order_date: value })}
                 />
               </div>
 

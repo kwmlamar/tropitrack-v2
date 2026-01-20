@@ -1,8 +1,7 @@
 "use client";
 
-import { Bell, Search, Menu } from "lucide-react";
+import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { SearchModal } from "@/components/search/search-modal";
 
 interface HeaderProps {
   title: string;
@@ -31,16 +31,7 @@ export function Header({ title, description, children }: HeaderProps) {
         </div>
         <div className="flex items-center gap-4">
           {children}
-          <div className="hidden md:flex items-center gap-2">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Search..."
-                className="w-64 pl-8"
-              />
-            </div>
-          </div>
+          <SearchModal />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="relative">

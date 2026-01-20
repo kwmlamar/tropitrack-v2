@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Select,
   SelectContent,
@@ -44,7 +45,9 @@ import {
   Users,
   Loader2,
   Trash2,
+  Zap,
 } from "lucide-react";
+import Link from "next/link";
 import type { Project, Worker, TimeEntry } from "@/types";
 
 interface TimeEntryWithRelations extends TimeEntry {
@@ -212,13 +215,20 @@ export default function TimeTrackingPage() {
   return (
     <div className="flex flex-col min-h-screen">
       <Header title="Time Tracking" description="Log and manage worker hours">
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Log Time
+        <div className="flex items-center gap-2">
+          <Link href="/time-tracking/quick">
+            <Button variant="default">
+              <Zap className="h-4 w-4 mr-2" />
+              Quick Entry
             </Button>
-          </DialogTrigger>
+          </Link>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <Plus className="h-4 w-4 mr-2" />
+                Single Entry
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>Log Time Entry</DialogTitle>
@@ -288,13 +298,13 @@ export default function TimeTrackingPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="date">Date *</Label>
-                  <Input
+                  <DatePicker
                     id="date"
-                    type="date"
                     value={formData.date}
-                    onChange={(e) =>
-                      setFormData({ ...formData, date: e.target.value })
+                    onChange={(value) =>
+                      setFormData({ ...formData, date: value })
                     }
+                    required
                   />
                 </div>
 
@@ -382,6 +392,7 @@ export default function TimeTrackingPage() {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </Header>
 
       <div className="flex-1 p-6 space-y-6">
@@ -389,18 +400,15 @@ export default function TimeTrackingPage() {
         <Card>
           <CardContent className="py-4">
             <div className="flex flex-col sm:flex-row gap-4">
-              <div className="space-y-2 sm:space-y-0 sm:flex sm:items-center sm:gap-2">
+              <div className="space-y-2 sm:space-y-0">
                 <Label htmlFor="filter-date" className="sm:sr-only">Date</Label>
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="filter-date"
-                    type="date"
-                    value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                    className="w-auto"
-                  />
-                </div>
+                <DatePicker
+                  id="filter-date"
+                  value={selectedDate}
+                  onChange={(value) => setSelectedDate(value || new Date().toISOString().split("T")[0])}
+                  clearable={false}
+                  className="w-auto min-w-[200px]"
+                />
               </div>
               <div className="flex-1">
                 {/* #region agent log */}

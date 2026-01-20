@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -421,11 +422,10 @@ export function ReceiptScannerDialog({
         </div>
         <div className="space-y-2">
           <Label htmlFor="receipt_date">Date</Label>
-          <Input
+          <DatePicker
             id="receipt_date"
-            type="date"
             value={receiptDate}
-            onChange={(e) => setReceiptDate(e.target.value)}
+            onChange={(value) => setReceiptDate(value)}
           />
         </div>
       </div>
@@ -539,7 +539,6 @@ export function ReceiptScannerDialog({
           Re-scan
         </Button>
         <Button onClick={handleConfirm}>
-          <Check className="h-4 w-4 mr-2" />
           Confirm & Use
         </Button>
       </div>
