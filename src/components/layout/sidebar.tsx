@@ -22,6 +22,7 @@ import {
   FileText,
   Receipt,
   CalendarDays,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -32,6 +33,7 @@ import { useState } from "react";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { name: "AI Assistant", href: "/assistant", icon: Sparkles, highlight: true },
   { name: "Schedule", href: "/schedule", icon: CalendarDays },
   { name: "Projects", href: "/projects", icon: FolderKanban },
   { name: "Estimates", href: "/estimates", icon: FileText },
@@ -98,6 +100,7 @@ export function Sidebar() {
         <nav className="space-y-1 px-2">
           {navigation.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+            const isHighlight = "highlight" in item && item.highlight;
             return (
               <Link
                 key={item.name}
@@ -106,12 +109,23 @@ export function Sidebar() {
                   "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                   isActive
                     ? "bg-primary text-primary-foreground"
+                    : isHighlight
+                    ? "text-primary hover:bg-primary/10"
                     : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                 )}
                 title={collapsed ? item.name : undefined}
               >
-                <item.icon className="h-5 w-5 flex-shrink-0" />
-                {!collapsed && <span>{item.name}</span>}
+                <item.icon className={cn("h-5 w-5 flex-shrink-0", isHighlight && !isActive && "text-primary")} />
+                {!collapsed && (
+                  <span className="flex items-center gap-2">
+                    {item.name}
+                    {isHighlight && !isActive && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold">
+                        NEW
+                      </span>
+                    )}
+                  </span>
+                )}
               </Link>
             );
           })}

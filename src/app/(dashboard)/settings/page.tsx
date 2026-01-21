@@ -22,7 +22,12 @@ import {
   Sparkles,
   Wallet,
   Info,
+  Palette,
+  Sun,
+  Moon,
+  Monitor,
 } from "lucide-react";
+import { useTheme } from "@/components/theme-provider";
 import {
   Select,
   SelectContent,
@@ -35,6 +40,7 @@ import type { AITone } from "@/types";
 export default function SettingsPage() {
   const { profile, session, refreshProfile } = useAuth();
   const { toast } = useToast();
+  const { theme, setTheme } = useTheme();
   const [loading, setLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const supabase = createClient();
@@ -217,6 +223,10 @@ export default function SettingsPage() {
               <Shield className="h-4 w-4" />
               Security
             </TabsTrigger>
+            <TabsTrigger value="appearance" className="flex items-center gap-2">
+              <Palette className="h-4 w-4" />
+              Appearance
+            </TabsTrigger>
             <TabsTrigger value="company" className="flex items-center gap-2">
               <Building2 className="h-4 w-4" />
               Company
@@ -362,6 +372,90 @@ export default function SettingsPage() {
             </Card>
           </TabsContent>
 
+          <TabsContent value="appearance">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Palette className="h-5 w-5 text-primary" />
+                  Appearance
+                </CardTitle>
+                <CardDescription>
+                  Customize how TropiTrack looks on your device
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div>
+                  <h3 className="text-sm font-medium mb-4">Theme</h3>
+                  <div className="grid gap-4 sm:grid-cols-3 max-w-lg">
+                    <button
+                      onClick={() => setTheme("light")}
+                      className={`flex flex-col items-center gap-3 p-4 rounded-lg border-2 transition-all ${
+                        theme === "light"
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-primary/50"
+                      }`}
+                    >
+                      <div className="p-3 rounded-full bg-amber-100 dark:bg-amber-900/30">
+                        <Sun className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                      </div>
+                      <span className="font-medium">Light</span>
+                      <span className="text-xs text-muted-foreground text-center">
+                        Bright and clear
+                      </span>
+                    </button>
+
+                    <button
+                      onClick={() => setTheme("dark")}
+                      className={`flex flex-col items-center gap-3 p-4 rounded-lg border-2 transition-all ${
+                        theme === "dark"
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-primary/50"
+                      }`}
+                    >
+                      <div className="p-3 rounded-full bg-neutral-100 dark:bg-neutral-800">
+                        <Moon className="h-6 w-6 text-neutral-600 dark:text-neutral-300" />
+                      </div>
+                      <span className="font-medium">Dark</span>
+                      <span className="text-xs text-muted-foreground text-center">
+                        Easy on the eyes
+                      </span>
+                    </button>
+
+                    <button
+                      onClick={() => setTheme("system")}
+                      className={`flex flex-col items-center gap-3 p-4 rounded-lg border-2 transition-all ${
+                        theme === "system"
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-primary/50"
+                      }`}
+                    >
+                      <div className="p-3 rounded-full bg-blue-100 dark:bg-blue-900/30">
+                        <Monitor className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <span className="font-medium">System</span>
+                      <span className="text-xs text-muted-foreground text-center">
+                        Match your device
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="bg-muted/50 rounded-lg p-4">
+                  <div className="flex gap-3">
+                    <Info className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
+                    <div className="text-sm text-muted-foreground">
+                      <p className="font-medium mb-1">About System Theme</p>
+                      <p>When set to System, TropiTrack will automatically switch between
+                      light and dark modes based on your device&apos;s display settings.</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="company">
             <Card>
               <CardHeader>
@@ -438,7 +532,7 @@ export default function SettingsPage() {
                     NIB (National Insurance Board) Contributions
                   </h3>
 
-                  <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+                  <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 rounded-lg p-4 mb-4">
                     <div className="flex gap-3">
                       <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
                       <div className="text-sm text-blue-800 dark:text-blue-200">
@@ -496,7 +590,7 @@ export default function SettingsPage() {
                 <Separator />
 
                 {/* Worker NIB Settings Note */}
-                <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+                <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-lg p-4">
                   <div className="flex gap-3">
                     <Info className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
                     <div className="text-sm text-amber-800 dark:text-amber-200">

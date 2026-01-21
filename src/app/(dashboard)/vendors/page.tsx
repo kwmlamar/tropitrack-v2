@@ -275,11 +275,11 @@ export default function VendorsPage() {
 
   const getVendorStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      active: "bg-green-100 text-green-800",
-      inactive: "bg-gray-100 text-gray-800",
-      blacklisted: "bg-red-100 text-red-800",
+      active: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+      inactive: "bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-300",
+      blacklisted: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
     };
-    return colors[status] || "bg-gray-100 text-gray-800";
+    return colors[status] || "bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-300";
   };
 
   return (

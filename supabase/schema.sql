@@ -322,13 +322,21 @@ ALTER TABLE public.materials ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view materials" ON public.materials
     FOR SELECT USING (auth.role() = 'authenticated');
 
-CREATE POLICY "Admins can manage materials" ON public.materials
-    FOR ALL USING (
+-- Drop the old policies
+DROP POLICY IF EXISTS "Admins can manage materials" ON public.materials;
+DROP POLICY IF EXISTS "PMs can update material stock" ON public.materials;
+
+-- Create new policies
+CREATE POLICY "Users can create materials" ON public.materials
+    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Users can update materials" ON public.materials
+    FOR UPDATE USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Admins can delete materials" ON public.materials
+    FOR DELETE USING (
         EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
     );
-
-CREATE POLICY "PMs can update material stock" ON public.materials
-    FOR UPDATE USING (auth.role() = 'authenticated');
 
 CREATE TABLE public.material_allocations (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -377,8 +385,18 @@ ALTER TABLE public.vendors ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view vendors" ON public.vendors
     FOR SELECT USING (auth.role() = 'authenticated');
 
-CREATE POLICY "Admins can manage vendors" ON public.vendors
-    FOR ALL USING (
+-- Drop the old policy
+DROP POLICY IF EXISTS "Admins can manage vendors" ON public.vendors;
+
+-- Create new policies
+CREATE POLICY "Users can create vendors" ON public.vendors
+    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Users can update vendors" ON public.vendors
+    FOR UPDATE USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Admins can delete vendors" ON public.vendors
+    FOR DELETE USING (
         EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
     );
 

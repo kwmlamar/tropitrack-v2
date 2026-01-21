@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { SearchModal } from "@/components/search/search-modal";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 interface HeaderProps {
   title: string;
@@ -32,6 +33,7 @@ export function Header({ title, description, children }: HeaderProps) {
         <div className="flex items-center gap-4">
           {children}
           <SearchModal />
+          <ThemeToggle variant="toggle" />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="relative">
