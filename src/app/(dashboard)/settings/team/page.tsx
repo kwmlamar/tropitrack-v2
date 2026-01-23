@@ -268,9 +268,18 @@ export default function TeamManagementPage() {
         } else {
           const responseData = await emailResponse.json();
           // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/219dfdb1-3353-46ca-9c1b-4d9e8cfab01b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'team/page.tsx:255',message:'Email send success',data:{responseData},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+          fetch('http://127.0.0.1:7242/ingest/219dfdb1-3353-46ca-9c1b-4d9e8cfab01b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'team/page.tsx:255',message:'Email send success',data:{responseData,emailId:responseData.email_id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
           // #endregion
-          console.log("Invitation email sent successfully:", responseData);
+          console.log("Invitation email sent successfully:", {
+            emailId: responseData.email_id,
+            fullResponse: responseData,
+            to: inviteForm.email,
+          });
+          
+          // Log to help user debug
+          if (responseData.resend_response) {
+            console.log("Resend response details:", responseData.resend_response);
+          }
         }
       } catch (emailError) {
         const errorMessage = emailError instanceof Error ? emailError.message : "Unknown error";

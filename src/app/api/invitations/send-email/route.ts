@@ -39,11 +39,18 @@ export async function POST(request: NextRequest) {
 
     // Check if Resend API key is configured
     if (!resendApiKey) {
+      console.error("RESEND_API_KEY is missing from environment variables");
       return NextResponse.json(
         { error: "Email service not configured - RESEND_API_KEY is missing" },
         { status: 500 }
       );
     }
+    
+    console.log("Resend API key present:", { 
+      hasKey: !!resendApiKey, 
+      keyLength: resendApiKey.length,
+      keyPrefix: resendApiKey.substring(0, 10) + "..."
+    });
 
     const {
       invitation_id,
@@ -214,20 +221,39 @@ If you didn't expect this invitation, you can safely ignore this email.
 © ${new Date().getFullYear()} TropiTrack
     `.trim();
 
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return NextResponse.json(
+        { error: "Invalid email address format" },
+        { status: 400 }
+      );
+    }
+
     // Send email via Resend
+    const resendPayload = {
+      from: "TropiTrack <onboarding@resend.dev>",
+      to: [email],
+      subject: `You've been invited to join ${company_name} on TropiTrack`,
+      html: emailHtml,
+      text: emailText,
+    };
+    
+    console.log("Sending email via Resend:", {
+      to: email,
+      from: resendPayload.from,
+      subject: resendPayload.subject,
+      hasHtml: !!emailHtml,
+      hasText: !!emailText,
+    });
+    
     const resendResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${resendApiKey}`,
       },
-      body: JSON.stringify({
-        from: "TropiTrack <onboarding@resend.dev>",
-        to: [email],
-        subject: `You've been invited to join ${company_name} on TropiTrack`,
-        html: emailHtml,
-        text: emailText,
-      }),
+      body: JSON.stringify(resendPayload),
     });
 
     if (!resendResponse.ok) {
@@ -254,6 +280,22 @@ If you didn't expect this invitation, you can safely ignore this email.
     }
 
     const resendData = await resendResponse.json();
+    
+    // Log the full Resend response for debugging
+    console.log("Resend API response:", {
+      status: resendResponse.status,
+      data: resendData,
+      email: email,
+    });
+
+    // Check if Resend returned an error even with 200 status
+    if (resendData.error) {
+      console.error("Resend returned error in response:", resendData.error);
+      return NextResponse.json(
+        { error: resendData.error.message || "Failed to send email" },
+        { status: 500 }
+      );
+    }
 
     // Update invitation record to track email sent
     if (invitation_id) {
@@ -269,6 +311,7 @@ If you didn't expect this invitation, you can safely ignore this email.
       success: true,
       message: "Invitation email sent successfully",
       email_id: resendData.id,
+      resend_response: resendData, // Include full response for debugging
     });
   } catch (error: unknown) {
     console.error("Error sending invitation email:", error);
