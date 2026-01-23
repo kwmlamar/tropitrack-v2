@@ -445,8 +445,8 @@ export default function TimeTrackingPage() {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-4">
-                <div className="p-2 rounded-lg bg-blue-100">
-                  <Clock className="h-5 w-5 text-blue-600" />
+                <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-950/50">
+                  <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Regular Hours</p>
@@ -458,8 +458,8 @@ export default function TimeTrackingPage() {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-4">
-                <div className="p-2 rounded-lg bg-orange-100">
-                  <Clock className="h-5 w-5 text-orange-600" />
+                <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-950/50">
+                  <Clock className="h-5 w-5 text-orange-600 dark:text-orange-400" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Overtime Hours</p>
@@ -471,8 +471,8 @@ export default function TimeTrackingPage() {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-4">
-                <div className="p-2 rounded-lg bg-green-100">
-                  <Users className="h-5 w-5 text-green-600" />
+                <div className="p-2 rounded-lg bg-green-100 dark:bg-green-950/50">
+                  <Users className="h-5 w-5 text-green-600 dark:text-green-400" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Total Labor Cost</p>

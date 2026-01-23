@@ -107,32 +107,32 @@ export default function DashboardPage() {
       value: stats.activeProjects,
       icon: FolderKanban,
       description: "Currently in progress",
-      color: "text-blue-600",
-      bgColor: "bg-blue-100",
+      color: "text-blue-600 dark:text-blue-400",
+      bgColor: "bg-blue-100 dark:bg-blue-950/50",
     },
     {
       title: "Active Workers",
       value: stats.totalWorkers,
       icon: Users,
       description: "On payroll",
-      color: "text-green-600",
-      bgColor: "bg-green-100",
+      color: "text-green-600 dark:text-green-400",
+      bgColor: "bg-green-100 dark:bg-green-950/50",
     },
     {
       title: "Low Stock Items",
       value: stats.lowStockMaterials,
       icon: AlertTriangle,
       description: "Need reordering",
-      color: "text-orange-600",
-      bgColor: "bg-orange-100",
+      color: "text-orange-600 dark:text-orange-400",
+      bgColor: "bg-orange-100 dark:bg-orange-950/50",
     },
     {
       title: "Total Revenue",
       value: formatCurrency(stats.totalRevenue),
       icon: DollarSign,
       description: "From contracts",
-      color: "text-emerald-600",
-      bgColor: "bg-emerald-100",
+      color: "text-emerald-600 dark:text-emerald-400",
+      bgColor: "bg-emerald-100 dark:bg-emerald-950/50",
     },
   ];
 
@@ -231,7 +231,7 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <FolderKanban className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <FolderKanban className="h-12 w-12 mx-auto text-blue-600 dark:text-blue-400 mb-4" />
                   <p className="text-muted-foreground">No projects yet</p>
                   <Link href="/projects/new">
                     <Button className="mt-4">Create First Project</Button>
@@ -253,7 +253,7 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <Link href="/time-tracking">
                     <Button variant="outline" className="w-full justify-start h-auto py-4">
-                      <Clock className="h-5 w-5 mr-3 text-primary" />
+                      <Clock className="h-5 w-5 mr-3 text-blue-600 dark:text-blue-400" />
                       <div className="text-left">
                         <p className="font-medium">Log Time</p>
                         <p className="text-xs text-muted-foreground">Enter worker hours</p>
@@ -262,7 +262,7 @@ export default function DashboardPage() {
                   </Link>
                   <Link href="/materials">
                     <Button variant="outline" className="w-full justify-start h-auto py-4">
-                      <Package className="h-5 w-5 mr-3 text-primary" />
+                      <Package className="h-5 w-5 mr-3 text-amber-600 dark:text-amber-400" />
                       <div className="text-left">
                         <p className="font-medium">Materials</p>
                         <p className="text-xs text-muted-foreground">Manage inventory</p>
@@ -271,7 +271,7 @@ export default function DashboardPage() {
                   </Link>
                   <Link href="/workers/new">
                     <Button variant="outline" className="w-full justify-start h-auto py-4">
-                      <Users className="h-5 w-5 mr-3 text-primary" />
+                      <Users className="h-5 w-5 mr-3 text-green-600 dark:text-green-400" />
                       <div className="text-left">
                         <p className="font-medium">Add Worker</p>
                         <p className="text-xs text-muted-foreground">New team member</p>
@@ -280,7 +280,7 @@ export default function DashboardPage() {
                   </Link>
                   <Link href="/reports">
                     <Button variant="outline" className="w-full justify-start h-auto py-4">
-                      <TrendingUp className="h-5 w-5 mr-3 text-primary" />
+                      <TrendingUp className="h-5 w-5 mr-3 text-purple-600 dark:text-purple-400" />
                       <div className="text-left">
                         <p className="font-medium">Reports</p>
                         <p className="text-xs text-muted-foreground">View analytics</p>
@@ -296,7 +296,7 @@ export default function DashboardPage() {
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                   <CardTitle className="flex items-center gap-2">
-                    <AlertTriangle className="h-5 w-5 text-orange-500" />
+                    <AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-400" />
                     Low Stock Alerts
                   </CardTitle>
                   <CardDescription>Materials below minimum level</CardDescription>
@@ -314,7 +314,7 @@ export default function DashboardPage() {
                     {lowStockItems.map((item) => (
                       <div
                         key={item.id}
-                        className="flex items-center justify-between p-3 rounded-lg bg-orange-50 border border-orange-100"
+                        className="flex items-center justify-between p-3 rounded-lg bg-orange-50 dark:bg-orange-950/50 border border-orange-100 dark:border-orange-900"
                       >
                         <div>
                           <p className="font-medium text-sm">{item.name}</p>
@@ -330,7 +330,7 @@ export default function DashboardPage() {
                   </div>
                 ) : (
                   <div className="text-center py-6">
-                    <Package className="h-10 w-10 mx-auto text-green-500 mb-2" />
+                    <Package className="h-10 w-10 mx-auto text-green-600 dark:text-green-400 mb-2" />
                     <p className="text-sm text-muted-foreground">
                       All materials are well stocked
                     </p>
@@ -351,14 +351,14 @@ export default function DashboardPage() {
             <div className="grid gap-6 md:grid-cols-3">
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">Total Revenue</p>
-                <p className="text-2xl font-bold text-green-600">
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400">
                   {formatCurrency(stats.totalRevenue)}
                 </p>
                 <Progress value={100} className="h-2" />
               </div>
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">Total Expenses</p>
-                <p className="text-2xl font-bold text-red-600">
+                <p className="text-2xl font-bold text-red-600 dark:text-red-400">
                   {formatCurrency(stats.totalExpenses)}
                 </p>
                 <Progress
@@ -368,7 +368,7 @@ export default function DashboardPage() {
               </div>
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">Net Profit</p>
-                <p className="text-2xl font-bold text-primary">
+                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                   {formatCurrency(stats.totalRevenue - stats.totalExpenses)}
                 </p>
                 <Progress

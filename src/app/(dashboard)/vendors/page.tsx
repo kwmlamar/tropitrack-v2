@@ -43,6 +43,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/lib/auth-context";
 import { formatCurrency, formatDate, getPOStatusColor } from "@/lib/utils";
 import {
   Plus,
@@ -64,6 +65,7 @@ import type { Vendor, PurchaseOrder } from "@/types";
 
 export default function VendorsPage() {
   const { toast } = useToast();
+  const { profile } = useAuth();
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -255,15 +257,77 @@ export default function VendorsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this vendor?")) return;
+    if (!confirm("Are you sure you want to delete this vendor? This action cannot be undone.")) return;
 
     try {
-      const { error } = await supabase.from("vendors").delete().eq("id", id);
-      if (error) throw error;
-      setVendors(vendors.filter((v) => v.id !== id));
-      toast({ title: "Vendor deleted" });
+      // Check user permissions first
+      const isAdmin = profile?.role === "admin" || profile?.role === "project_manager";
+      if (!isAdmin) {
+        toast({
+          title: "Permission denied",
+          description: "Only administrators and project managers can delete vendors.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Check if vendor has purchase orders
+      const { count: poCount } = await supabase
+        .from("purchase_orders")
+        .select("*", { count: "exact", head: true })
+        .eq("vendor_id", id);
+
+      if (poCount && poCount > 0) {
+        toast({
+          title: "Cannot delete vendor",
+          description: `This vendor has ${poCount} purchase order(s). Consider marking them as inactive instead.`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("vendors")
+        .delete()
+        .eq("id", id)
+        .select();
+      
+      if (error) {
+        console.error("Error deleting vendor:", error);
+        toast({
+          title: "Error deleting vendor",
+          description: error.message || "An error occurred while deleting the vendor.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Check if anything was actually deleted
+      if (!data || data.length === 0) {
+        toast({
+          title: "Cannot delete vendor",
+          description: "The vendor could not be deleted. This may be due to database permissions. Please ensure the RLS policy allows deletion for your role.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Vendor deleted",
+        description: "The vendor has been successfully deleted.",
+        variant: "success",
+      });
+
+      // Refresh the vendors list
+      fetchData();
     } catch (error) {
       console.error("Error deleting vendor:", error);
+      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred";
+      toast({
+        title: "Error deleting vendor",
+        description: errorMessage,
+        variant: "destructive",
+      });
     }
   };
 

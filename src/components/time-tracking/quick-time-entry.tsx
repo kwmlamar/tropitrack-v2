@@ -984,7 +984,13 @@ interface WorkerComboboxProps {
 
 function WorkerCombobox({ workers, value, onSelect, inputRef }: WorkerComboboxProps) {
   const [open, setOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const selectedWorker = workers.find((w) => w.id === value);
+
+  const filteredWorkers = workers.filter((worker) => {
+    const fullName = `${worker.first_name} ${worker.last_name}`.toLowerCase();
+    return fullName.includes(searchTerm.toLowerCase());
+  });
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -994,7 +1000,6 @@ function WorkerCombobox({ workers, value, onSelect, inputRef }: WorkerComboboxPr
           role="combobox"
           aria-expanded={open}
           className="w-full justify-between font-normal"
-          ref={inputRef as any}
         >
           {selectedWorker
             ? `${selectedWorker.first_name} ${selectedWorker.last_name}`
@@ -1003,18 +1008,30 @@ function WorkerCombobox({ workers, value, onSelect, inputRef }: WorkerComboboxPr
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[250px] p-0" align="start">
-        <Command>
-          <CommandInput placeholder="Search workers..." />
+        <Command shouldFilter={false}>
+          <CommandInput
+            placeholder="Search workers..."
+            value={searchTerm}
+            onValueChange={setSearchTerm}
+          />
           <CommandList>
             <CommandEmpty>No worker found.</CommandEmpty>
             <CommandGroup>
-              {workers.map((worker) => (
+              {filteredWorkers.map((worker) => {
+                const handleSelect = () => {
+                  onSelect(worker.id);
+                  setOpen(false);
+                  setSearchTerm("");
+                };
+
+                return (
                 <CommandItem
                   key={worker.id}
-                  value={`${worker.first_name} ${worker.last_name}`}
-                  onSelect={() => {
-                    onSelect(worker.id);
-                    setOpen(false);
+                  value={worker.id}
+                  onSelect={handleSelect}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleSelect();
                   }}
                 >
                   <Check
@@ -1030,7 +1047,8 @@ function WorkerCombobox({ workers, value, onSelect, inputRef }: WorkerComboboxPr
                     </div>
                   </div>
                 </CommandItem>
-              ))}
+              )}
+              )}
             </CommandGroup>
           </CommandList>
         </Command>

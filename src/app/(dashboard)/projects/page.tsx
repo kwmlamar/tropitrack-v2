@@ -31,6 +31,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency, formatDate, getProjectStatusColor } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/lib/auth-context";
 import {
   Plus,
   Search,
@@ -49,6 +51,8 @@ export default function ProjectsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const supabase = createClient();
+  const { toast } = useToast();
+  const { profile } = useAuth();
 
   useEffect(() => {
     fetchProjects();
@@ -59,7 +63,15 @@ export default function ProjectsPage() {
     try {
       let query = supabase
         .from("projects")
-        .select("*")
+        .select(`
+          *,
+          clients (
+            id,
+            name,
+            email,
+            phone
+          )
+        `)
         .order("created_at", { ascending: false });
 
       if (statusFilter !== "all") {
@@ -69,7 +81,16 @@ export default function ProjectsPage() {
       const { data, error } = await query;
 
       if (error) throw error;
-      setProjects(data || []);
+
+      // Transform data to include client name for both old and new format
+      const transformedData = (data || []).map((project: any) => ({
+        ...project,
+        client_name: project.clients?.name || project.client_name || "N/A",
+        client_email: project.clients?.email || project.client_email,
+        client_phone: project.clients?.phone || project.client_phone,
+      }));
+
+      setProjects(transformedData);
     } catch (error) {
       console.error("Error fetching projects:", error);
     } finally {
@@ -78,21 +99,69 @@ export default function ProjectsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this project?")) return;
+    if (!confirm("Are you sure you want to delete this project? This action cannot be undone.")) return;
 
     try {
-      const { error } = await supabase.from("projects").delete().eq("id", id);
-      if (error) throw error;
-      setProjects(projects.filter((p) => p.id !== id));
+      // Check user permissions first
+      const isAdmin = profile?.role === "admin" || profile?.role === "project_manager";
+      if (!isAdmin) {
+        toast({
+          title: "Permission denied",
+          description: "Only administrators and project managers can delete projects.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("projects")
+        .delete()
+        .eq("id", id)
+        .select();
+      
+      if (error) {
+        console.error("Error deleting project:", error);
+        toast({
+          title: "Error deleting project",
+          description: error.message || "An error occurred while deleting the project.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Check if anything was actually deleted
+      if (!data || data.length === 0) {
+        toast({
+          title: "Cannot delete project",
+          description: "The project could not be deleted. This may be due to database permissions. Please ensure the RLS policy allows deletion for your role.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Project deleted",
+        description: "The project has been successfully deleted.",
+        variant: "success",
+      });
+
+      // Refresh the projects list
+      fetchProjects();
     } catch (error) {
       console.error("Error deleting project:", error);
+      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred";
+      toast({
+        title: "Error deleting project",
+        description: errorMessage,
+        variant: "destructive",
+      });
     }
   };
 
   const filteredProjects = projects.filter(
     (project) =>
       project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      project.client_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (project.client_name?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
       project.location.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -225,7 +294,7 @@ export default function ProjectsPage() {
               </Table>
             ) : (
               <div className="p-12 text-center">
-                <FolderKanban className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <FolderKanban className="h-12 w-12 mx-auto text-blue-600 dark:text-blue-400 mb-4" />
                 <h3 className="text-lg font-semibold mb-2">No projects found</h3>
                 <p className="text-muted-foreground mb-4">
                   {searchTerm || statusFilter !== "all"

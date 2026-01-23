@@ -23,13 +23,12 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Save } from "lucide-react";
 import type { Project, User } from "@/types";
+import { ClientSelector } from "@/components/clients/client-selector";
 
 const projectSchema = z.object({
   name: z.string().min(1, "Project name is required"),
   description: z.string().optional(),
-  client_name: z.string().min(1, "Client name is required"),
-  client_email: z.string().email("Invalid email").optional().or(z.literal("")),
-  client_phone: z.string().optional(),
+  client_id: z.string().min(1, "Please select a client"),
   location: z.string().min(1, "Location is required"),
   status: z.enum(["planning", "active", "on_hold", "completed", "cancelled"]),
   start_date: z.string().min(1, "Start date is required"),
@@ -65,9 +64,7 @@ export function ProjectForm({ project, isEditing = false }: ProjectFormProps) {
     defaultValues: {
       name: project?.name || "",
       description: project?.description || "",
-      client_name: project?.client_name || "",
-      client_email: project?.client_email || "",
-      client_phone: project?.client_phone || "",
+      client_id: project?.client_id || "",
       location: project?.location || "",
       status: project?.status || "planning",
       start_date: project?.start_date || new Date().toISOString().split("T")[0],
@@ -97,7 +94,6 @@ export function ProjectForm({ project, isEditing = false }: ProjectFormProps) {
     try {
       const projectData = {
         ...data,
-        client_email: data.client_email || null,
         estimated_end_date: data.estimated_end_date || null,
         project_manager_id: data.project_manager_id || null,
       };
@@ -242,37 +238,18 @@ export function ProjectForm({ project, isEditing = false }: ProjectFormProps) {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="client_name">Client Name *</Label>
-              <Input
-                id="client_name"
-                placeholder="e.g., Atlantis Resorts"
-                {...register("client_name")}
+              <Label htmlFor="client_id">Client *</Label>
+              <ClientSelector
+                value={watch("client_id") || ""}
+                onValueChange={(clientId) => setValue("client_id", clientId)}
+                error={!!errors.client_id}
               />
-              {errors.client_name && (
-                <p className="text-sm text-destructive">{errors.client_name.message}</p>
+              {errors.client_id && (
+                <p className="text-sm text-destructive">{errors.client_id.message}</p>
               )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="client_email">Client Email</Label>
-              <Input
-                id="client_email"
-                type="email"
-                placeholder="client@example.com"
-                {...register("client_email")}
-              />
-              {errors.client_email && (
-                <p className="text-sm text-destructive">{errors.client_email.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="client_phone">Client Phone</Label>
-              <Input
-                id="client_phone"
-                placeholder="(242) 555-1234"
-                {...register("client_phone")}
-              />
+              <p className="text-xs text-muted-foreground">
+                Select an existing client or create a new one
+              </p>
             </div>
           </CardContent>
         </Card>

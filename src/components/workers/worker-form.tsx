@@ -30,7 +30,6 @@ const workerSchema = z.object({
   email: z.string().email("Invalid email").optional().or(z.literal("")),
   phone: z.string().optional(),
   address: z.string().optional(),
-  national_insurance_number: z.string().optional(),
   worker_type: z.enum(["hourly", "salary", "contract"]),
   hourly_rate: z.coerce.number().optional(),
   salary_amount: z.coerce.number().optional(),
@@ -72,7 +71,6 @@ export function WorkerForm({ worker, isEditing = false }: WorkerFormProps) {
       email: worker?.email || "",
       phone: worker?.phone || "",
       address: worker?.address || "",
-      national_insurance_number: worker?.national_insurance_number || "",
       worker_type: worker?.worker_type || "hourly",
       hourly_rate: worker?.hourly_rate || undefined,
       salary_amount: worker?.salary_amount || undefined,
@@ -214,15 +212,6 @@ export function WorkerForm({ worker, isEditing = false }: WorkerFormProps) {
                 placeholder="Street address, city"
                 rows={2}
                 {...register("address")}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="national_insurance_number">National Insurance Number</Label>
-              <Input
-                id="national_insurance_number"
-                placeholder="NIB number"
-                {...register("national_insurance_number")}
               />
             </div>
           </CardContent>

@@ -272,6 +272,12 @@ CREATE POLICY "Admins can manage pay periods" ON public.pay_periods
         EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
     );
 
+CREATE POLICY "Authenticated users can create pay periods" ON public.pay_periods
+    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can update pay periods" ON public.pay_periods
+    FOR UPDATE USING (auth.role() = 'authenticated');
+
 CREATE TABLE public.payroll_entries (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     pay_period_id UUID REFERENCES public.pay_periods(id) ON DELETE CASCADE NOT NULL,

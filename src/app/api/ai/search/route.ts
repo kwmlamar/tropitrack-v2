@@ -153,7 +153,7 @@ export async function POST(request: NextRequest) {
 }
 
 async function executeSupabaseQuery(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   parsed: ParsedQuery
 ): Promise<unknown[]> {
   const { table, select, filters, order, limit } = parsed.supabase_query;

@@ -271,7 +271,7 @@ export function InvoiceForm({ invoice, lineItems = [], mode }: InvoiceFormProps)
       setFormData({
         ...formData,
         project_id: project.id,
-        client_name: project.client_name,
+        client_name: project.client_name || "N/A",
         client_email: project.client_email || "",
         client_phone: project.client_phone || "",
       });

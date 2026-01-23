@@ -59,6 +59,8 @@ export default function EstimatePreviewPage() {
 
       if (estimateRes.error) throw estimateRes.error;
 
+      console.log("Estimate data:", estimateRes.data);
+      console.log("Line items:", itemsRes.data);
       setEstimate(estimateRes.data);
       setLineItems(itemsRes.data || []);
     } catch (error) {
@@ -131,12 +133,14 @@ export default function EstimatePreviewPage() {
         <Card>
           <CardContent className="p-0">
             {pdfReady ? (
-              <PDFViewer
-                style={{ width: "100%", height: "calc(100vh - 200px)", border: "none" }}
-                showToolbar={false}
-              >
-                <EstimatePDFTemplate estimate={estimate} lineItems={lineItems} />
-              </PDFViewer>
+              <div>
+                <PDFViewer
+                  style={{ width: "100%", height: "calc(100vh - 200px)", border: "none" }}
+                  showToolbar={false}
+                >
+                  <EstimatePDFTemplate estimate={estimate} lineItems={lineItems} />
+                </PDFViewer>
+              </div>
             ) : (
               <div className="h-[600px] flex items-center justify-center">
                 <div className="text-center">

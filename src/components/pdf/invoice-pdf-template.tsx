@@ -140,7 +140,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     backgroundColor: "#1a365d",
     padding: 10,
-    borderRadius: "4 4 0 0",
   },
   tableHeaderText: {
     color: "#fff",
@@ -207,7 +206,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     padding: "12 12",
     backgroundColor: "#1a365d",
-    borderRadius: "0 0 4 4",
   },
   balanceLabel: {
     fontSize: 12,
@@ -224,7 +222,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     padding: "12 12",
     backgroundColor: "#38a169",
-    borderRadius: "0 0 4 4",
   },
   paymentsSection: {
     marginTop: 24,
@@ -330,8 +327,18 @@ interface InvoicePDFProps {
   companyInfo?: {
     name: string;
     address?: string;
+    city?: string;
     phone?: string;
     email?: string;
+  };
+  paymentInstructions?: {
+    bank_name?: string;
+    account_name?: string;
+    account_number?: string;
+    routing_number?: string;
+    swift_code?: string;
+    mobile_money?: string;
+    instructions?: string;
   };
 }
 
@@ -380,10 +387,12 @@ export function InvoicePDFTemplate({
   payments = [],
   companyInfo = {
     name: "TropiTech Solutions",
-    address: "Nassau, Bahamas",
+    address: "Nassau",
+    city: "Bahamas",
     phone: "(242) 555-1234",
     email: "info@tropitech.bs",
   },
+  paymentInstructions,
 }: InvoicePDFProps) {
   const isPaid = invoice.status === "paid";
   const isOverdue =
@@ -400,11 +409,10 @@ export function InvoicePDFTemplate({
           <View style={styles.companySection}>
             <Text style={styles.companyName}>{companyInfo.name}</Text>
             <Text style={styles.companyDetails}>
-              {companyInfo.address}
-              {"\n"}
-              {companyInfo.phone}
-              {"\n"}
-              {companyInfo.email}
+              {companyInfo.address && `${companyInfo.address}\n`}
+              {companyInfo.city && `${companyInfo.city}\n`}
+              {companyInfo.phone && `${companyInfo.phone}\n`}
+              {companyInfo.email && companyInfo.email}
             </Text>
           </View>
           <View style={styles.invoiceSection}>
@@ -424,7 +432,7 @@ export function InvoicePDFTemplate({
         {/* Bill To */}
         <View style={styles.billToSection}>
           <Text style={styles.sectionTitle}>Bill To</Text>
-          <Text style={styles.clientName}>{invoice.client_name}</Text>
+          <Text style={styles.clientName}>{invoice.client_name || "N/A"}</Text>
           <Text style={styles.clientDetails}>
             {invoice.client_email && `${invoice.client_email}\n`}
             {invoice.client_phone && `${invoice.client_phone}\n`}
@@ -465,7 +473,7 @@ export function InvoicePDFTemplate({
           {lineItems.map((item, index) => (
             <View
               key={item.id}
-              style={[styles.tableRow, index % 2 === 1 && styles.tableRowAlt]}
+              style={[styles.tableRow, ...(index % 2 === 1 ? [styles.tableRowAlt] : [])]}
             >
               <View style={styles.col1}>
                 <Text style={styles.categoryBadge}>{item.category}</Text>
@@ -538,20 +546,61 @@ export function InvoicePDFTemplate({
           </View>
         )}
 
-        {/* Payment Instructions (only if not paid) */}
-        {!isPaid && invoice.balance_due > 0 && (
+        {/* Payment Instructions (only if not paid and instructions exist) */}
+        {!isPaid && invoice.balance_due > 0 && paymentInstructions && (
+          paymentInstructions.bank_name ||
+          paymentInstructions.mobile_money ||
+          paymentInstructions.instructions
+        ) && (
           <View style={styles.paymentInstructions}>
             <Text style={styles.paymentInstructionsTitle}>
               Payment Instructions
             </Text>
             <Text style={styles.paymentInstructionsText}>
-              Please make payment to:{"\n"}
-              Bank: First Caribbean International Bank{"\n"}
-              Account Name: {companyInfo.name}
-              {"\n"}
-              Account Number: XXXX-XXXX-XXXX{"\n"}
-              {"\n"}
+              Please make payment to:{"\n\n"}
+
+              {paymentInstructions.bank_name && (
+                <>
+                  Bank: {paymentInstructions.bank_name}{"\n"}
+                  {paymentInstructions.account_name && `Account Name: ${paymentInstructions.account_name}\n`}
+                  {paymentInstructions.account_number && `Account Number: ${paymentInstructions.account_number}\n`}
+                  {paymentInstructions.routing_number && `Routing Number: ${paymentInstructions.routing_number}\n`}
+                  {paymentInstructions.swift_code && `SWIFT Code: ${paymentInstructions.swift_code}\n`}
+                  {"\n"}
+                </>
+              )}
+
+              {paymentInstructions.mobile_money && (
+                <>
+                  Or via Mobile Payment: {paymentInstructions.mobile_money}{"\n\n"}
+                </>
+              )}
+
+              {paymentInstructions.instructions && (
+                <>
+                  {paymentInstructions.instructions}{"\n\n"}
+                </>
+              )}
+
               Reference: {invoice.invoice_number}
+            </Text>
+          </View>
+        )}
+
+        {/* Default payment message if no instructions configured */}
+        {!isPaid && invoice.balance_due > 0 && (!paymentInstructions || (
+          !paymentInstructions.bank_name &&
+          !paymentInstructions.mobile_money &&
+          !paymentInstructions.instructions
+        )) && (
+          <View style={styles.paymentInstructions}>
+            <Text style={styles.paymentInstructionsTitle}>
+              Payment Instructions
+            </Text>
+            <Text style={styles.paymentInstructionsText}>
+              Payment is due upon receipt. Please reference invoice {invoice.invoice_number} with your payment.
+              {"\n\n"}
+              For payment details, please contact us at {companyInfo.email || companyInfo.phone}.
             </Text>
           </View>
         )}

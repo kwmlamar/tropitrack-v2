@@ -128,7 +128,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     backgroundColor: "#1a365d",
     padding: 10,
-    borderRadius: "4 4 0 0",
   },
   tableHeaderText: {
     color: "#fff",
@@ -179,7 +178,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     padding: "12 12",
     backgroundColor: "#1a365d",
-    borderRadius: "0 0 4 4",
   },
   grandTotalLabel: {
     fontSize: 12,
@@ -226,6 +224,24 @@ const styles = StyleSheet.create({
     color: "#718096",
     lineHeight: 1.5,
   },
+  paymentInstructions: {
+    marginTop: 16,
+    padding: 16,
+    backgroundColor: "#ebf8ff",
+    borderRadius: 4,
+    borderLeft: "3 solid #3182ce",
+  },
+  paymentInstructionsTitle: {
+    fontSize: 10,
+    fontWeight: "bold",
+    color: "#2b6cb0",
+    marginBottom: 6,
+  },
+  paymentInstructionsText: {
+    fontSize: 9,
+    color: "#2c5282",
+    lineHeight: 1.5,
+  },
   footer: {
     position: "absolute",
     bottom: 30,
@@ -248,8 +264,18 @@ interface EstimatePDFProps {
   companyInfo?: {
     name: string;
     address?: string;
+    city?: string;
     phone?: string;
     email?: string;
+  };
+  paymentInstructions?: {
+    bank_name?: string;
+    account_name?: string;
+    account_number?: string;
+    routing_number?: string;
+    swift_code?: string;
+    mobile_money?: string;
+    instructions?: string;
   };
 }
 
@@ -288,18 +314,20 @@ export function EstimatePDFTemplate({
   lineItems,
   companyInfo = {
     name: "TropiTech Solutions",
-    address: "Nassau, Bahamas",
+    address: "Nassau",
+    city: "Bahamas",
     phone: "(242) 555-1234",
     email: "info@tropitech.bs",
   },
+  paymentInstructions,
 }: EstimatePDFProps) {
   const overheadAmount =
-    estimate.subtotal * (estimate.overhead_markup_percent / 100);
-  const subtotalAfterOverhead = estimate.subtotal + overheadAmount;
+    (estimate.subtotal || 0) * ((estimate.overhead_markup_percent || 0) / 100);
+  const subtotalAfterOverhead = (estimate.subtotal || 0) + overheadAmount;
   const profitAmount =
-    subtotalAfterOverhead * (estimate.profit_margin_percent / 100);
+    subtotalAfterOverhead * ((estimate.profit_margin_percent || 0) / 100);
   const subtotalBeforeTax = subtotalAfterOverhead + profitAmount;
-  const taxAmount = subtotalBeforeTax * (estimate.tax_rate / 100);
+  const taxAmount = subtotalBeforeTax * ((estimate.tax_rate || 0) / 100);
 
   return (
     <Document>
@@ -309,11 +337,10 @@ export function EstimatePDFTemplate({
           <View style={styles.companySection}>
             <Text style={styles.companyName}>{companyInfo.name}</Text>
             <Text style={styles.companyDetails}>
-              {companyInfo.address}
-              {"\n"}
-              {companyInfo.phone}
-              {"\n"}
-              {companyInfo.email}
+              {companyInfo.address && `${companyInfo.address}\n`}
+              {companyInfo.city && `${companyInfo.city}\n`}
+              {companyInfo.phone && `${companyInfo.phone}\n`}
+              {companyInfo.email && companyInfo.email}
             </Text>
           </View>
           <View style={styles.estimateSection}>
@@ -335,7 +362,7 @@ export function EstimatePDFTemplate({
         {/* Client Information */}
         <View style={styles.clientSection}>
           <Text style={styles.sectionTitle}>Prepared For</Text>
-          <Text style={styles.clientName}>{estimate.client_name}</Text>
+          <Text style={styles.clientName}>{estimate.client_name || "N/A"}</Text>
           <Text style={styles.clientDetails}>
             {estimate.client_email && `${estimate.client_email}\n`}
             {estimate.client_phone && `${estimate.client_phone}\n`}
@@ -354,7 +381,7 @@ export function EstimatePDFTemplate({
           <View style={styles.dateBox}>
             <Text style={styles.dateLabel}>Valid Until</Text>
             <Text style={styles.dateValue}>
-              {formatDate(estimate.valid_until)}
+              {estimate.valid_until ? formatDate(estimate.valid_until) : "N/A"}
             </Text>
           </View>
         </View>
@@ -379,7 +406,7 @@ export function EstimatePDFTemplate({
           {lineItems.map((item, index) => (
             <View
               key={item.id}
-              style={[styles.tableRow, index % 2 === 1 && styles.tableRowAlt]}
+              style={[styles.tableRow, ...(index % 2 === 1 ? [styles.tableRowAlt] : [])]}
             >
               <View style={styles.col1}>
                 <Text style={styles.categoryBadge}>{item.category}</Text>
@@ -450,6 +477,43 @@ export function EstimatePDFTemplate({
           <View style={styles.termsSection}>
             <Text style={styles.termsTitle}>Terms & Conditions</Text>
             <Text style={styles.termsText}>{estimate.terms_and_conditions}</Text>
+          </View>
+        )}
+
+        {/* Payment Instructions (optional for estimates) */}
+        {paymentInstructions && (
+          paymentInstructions.bank_name ||
+          paymentInstructions.mobile_money ||
+          paymentInstructions.instructions
+        ) && (
+          <View style={styles.paymentInstructions}>
+            <Text style={styles.paymentInstructionsTitle}>
+              Payment Information
+            </Text>
+            <Text style={styles.paymentInstructionsText}>
+              {paymentInstructions.bank_name && (
+                <>
+                  Bank: {paymentInstructions.bank_name}{"\n"}
+                  {paymentInstructions.account_name && `Account Name: ${paymentInstructions.account_name}\n`}
+                  {paymentInstructions.account_number && `Account Number: ${paymentInstructions.account_number}\n`}
+                  {paymentInstructions.routing_number && `Routing Number: ${paymentInstructions.routing_number}\n`}
+                  {paymentInstructions.swift_code && `SWIFT Code: ${paymentInstructions.swift_code}\n`}
+                  {"\n"}
+                </>
+              )}
+
+              {paymentInstructions.mobile_money && (
+                <>
+                  Mobile Payment: {paymentInstructions.mobile_money}{"\n\n"}
+                </>
+              )}
+
+              {paymentInstructions.instructions && (
+                <>
+                  {paymentInstructions.instructions}
+                </>
+              )}
+            </Text>
           </View>
         )}
 

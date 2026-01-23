@@ -1,5 +1,5 @@
 // User and Authentication Types
-export type UserRole = "admin" | "project_manager";
+export type UserRole = "admin" | "project_manager" | "worker";
 
 export interface User {
   id: string;
@@ -8,6 +8,102 @@ export interface User {
   role: UserRole;
   phone?: string;
   avatar_url?: string;
+  company_id?: string;
+  is_owner?: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// ============================================
+// COMPANY TYPES
+// ============================================
+
+export interface Company {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  // Tax information
+  vat_tax_id?: string;
+  business_registration_number?: string;
+  // Payment instructions (for receiving customer payments)
+  payment_bank_name?: string;
+  payment_account_name?: string;
+  payment_account_number?: string;
+  payment_routing_number?: string;
+  payment_swift_code?: string;
+  payment_mobile_money?: string;
+  payment_instructions?: string;
+  payment_notes?: string;
+  // Metadata
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CompanyFormData {
+  name: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  vat_tax_id?: string;
+  business_registration_number?: string;
+}
+
+export interface PaymentInstructionsFormData {
+  payment_bank_name?: string;
+  payment_account_name?: string;
+  payment_account_number?: string;
+  payment_routing_number?: string;
+  payment_swift_code?: string;
+  payment_mobile_money?: string;
+  payment_instructions?: string;
+  payment_notes?: string;
+}
+
+// ============================================
+// INVITATION TYPES
+// ============================================
+
+export type InvitationRole = "admin" | "worker";
+export type InvitationStatus = "pending" | "accepted" | "expired" | "cancelled";
+
+export interface Invitation {
+  id: string;
+  company_id: string;
+  email: string;
+  role: InvitationRole;
+  invited_by: string;
+  token: string;
+  status: InvitationStatus;
+  expires_at: string;
+  created_at: string;
+  accepted_at?: string;
+}
+
+export interface InvitationWithDetails extends Invitation {
+  company_name?: string;
+  invited_by_name?: string;
+  invited_by_email?: string;
+}
+
+export interface InvitationFormData {
+  email: string;
+  role: InvitationRole;
+}
+
+export interface TeamMember {
+  id: string;
+  email: string;
+  full_name: string;
+  role: UserRole;
+  phone?: string;
+  avatar_url?: string;
+  company_id: string;
+  is_owner: boolean;
+  company_name?: string;
   created_at: string;
   updated_at: string;
 }
@@ -19,9 +115,10 @@ export interface Project {
   id: string;
   name: string;
   description?: string;
-  client_name: string;
-  client_email?: string;
-  client_phone?: string;
+  client_id?: string; // New: foreign key to clients table
+  client_name?: string; // Legacy: for backward compatibility
+  client_email?: string; // Legacy: for backward compatibility
+  client_phone?: string; // Legacy: for backward compatibility
   location: string;
   status: ProjectStatus;
   start_date: string;
@@ -713,6 +810,68 @@ export interface ParsedReceiptLineItem {
 export interface PurchaseOrderWithReceipt extends PurchaseOrder {
   receipt_image_path?: string;
   ocr_raw_text?: string;
+}
+
+// ============================================
+// NOTIFICATION TYPES
+// ============================================
+
+export type NotificationType =
+  | "low_stock"
+  | "milestone_reminder"
+  | "payroll_reminder"
+  | "budget_alert"
+  | "invoice_overdue"
+  | "estimate_expiring"
+  | "team_invitation"
+  | "payment_received";
+
+export type NotificationPriority = "low" | "normal" | "high" | "urgent";
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  company_id?: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  link_type?: string;
+  link_id?: string;
+  link_url?: string;
+  read: boolean;
+  read_at?: string;
+  priority: NotificationPriority;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserNotificationPreferences {
+  id: string;
+  user_id: string;
+  low_stock_alerts: boolean;
+  milestone_reminders: boolean;
+  payroll_reminders: boolean;
+  budget_alerts: boolean;
+  invoice_overdue_alerts: boolean;
+  estimate_expiring_alerts: boolean;
+  team_notifications: boolean;
+  payment_notifications: boolean;
+  in_app_enabled: boolean;
+  email_enabled: boolean;
+  email_digest: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NotificationPreferencesFormData {
+  low_stock_alerts: boolean;
+  milestone_reminders: boolean;
+  payroll_reminders: boolean;
+  budget_alerts: boolean;
+  invoice_overdue_alerts: boolean;
+  estimate_expiring_alerts: boolean;
+  team_notifications: boolean;
+  payment_notifications: boolean;
 }
 
 // ============================================

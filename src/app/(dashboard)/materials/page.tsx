@@ -418,8 +418,8 @@ export default function MaterialsPage() {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-4">
-                <div className="p-2 rounded-lg bg-blue-100">
-                  <Package className="h-5 w-5 text-blue-600" />
+                <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-950/50">
+                  <Package className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Total Items</p>
@@ -431,8 +431,8 @@ export default function MaterialsPage() {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-4">
-                <div className="p-2 rounded-lg bg-green-100">
-                  <Package className="h-5 w-5 text-green-600" />
+                <div className="p-2 rounded-lg bg-green-100 dark:bg-green-950/50">
+                  <Package className="h-5 w-5 text-green-600 dark:text-green-400" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Inventory Value</p>
@@ -444,8 +444,8 @@ export default function MaterialsPage() {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-4">
-                <div className="p-2 rounded-lg bg-orange-100">
-                  <AlertTriangle className="h-5 w-5 text-orange-600" />
+                <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-950/50">
+                  <AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-400" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Low Stock Items</p>
@@ -530,7 +530,7 @@ export default function MaterialsPage() {
                             {material.quantity_in_stock} {material.unit}
                           </span>
                           {isLowStock && (
-                            <AlertTriangle className="inline h-4 w-4 ml-1 text-orange-500" />
+                            <AlertTriangle className="inline h-4 w-4 ml-1 text-orange-600 dark:text-orange-400" />
                           )}
                         </TableCell>
                         <TableCell>{material.minimum_stock_level} {material.unit}</TableCell>
@@ -576,7 +576,7 @@ export default function MaterialsPage() {
               </Table>
             ) : (
               <div className="p-12 text-center">
-                <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <Package className="h-12 w-12 mx-auto text-amber-600 dark:text-amber-400 mb-4" />
                 <h3 className="text-lg font-semibold mb-2">No materials found</h3>
                 <p className="text-muted-foreground mb-4">
                   Add your first material to get started

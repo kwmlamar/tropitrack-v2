@@ -31,6 +31,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency, formatDate, getWorkerStatusColor } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/lib/auth-context";
 import {
   Plus,
   Search,
@@ -49,6 +51,8 @@ export default function WorkersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const supabase = createClient();
+  const { toast } = useToast();
+  const { profile } = useAuth();
 
   useEffect(() => {
     fetchWorkers();
@@ -78,14 +82,94 @@ export default function WorkersPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this worker?")) return;
+    if (!confirm("Are you sure you want to delete this worker? This action cannot be undone.")) return;
 
     try {
-      const { error } = await supabase.from("workers").delete().eq("id", id);
-      if (error) throw error;
-      setWorkers(workers.filter((w) => w.id !== id));
+      // Check user permissions first
+      const isAdmin = profile?.role === "admin" || profile?.role === "project_manager";
+      if (!isAdmin) {
+        toast({
+          title: "Permission denied",
+          description: "Only administrators and project managers can delete workers.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Check if worker has time entries
+      const { count: timeEntriesCount } = await supabase
+        .from("time_entries")
+        .select("*", { count: "exact", head: true })
+        .eq("worker_id", id);
+
+      if (timeEntriesCount && timeEntriesCount > 0) {
+        toast({
+          title: "Cannot delete worker",
+          description: `This worker has ${timeEntriesCount} time entry/entries. Consider marking them as inactive or terminated instead.`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Check if worker has payroll entries
+      const { count: payrollCount } = await supabase
+        .from("payroll_entries")
+        .select("*", { count: "exact", head: true })
+        .eq("worker_id", id);
+
+      if (payrollCount && payrollCount > 0) {
+        toast({
+          title: "Cannot delete worker",
+          description: `This worker has ${payrollCount} payroll entry/entries. Consider marking them as inactive or terminated instead.`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Attempt to delete
+      const { data, error } = await supabase
+        .from("workers")
+        .delete()
+        .eq("id", id)
+        .select();
+      
+      if (error) {
+        console.error("Error deleting worker:", error);
+        toast({
+          title: "Error deleting worker",
+          description: error.message || "An error occurred while deleting the worker.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Check if anything was actually deleted
+      // If RLS blocks the delete, data will be null or empty
+      if (!data || data.length === 0) {
+        toast({
+          title: "Cannot delete worker",
+          description: "The worker could not be deleted. This may be due to database permissions. Please ensure the RLS policy allows deletion for your role.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Worker deleted",
+        description: "The worker has been successfully deleted.",
+        variant: "success",
+      });
+
+      // Refresh the workers list
+      fetchWorkers();
     } catch (error) {
       console.error("Error deleting worker:", error);
+      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred";
+      toast({
+        title: "Error deleting worker",
+        description: errorMessage,
+        variant: "destructive",
+      });
     }
   };
 
@@ -119,8 +203,8 @@ export default function WorkersPage() {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-4">
-                <div className="p-2 rounded-lg bg-green-100">
-                  <Users className="h-5 w-5 text-green-600" />
+                <div className="p-2 rounded-lg bg-green-100 dark:bg-green-950/50">
+                  <Users className="h-5 w-5 text-green-600 dark:text-green-400" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Active Workers</p>
@@ -134,8 +218,8 @@ export default function WorkersPage() {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-4">
-                <div className="p-2 rounded-lg bg-blue-100">
-                  <Users className="h-5 w-5 text-blue-600" />
+                <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-950/50">
+                  <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Hourly Workers</p>
@@ -149,8 +233,8 @@ export default function WorkersPage() {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-4">
-                <div className="p-2 rounded-lg bg-purple-100">
-                  <Users className="h-5 w-5 text-purple-600" />
+                <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-950/50">
+                  <Users className="h-5 w-5 text-purple-600 dark:text-purple-400" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Salaried Workers</p>
@@ -280,7 +364,7 @@ export default function WorkersPage() {
               </Table>
             ) : (
               <div className="p-12 text-center">
-                <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <Users className="h-12 w-12 mx-auto text-green-600 dark:text-green-400 mb-4" />
                 <h3 className="text-lg font-semibold mb-2">No workers found</h3>
                 <p className="text-muted-foreground mb-4">
                   {searchTerm || statusFilter !== "all"

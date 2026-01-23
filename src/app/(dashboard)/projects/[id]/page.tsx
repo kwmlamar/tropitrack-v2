@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import {
   formatCurrency,
   formatDate,
@@ -38,6 +39,7 @@ import type { Project, ProjectMilestone, TimeEntry, MaterialAllocation } from "@
 export default function ProjectDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { toast } = useToast();
   const [project, setProject] = useState<Project | null>(null);
   const [milestones, setMilestones] = useState<ProjectMilestone[]>([]);
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
@@ -127,11 +129,47 @@ export default function ProjectDetailPage() {
     }
 
     try {
-      const { error } = await supabase.from("projects").delete().eq("id", params.id);
-      if (error) throw error;
+      const { data, error } = await supabase
+        .from("projects")
+        .delete()
+        .eq("id", params.id)
+        .select();
+      
+      if (error) {
+        console.error("Error deleting project:", error);
+        toast({
+          title: "Error deleting project",
+          description: error.message || "An error occurred while deleting the project.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Check if anything was actually deleted
+      if (!data || data.length === 0) {
+        toast({
+          title: "Cannot delete project",
+          description: "The project could not be deleted. This may be due to database permissions.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Project deleted",
+        description: "The project has been successfully deleted.",
+        variant: "success",
+      });
+
       router.push("/projects");
     } catch (error) {
       console.error("Error deleting project:", error);
+      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred";
+      toast({
+        title: "Error deleting project",
+        description: errorMessage,
+        variant: "destructive",
+      });
     }
   };
 

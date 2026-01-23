@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,7 @@ import {
   Sun,
   Moon,
   Monitor,
+  Users,
 } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import {
@@ -36,13 +37,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { AITone } from "@/types";
+import { useRouter } from "next/navigation";
 
 export default function SettingsPage() {
   const { profile, session, refreshProfile } = useAuth();
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
+  const [companyLoading, setCompanyLoading] = useState(false);
   const supabase = createClient();
 
   const [profileForm, setProfileForm] = useState({
@@ -56,14 +60,37 @@ export default function SettingsPage() {
     confirm_password: "",
   });
 
+  const [companyForm, setCompanyForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    address: "",
+    city: "",
+    vat_number: "",
+    business_registration: "",
+  });
+
   const [aiPreferences, setAiPreferences] = useState({
     tone: "professional" as AITone,
     search_history_enabled: true,
     auto_draft_enabled: true,
   });
 
-  // Load AI preferences on mount
-  useState(() => {
+  const [notificationPrefs, setNotificationPrefs] = useState({
+    low_stock_alerts: true,
+    milestone_reminders: true,
+    payroll_reminders: true,
+    budget_alerts: true,
+    invoice_overdue_alerts: true,
+    estimate_expiring_alerts: true,
+    team_notifications: true,
+    payment_notifications: true,
+  });
+
+  const [notificationLoading, setNotificationLoading] = useState(false);
+
+  // Load AI preferences and company data on mount
+  useEffect(() => {
     const loadAiPreferences = async () => {
       if (!profile?.id) return;
 
@@ -82,8 +109,65 @@ export default function SettingsPage() {
       }
     };
 
+    const loadCompanyData = async () => {
+      if (!profile?.company_id) return;
+
+      const { data, error } = await supabase
+        .from("companies")
+        .select("name, email, phone, address, city, vat_tax_id, business_registration_number")
+        .eq("id", profile.company_id)
+        .single();
+
+      if (error) {
+        console.error("Error loading company data:", error);
+        return;
+      }
+
+      if (data) {
+        setCompanyForm({
+          name: data.name || "",
+          email: data.email || "",
+          phone: data.phone || "",
+          address: data.address || "",
+          city: data.city || "",
+          vat_number: data.vat_tax_id || "",
+          business_registration: data.business_registration_number || "",
+        });
+      }
+    };
+
+    const loadNotificationPrefs = async () => {
+      if (!profile?.id) return;
+
+      const { data, error } = await supabase
+        .from("user_notification_preferences")
+        .select("*")
+        .eq("user_id", profile.id)
+        .single();
+
+      if (error) {
+        console.error("Error loading notification preferences:", error);
+        return;
+      }
+
+      if (data) {
+        setNotificationPrefs({
+          low_stock_alerts: data.low_stock_alerts ?? true,
+          milestone_reminders: data.milestone_reminders ?? true,
+          payroll_reminders: data.payroll_reminders ?? true,
+          budget_alerts: data.budget_alerts ?? true,
+          invoice_overdue_alerts: data.invoice_overdue_alerts ?? true,
+          estimate_expiring_alerts: data.estimate_expiring_alerts ?? true,
+          team_notifications: data.team_notifications ?? true,
+          payment_notifications: data.payment_notifications ?? true,
+        });
+      }
+    };
+
     loadAiPreferences();
-  });
+    loadCompanyData();
+    loadNotificationPrefs();
+  }, [profile?.id, profile?.company_id]);
 
   const handleAiPreferencesUpdate = async () => {
     if (!profile?.id) return;
@@ -205,6 +289,81 @@ export default function SettingsPage() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCompanyUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!profile?.company_id) return;
+
+    setCompanyLoading(true);
+    try {
+      const { error } = await supabase
+        .from("companies")
+        .update({
+          name: companyForm.name || null,
+          email: companyForm.email || null,
+          phone: companyForm.phone || null,
+          address: companyForm.address || null,
+          city: companyForm.city || null,
+          vat_tax_id: companyForm.vat_number || null,
+          business_registration_number: companyForm.business_registration || null,
+        })
+        .eq("id", profile.company_id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Company settings saved",
+        description: "Your company information has been updated successfully.",
+        variant: "success",
+      });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "An error occurred";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setCompanyLoading(false);
+    }
+  };
+
+  const handleNotificationPrefsUpdate = async () => {
+    if (!profile?.id) return;
+
+    setNotificationLoading(true);
+    try {
+      const { error } = await supabase
+        .from("user_notification_preferences")
+        .upsert(
+          {
+            user_id: profile.id,
+            ...notificationPrefs,
+            updated_at: new Date().toISOString(),
+          },
+          {
+            onConflict: "user_id",
+          }
+        );
+
+      if (error) throw error;
+
+      toast({
+        title: "Notification preferences saved",
+        description: "Your notification settings have been updated.",
+        variant: "success",
+      });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "An error occurred";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setNotificationLoading(false);
     }
   };
 
@@ -457,63 +616,198 @@ export default function SettingsPage() {
           </TabsContent>
 
           <TabsContent value="company">
-            <Card>
-              <CardHeader>
-                <CardTitle>Company Settings</CardTitle>
-                <CardDescription>
-                  Configure your company information and preferences
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4 max-w-md">
-                  <div className="space-y-2">
-                    <Label htmlFor="company_name">Company Name</Label>
-                    <Input
-                      id="company_name"
-                      placeholder="Your Company Ltd."
-                      defaultValue="TropiTech Solutions"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="business_number">Business Registration Number</Label>
-                    <Input
-                      id="business_number"
-                      placeholder="BRN-XXXXXX"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="company_address">Address</Label>
-                    <Input
-                      id="company_address"
-                      placeholder="Business address"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Company Information</CardTitle>
+                  <CardDescription>
+                    Update your company details that appear on invoices and estimates
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleCompanyUpdate} className="space-y-6">
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="company_name">Company Name</Label>
+                        <Input
+                          id="company_name"
+                          placeholder="Your Company Ltd."
+                          value={companyForm.name}
+                          onChange={(e) =>
+                            setCompanyForm({ ...companyForm, name: e.target.value })
+                          }
+                          disabled={companyLoading}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="company_email">Company Email</Label>
+                        <Input
+                          id="company_email"
+                          type="email"
+                          placeholder="info@yourcompany.com"
+                          value={companyForm.email}
+                          onChange={(e) =>
+                            setCompanyForm({ ...companyForm, email: e.target.value })
+                          }
+                          disabled={companyLoading}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="company_phone">Company Phone</Label>
+                        <Input
+                          id="company_phone"
+                          placeholder="(242) 555-1234"
+                          value={companyForm.phone}
+                          onChange={(e) =>
+                            setCompanyForm({ ...companyForm, phone: e.target.value })
+                          }
+                          disabled={companyLoading}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="city">City</Label>
+                        <Input
+                          id="city"
+                          placeholder="Nassau"
+                          value={companyForm.city}
+                          onChange={(e) =>
+                            setCompanyForm({ ...companyForm, city: e.target.value })
+                          }
+                          disabled={companyLoading}
+                        />
+                      </div>
+                    </div>
+
                     <div className="space-y-2">
-                      <Label htmlFor="currency">Currency</Label>
+                      <Label htmlFor="company_address">Business Address</Label>
                       <Input
-                        id="currency"
-                        value="BSD (Bahamian Dollar)"
-                        disabled
-                        className="bg-muted"
+                        id="company_address"
+                        placeholder="123 Main Street"
+                        value={companyForm.address}
+                        onChange={(e) =>
+                          setCompanyForm({ ...companyForm, address: e.target.value })
+                        }
+                        disabled={companyLoading}
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="timezone">Timezone</Label>
-                      <Input
-                        id="timezone"
-                        value="America/Nassau (EST)"
-                        disabled
-                        className="bg-muted"
-                      />
+
+                    <Separator />
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="vat_number">VAT/Tax ID Number <span className="text-muted-foreground">(Optional)</span></Label>
+                        <Input
+                          id="vat_number"
+                          placeholder="VAT-XXXXXX"
+                          value={companyForm.vat_number}
+                          onChange={(e) =>
+                            setCompanyForm({ ...companyForm, vat_number: e.target.value })
+                          }
+                          disabled={companyLoading}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="business_number">Business Registration Number <span className="text-muted-foreground">(Optional)</span></Label>
+                        <Input
+                          id="business_number"
+                          placeholder="BRN-XXXXXX"
+                          value={companyForm.business_registration}
+                          onChange={(e) =>
+                            setCompanyForm({ ...companyForm, business_registration: e.target.value })
+                          }
+                          disabled={companyLoading}
+                        />
+                      </div>
                     </div>
-                  </div>
-                  <Button>
-                    Save Company Settings
+
+                    <Separator />
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="currency">Currency</Label>
+                        <Input
+                          id="currency"
+                          value="BSD (Bahamian Dollar)"
+                          disabled
+                          className="bg-muted"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Currency settings cannot be changed
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="timezone">Timezone</Label>
+                        <Input
+                          id="timezone"
+                          value="America/Nassau (EST)"
+                          disabled
+                          className="bg-muted"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Timezone settings cannot be changed
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end">
+                      <Button type="submit" disabled={companyLoading}>
+                        {companyLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                        Save Company Settings
+                      </Button>
+                    </div>
+                  </form>
+                </CardContent>
+              </Card>
+
+              {/* Quick Links Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Additional Settings</CardTitle>
+                  <CardDescription>
+                    Manage team members and payment information
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-4 md:grid-cols-2">
+                  <Button
+                    variant="outline"
+                    className="justify-start h-auto py-4"
+                    onClick={() => router.push("/settings/team")}
+                  >
+                    <div className="flex items-center gap-3 w-full">
+                      <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-950/50">
+                        <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <div className="text-left">
+                        <p className="font-semibold">Team Management</p>
+                        <p className="text-sm text-muted-foreground">
+                          Invite and manage team members
+                        </p>
+                      </div>
+                    </div>
                   </Button>
-                </div>
-              </CardContent>
-            </Card>
+                  <Button
+                    variant="outline"
+                    className="justify-start h-auto py-4"
+                    onClick={() => router.push("/settings/payment")}
+                  >
+                    <div className="flex items-center gap-3 w-full">
+                      <div className="p-2 rounded-lg bg-green-100 dark:bg-green-950/50">
+                        <Wallet className="h-5 w-5 text-green-600 dark:text-green-400" />
+                      </div>
+                      <div className="text-left">
+                        <p className="font-semibold">Payment Instructions</p>
+                        <p className="text-sm text-muted-foreground">
+                          Configure invoice payment details
+                        </p>
+                      </div>
+                    </div>
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           <TabsContent value="payroll">
@@ -621,7 +915,17 @@ export default function SettingsPage() {
                         Get notified when materials fall below minimum levels
                       </p>
                     </div>
-                    <input type="checkbox" defaultChecked className="h-5 w-5" />
+                    <input
+                      type="checkbox"
+                      checked={notificationPrefs.low_stock_alerts}
+                      onChange={(e) =>
+                        setNotificationPrefs({
+                          ...notificationPrefs,
+                          low_stock_alerts: e.target.checked,
+                        })
+                      }
+                      className="h-5 w-5"
+                    />
                   </div>
                   <div className="flex items-center justify-between py-3 border-b">
                     <div>
@@ -630,7 +934,17 @@ export default function SettingsPage() {
                         Reminders for upcoming project milestones
                       </p>
                     </div>
-                    <input type="checkbox" defaultChecked className="h-5 w-5" />
+                    <input
+                      type="checkbox"
+                      checked={notificationPrefs.milestone_reminders}
+                      onChange={(e) =>
+                        setNotificationPrefs({
+                          ...notificationPrefs,
+                          milestone_reminders: e.target.checked,
+                        })
+                      }
+                      className="h-5 w-5"
+                    />
                   </div>
                   <div className="flex items-center justify-between py-3 border-b">
                     <div>
@@ -639,18 +953,115 @@ export default function SettingsPage() {
                         Notifications for pay period deadlines
                       </p>
                     </div>
-                    <input type="checkbox" defaultChecked className="h-5 w-5" />
+                    <input
+                      type="checkbox"
+                      checked={notificationPrefs.payroll_reminders}
+                      onChange={(e) =>
+                        setNotificationPrefs({
+                          ...notificationPrefs,
+                          payroll_reminders: e.target.checked,
+                        })
+                      }
+                      className="h-5 w-5"
+                    />
                   </div>
-                  <div className="flex items-center justify-between py-3">
+                  <div className="flex items-center justify-between py-3 border-b">
                     <div>
                       <p className="font-medium">Budget Alerts</p>
                       <p className="text-sm text-muted-foreground">
                         Warnings when projects approach budget limits
                       </p>
                     </div>
-                    <input type="checkbox" defaultChecked className="h-5 w-5" />
+                    <input
+                      type="checkbox"
+                      checked={notificationPrefs.budget_alerts}
+                      onChange={(e) =>
+                        setNotificationPrefs({
+                          ...notificationPrefs,
+                          budget_alerts: e.target.checked,
+                        })
+                      }
+                      className="h-5 w-5"
+                    />
                   </div>
-                  <Button>
+                  <div className="flex items-center justify-between py-3 border-b">
+                    <div>
+                      <p className="font-medium">Invoice Overdue Alerts</p>
+                      <p className="text-sm text-muted-foreground">
+                        Get notified when invoices become overdue
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={notificationPrefs.invoice_overdue_alerts}
+                      onChange={(e) =>
+                        setNotificationPrefs({
+                          ...notificationPrefs,
+                          invoice_overdue_alerts: e.target.checked,
+                        })
+                      }
+                      className="h-5 w-5"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between py-3 border-b">
+                    <div>
+                      <p className="font-medium">Estimate Expiring Alerts</p>
+                      <p className="text-sm text-muted-foreground">
+                        Reminders when estimates are about to expire
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={notificationPrefs.estimate_expiring_alerts}
+                      onChange={(e) =>
+                        setNotificationPrefs({
+                          ...notificationPrefs,
+                          estimate_expiring_alerts: e.target.checked,
+                        })
+                      }
+                      className="h-5 w-5"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between py-3 border-b">
+                    <div>
+                      <p className="font-medium">Team Notifications</p>
+                      <p className="text-sm text-muted-foreground">
+                        Updates about team invitations and changes
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={notificationPrefs.team_notifications}
+                      onChange={(e) =>
+                        setNotificationPrefs({
+                          ...notificationPrefs,
+                          team_notifications: e.target.checked,
+                        })
+                      }
+                      className="h-5 w-5"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between py-3">
+                    <div>
+                      <p className="font-medium">Payment Notifications</p>
+                      <p className="text-sm text-muted-foreground">
+                        Alerts when payments are received
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={notificationPrefs.payment_notifications}
+                      onChange={(e) =>
+                        setNotificationPrefs({
+                          ...notificationPrefs,
+                          payment_notifications: e.target.checked,
+                        })
+                      }
+                      className="h-5 w-5"
+                    />
+                  </div>
+                  <Button onClick={handleNotificationPrefsUpdate} disabled={notificationLoading}>
+                    {notificationLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                     Save Preferences
                   </Button>
                 </div>

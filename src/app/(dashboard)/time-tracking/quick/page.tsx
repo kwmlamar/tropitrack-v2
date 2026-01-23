@@ -1022,13 +1022,19 @@ function WorkerCombobox({
             <CommandGroup>
               {workers.map((worker) => {
                 const displayName = `${worker.first_name} ${worker.last_name}`;
+                const handleSelect = () => {
+                  onSelect(worker.id);
+                  setOpen(false);
+                };
+
                 return (
                   <CommandItem
                     key={worker.id}
-                    value={displayName}
-                    onSelect={() => {
-                      onSelect(worker.id);
-                      setOpen(false);
+                    value={worker.id}
+                    onSelect={handleSelect}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      handleSelect();
                     }}
                   >
                     <Check className={cn("mr-2 h-4 w-4", value === worker.id ? "opacity-100" : "opacity-0")} />
