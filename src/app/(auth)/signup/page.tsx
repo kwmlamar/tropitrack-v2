@@ -107,32 +107,53 @@ function SignupForm() {
         return;
       }
 
+      console.log("Validating join code:", normalizedCode);
+
+      // First, try to check if the column exists by attempting a simple query
       const { data, error } = await supabase
         .from("companies")
         .select("id, name, join_code")
         .eq("join_code", normalizedCode)
         .single();
 
+      console.log("Join code query result:", { data, error });
+
       if (error) {
-        console.error("Join code validation error:", error);
+        console.error("Join code validation error:", {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+        });
+
         // Check if it's a column doesn't exist error
-        if (error.message?.includes("column") && error.message?.includes("join_code")) {
+        if (
+          error.message?.includes("column") && 
+          (error.message?.includes("join_code") || error.message?.includes("does not exist"))
+        ) {
           toast({
             title: "Feature Not Available",
-            description: "Join codes are not set up yet. Please contact your administrator or use an invitation link.",
+            description: "Join codes are not set up yet. Please run the migration in Supabase or contact your administrator.",
             variant: "destructive",
           });
         } else if (error.code === "PGRST116") {
-          // No rows returned
+          // No rows returned - code doesn't exist
           toast({
             title: "Invalid Join Code",
-            description: "This join code is invalid. Please check and try again.",
+            description: `The code "${normalizedCode}" was not found. Please check the code and try again, or contact your administrator.`,
+            variant: "destructive",
+          });
+        } else if (error.code === "42501") {
+          // Permission denied (RLS policy)
+          toast({
+            title: "Access Denied",
+            description: "You don't have permission to validate join codes. Please contact your administrator.",
             variant: "destructive",
           });
         } else {
           toast({
             title: "Error",
-            description: error.message || "Failed to validate join code. Please try again.",
+            description: error.message || `Failed to validate join code (${error.code}). Please try again or contact support.`,
             variant: "destructive",
           });
         }
@@ -144,7 +165,15 @@ function SignupForm() {
           variant: "destructive",
         });
         setCodeValid(false);
+      } else if (!data.join_code) {
+        toast({
+          title: "Invalid Join Code",
+          description: "This company doesn't have a join code set. Please contact your administrator.",
+          variant: "destructive",
+        });
+        setCodeValid(false);
       } else {
+        console.log("Join code validated successfully:", data);
         setCompanyData({
           company_name: data.name,
           join_code: data.join_code,
