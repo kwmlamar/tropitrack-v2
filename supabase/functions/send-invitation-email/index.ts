@@ -55,7 +55,7 @@ serve(async (req) => {
     }
 
     // Generate invitation URL
-    const appUrl = Deno.env.get("APP_URL") || "http://localhost:3000";
+    const appUrl = Deno.env.get("APP_URL") || "https://tropitrack-v2.vercel.app";
     const inviteUrl = `${appUrl}/signup?invite=${token}`;
 
     // Email configuration (using Resend)
