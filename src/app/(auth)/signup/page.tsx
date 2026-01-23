@@ -10,7 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { Building2, Loader2, Mail, AlertCircle, CheckCircle } from "lucide-react";
+import { Loader2, Mail, AlertCircle, CheckCircle } from "lucide-react";
+import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 
 function SignupForm() {
@@ -299,8 +300,14 @@ function SignupForm() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <div className="h-16 w-16 rounded-full bg-primary flex items-center justify-center">
-              <Building2 className="h-8 w-8 text-white" />
+            <div className="h-16 w-16 rounded-full bg-background flex items-center justify-center overflow-hidden">
+              <Image
+                src="/logo.png"
+                alt="TropiTrack Logo"
+                width={64}
+                height={64}
+                className="object-contain"
+              />
             </div>
           </div>
           <CardTitle className="text-2xl font-bold">TropiTrack v2</CardTitle>

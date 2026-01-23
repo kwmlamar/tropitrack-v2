@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Building2, Loader2, ArrowLeft, Mail } from "lucide-react";
+import { Loader2, ArrowLeft, Mail } from "lucide-react";
+import Image from "next/image";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -56,8 +57,14 @@ export default function ForgotPasswordPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <div className="h-16 w-16 rounded-full bg-primary flex items-center justify-center">
-              <Building2 className="h-8 w-8 text-white" />
+            <div className="h-16 w-16 rounded-full bg-background flex items-center justify-center overflow-hidden">
+              <Image
+                src="/logo.png"
+                alt="TropiTrack Logo"
+                width={64}
+                height={64}
+                className="object-contain"
+              />
             </div>
           </div>
           <CardTitle className="text-2xl font-bold">Forgot Password</CardTitle>
