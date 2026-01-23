@@ -123,6 +123,23 @@ export default function TeamManagementPage() {
           invited_by_email: inviterProfile?.email,
         };
       }) || []);
+
+      // Fetch company join code
+      const { data: companyData, error: companyError } = await supabase
+        .from("companies")
+        .select("join_code")
+        .eq("id", profile.company_id)
+        .single();
+
+      if (!companyError && companyData) {
+        setJoinCode(companyData.join_code);
+      } else if (companyError) {
+        console.warn("Could not fetch join code:", companyError);
+        // If column doesn't exist, migration hasn't been run yet
+        if (companyError.message?.includes("column") && companyError.message?.includes("join_code")) {
+          console.warn("Join code column doesn't exist. Please run the migration.");
+        }
+      }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "An error occurred";
       toast({

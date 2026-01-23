@@ -93,13 +93,50 @@ function SignupForm() {
 
     setValidatingCode(true);
     try {
+      // Normalize the code (uppercase, trim whitespace)
+      const normalizedCode = joinCode.toUpperCase().trim();
+      
+      if (!normalizedCode || normalizedCode.length !== 8) {
+        toast({
+          title: "Invalid Join Code",
+          description: "Join code must be 8 characters long.",
+          variant: "destructive",
+        });
+        setCodeValid(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from("companies")
         .select("id, name, join_code")
-        .eq("join_code", joinCode.toUpperCase())
+        .eq("join_code", normalizedCode)
         .single();
 
-      if (error || !data) {
+      if (error) {
+        console.error("Join code validation error:", error);
+        // Check if it's a column doesn't exist error
+        if (error.message?.includes("column") && error.message?.includes("join_code")) {
+          toast({
+            title: "Feature Not Available",
+            description: "Join codes are not set up yet. Please contact your administrator or use an invitation link.",
+            variant: "destructive",
+          });
+        } else if (error.code === "PGRST116") {
+          // No rows returned
+          toast({
+            title: "Invalid Join Code",
+            description: "This join code is invalid. Please check and try again.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: error.message || "Failed to validate join code. Please try again.",
+            variant: "destructive",
+          });
+        }
+        setCodeValid(false);
+      } else if (!data) {
         toast({
           title: "Invalid Join Code",
           description: "This join code is invalid. Please check and try again.",
@@ -117,7 +154,7 @@ function SignupForm() {
       console.error("Error validating join code:", error);
       toast({
         title: "Error",
-        description: "Failed to validate join code. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to validate join code. Please try again.",
         variant: "destructive",
       });
       setCodeValid(false);
@@ -246,7 +283,7 @@ function SignupForm() {
 
   if (validatingInvite || validatingCode) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 to-amber-50 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 to-amber-50 dark:from-neutral-950 dark:to-neutral-900 p-4">
         <Card className="w-full max-w-md">
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
@@ -258,7 +295,7 @@ function SignupForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 to-amber-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 to-amber-50 dark:from-neutral-950 dark:to-neutral-900 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
@@ -430,7 +467,7 @@ export default function SignupPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 to-amber-50 p-4">
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 to-amber-50 dark:from-neutral-950 dark:to-neutral-900 p-4">
           <Card className="w-full max-w-md">
             <CardContent className="flex flex-col items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
