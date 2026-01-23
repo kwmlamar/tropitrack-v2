@@ -23,6 +23,8 @@ serve(async (req) => {
   }
 
   try {
+    console.log("Invitation email function called");
+    
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? "",
@@ -34,6 +36,15 @@ serve(async (req) => {
     );
 
     // Get request body
+    const requestBody = await req.json();
+    console.log("Request body received:", { 
+      hasInvitationId: !!requestBody.invitation_id,
+      email: requestBody.email,
+      role: requestBody.role,
+      hasToken: !!requestBody.token,
+      company_name: requestBody.company_name 
+    });
+    
     const {
       invitation_id,
       email,
@@ -41,7 +52,7 @@ serve(async (req) => {
       token,
       company_name,
       inviter_name,
-    }: InvitationEmailRequest = await req.json();
+    }: InvitationEmailRequest = requestBody;
 
     // Validate required fields
     if (!email || !role || !token || !company_name) {
@@ -60,11 +71,12 @@ serve(async (req) => {
 
     // Email configuration (using Resend)
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    console.log("Resend API key check:", { hasKey: !!resendApiKey, keyLength: resendApiKey?.length || 0 });
 
     if (!resendApiKey) {
       console.error("RESEND_API_KEY not configured");
       return new Response(
-        JSON.stringify({ error: "Email service not configured" }),
+        JSON.stringify({ error: "Email service not configured - RESEND_API_KEY is missing" }),
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -221,19 +233,35 @@ If you didn't expect this invitation, you can safely ignore this email.
     `.trim();
 
     // Send email via Resend
+    const resendPayload = {
+      from: "TropiTrack <invitations@tropitrack.com>",
+      to: [email],
+      subject: `You've been invited to join ${company_name} on TropiTrack`,
+      html: emailHtml,
+      text: emailText,
+    };
+    
+    console.log("Sending email via Resend:", { 
+      to: email, 
+      from: resendPayload.from,
+      subject: resendPayload.subject,
+      hasHtml: !!emailHtml,
+      hasText: !!emailText 
+    });
+    
     const resendResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${resendApiKey}`,
       },
-      body: JSON.stringify({
-        from: "TropiTrack <invitations@tropitrack.com>",
-        to: [email],
-        subject: `You've been invited to join ${company_name} on TropiTrack`,
-        html: emailHtml,
-        text: emailText,
-      }),
+      body: JSON.stringify(resendPayload),
+    });
+
+    console.log("Resend API response:", { 
+      status: resendResponse.status, 
+      ok: resendResponse.ok,
+      statusText: resendResponse.statusText 
     });
 
     if (!resendResponse.ok) {
@@ -243,6 +271,7 @@ If you didn't expect this invitation, you can safely ignore this email.
     }
 
     const resendData = await resendResponse.json();
+    console.log("Resend success:", { emailId: resendData.id, email: resendData });
 
     // Update invitation record to track email sent
     if (invitation_id) {
