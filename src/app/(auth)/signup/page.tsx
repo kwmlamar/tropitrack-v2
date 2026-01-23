@@ -356,9 +356,9 @@ function SignupForm() {
 
         {joinCode && codeValid && companyData && (
           <div className="px-6 pb-4">
-            <Alert className="bg-green-50 border-green-200">
-              <CheckCircle className="h-4 w-4 text-green-600" />
-              <AlertDescription className="text-green-900">
+            <Alert className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
+              <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+              <AlertDescription className="text-green-900 dark:text-green-100">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-semibold mb-1">
@@ -368,7 +368,7 @@ function SignupForm() {
                       Enter your details below to create your account and join the company
                     </p>
                   </div>
-                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
                 </div>
               </AlertDescription>
             </Alert>
