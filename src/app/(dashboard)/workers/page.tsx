@@ -61,9 +61,16 @@ export default function WorkersPage() {
   const fetchWorkers = async () => {
     setLoading(true);
     try {
+      if (!profile?.company_id) {
+        setWorkers([]);
+        setLoading(false);
+        return;
+      }
+
       let query = supabase
         .from("workers")
         .select("*")
+        .eq("company_id", profile.company_id)
         .order("last_name", { ascending: true });
 
       if (statusFilter !== "all") {

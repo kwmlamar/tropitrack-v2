@@ -55,12 +55,19 @@ export default function ProjectsPage() {
   const { profile } = useAuth();
 
   useEffect(() => {
-    fetchProjects();
-  }, [statusFilter]);
+    if (profile?.company_id) {
+      fetchProjects();
+    }
+  }, [statusFilter, profile?.company_id]);
 
   const fetchProjects = async () => {
     setLoading(true);
     try {
+      if (!profile?.company_id) {
+        setProjects([]);
+        setLoading(false);
+        return;
+      }
       let query = supabase
         .from("projects")
         .select(`
@@ -72,6 +79,7 @@ export default function ProjectsPage() {
             phone
           )
         `)
+        .eq("company_id", profile.company_id)
         .order("created_at", { ascending: false });
 
       if (statusFilter !== "all") {

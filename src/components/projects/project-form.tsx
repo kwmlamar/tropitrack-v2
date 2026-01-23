@@ -47,7 +47,7 @@ interface ProjectFormProps {
 
 export function ProjectForm({ project, isEditing = false }: ProjectFormProps) {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [managers, setManagers] = useState<User[]>([]);
@@ -92,8 +92,19 @@ export function ProjectForm({ project, isEditing = false }: ProjectFormProps) {
 
     setLoading(true);
     try {
+      if (!profile?.company_id) {
+        toast({
+          title: "Error",
+          description: "User is not associated with a company. Cannot add project.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
       const projectData = {
         ...data,
+        company_id: profile.company_id,
         estimated_end_date: data.estimated_end_date || null,
         project_manager_id: data.project_manager_id || null,
       };

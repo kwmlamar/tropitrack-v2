@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/lib/auth-context";
 import { formatCurrency, formatDate, getProjectStatusColor } from "@/lib/utils";
 import {
   FolderKanban,
@@ -43,6 +44,7 @@ export default function DashboardPage() {
   const [lowStockItems, setLowStockItems] = useState<Material[]>([]);
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
+  const { profile } = useAuth();
 
   useEffect(() => {
     fetchDashboardData();
@@ -50,22 +52,37 @@ export default function DashboardPage() {
 
   const fetchDashboardData = async () => {
     try {
-      // Fetch active projects count
+      if (!profile?.company_id) {
+        setStats({ activeProjects: 0, totalWorkers: 0, lowStockMaterials: 0, totalRevenue: 0, totalExpenses: 0 });
+        setRecentProjects([]);
+        setLowStockItems([]);
+        setLoading(false);
+        return;
+      }
+      // Fetch active projects count, filtered by company_id
       const { count: projectCount } = await supabase
         .from("projects")
         .select("*", { count: "exact", head: true })
+        .eq("company_id", profile.company_id)
         .eq("status", "active");
 
       // Fetch active workers count
-      const { count: workerCount } = await supabase
+      let workersCountQuery = supabase
         .from("workers")
         .select("*", { count: "exact", head: true })
         .eq("status", "active");
+      
+      if (profile?.company_id) {
+        workersCountQuery = workersCountQuery.eq("company_id", profile.company_id);
+      }
+      
+      const { count: workerCount } = await workersCountQuery;
 
-      // Fetch recent projects
+      // Fetch recent projects, filtered by company_id
       const { data: projects } = await supabase
         .from("projects")
         .select("*")
+        .eq("company_id", profile.company_id)
         .order("created_at", { ascending: false })
         .limit(5);
 
@@ -76,10 +93,11 @@ export default function DashboardPage() {
         .lte("quantity_in_stock", supabase.rpc("get_minimum_stock_level"))
         .limit(5);
 
-      // Calculate revenue from contracts
+      // Calculate revenue from contracts, filtered by company_id
       const { data: revenueData } = await supabase
         .from("projects")
         .select("contract_value")
+        .eq("company_id", profile.company_id)
         .in("status", ["active", "completed"]);
 
       const totalRevenue = revenueData?.reduce((sum, p) => sum + (p.contract_value || 0), 0) || 0;

@@ -98,7 +98,7 @@ function generateId() {
 }
 
 export function QuickTimeEntry() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
   const supabase = createClient();
 
@@ -149,17 +149,29 @@ export function QuickTimeEntry() {
   const fetchData = async () => {
     setLoading(true);
     try {
+      // Fetch projects (filtered by company_id)
+      let projectsQuery = supabase
+        .from("projects")
+        .select("*")
+        .in("status", ["active", "planning"]);
+      
+      if (profile?.company_id) {
+        projectsQuery = projectsQuery.eq("company_id", profile.company_id);
+      }
+      
+      // Fetch workers (filtered by company_id)
+      let workersQuery = supabase
+        .from("workers")
+        .select("*")
+        .eq("status", "active");
+      
+      if (profile?.company_id) {
+        workersQuery = workersQuery.eq("company_id", profile.company_id);
+      }
+      
       const [projectsRes, workersRes] = await Promise.all([
-        supabase
-          .from("projects")
-          .select("*")
-          .in("status", ["active", "planning"])
-          .order("name"),
-        supabase
-          .from("workers")
-          .select("*")
-          .eq("status", "active")
-          .order("last_name"),
+        projectsQuery.order("name"),
+        workersQuery.order("last_name"),
       ]);
 
       setProjects(projectsRes.data || []);
@@ -183,11 +195,17 @@ export function QuickTimeEntry() {
       return;
     }
 
-    const { data } = await supabase
+    let query = supabase
       .from("time_entries")
       .select("worker_id, regular_hours, overtime_hours")
       .eq("date", selectedDate)
       .in("worker_id", workerIds);
+    
+    if (profile?.company_id) {
+      query = query.eq("company_id", profile.company_id);
+    }
+    
+    const { data } = await query;
 
     const entries = new Map<string, number>();
     data?.forEach((entry) => {
@@ -340,7 +358,7 @@ export function QuickTimeEntry() {
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayStr = yesterday.toISOString().split("T")[0];
 
-    const { data, error } = await supabase
+    let query = supabase
       .from("time_entries")
       .select(`
         worker_id,
@@ -351,6 +369,12 @@ export function QuickTimeEntry() {
         workers(first_name, last_name, hourly_rate)
       `)
       .eq("date", yesterdayStr);
+    
+    if (profile?.company_id) {
+      query = query.eq("company_id", profile.company_id);
+    }
+    
+    const { data, error } = await query;
 
     if (error || !data || data.length === 0) {
       toast({
@@ -387,7 +411,7 @@ export function QuickTimeEntry() {
     lastWeek.setDate(lastWeek.getDate() - 7);
     const lastWeekStr = lastWeek.toISOString().split("T")[0];
 
-    const { data, error } = await supabase
+    let query = supabase
       .from("time_entries")
       .select(`
         worker_id,
@@ -398,6 +422,12 @@ export function QuickTimeEntry() {
         workers(first_name, last_name, hourly_rate)
       `)
       .eq("date", lastWeekStr);
+    
+    if (profile?.company_id) {
+      query = query.eq("company_id", profile.company_id);
+    }
+    
+    const { data, error } = await query;
 
     if (error || !data || data.length === 0) {
       toast({
@@ -438,7 +468,14 @@ export function QuickTimeEntry() {
 
   // Batch save all entries
   const saveAll = async () => {
-    if (!user) return;
+    if (!user || !profile?.company_id) {
+      toast({
+        title: "Error",
+        description: "Unable to save. Please ensure you're logged in and associated with a company.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     // Validate rows
     const validRows = rows.filter((row) => row.worker_id && row.hours > 0);
@@ -494,6 +531,16 @@ export function QuickTimeEntry() {
       )
     );
 
+    if (!profile?.company_id) {
+      toast({
+        title: "Error",
+        description: "Company information not available. Please refresh the page.",
+        variant: "destructive",
+      });
+      setSaving(false);
+      return;
+    }
+
     try {
       const entries = rowsToSave.map((row) => {
         const regularHours = row.has_overtime ? Math.min(8, row.hours) : row.hours;
@@ -502,6 +549,7 @@ export function QuickTimeEntry() {
         return {
           worker_id: row.worker_id,
           project_id: row.project_id || globalProject,
+          company_id: profile.company_id,
           date: selectedDate,
           start_time: "07:00",
           end_time: calculateEndTime(regularHours + overtimeHours),

@@ -32,6 +32,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/lib/auth-context";
 import {
   Plus,
   Search,
@@ -57,6 +58,7 @@ export default function EstimatesPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const supabase = createClient();
   const { toast } = useToast();
+  const { profile } = useAuth();
 
   useEffect(() => {
     fetchEstimates();
@@ -86,21 +88,60 @@ export default function EstimatesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this estimate?")) return;
+    if (!confirm("Are you sure you want to delete this estimate? This action cannot be undone.")) return;
 
     try {
-      const { error } = await supabase.from("estimates").delete().eq("id", id);
-      if (error) throw error;
-      setEstimates(estimates.filter((e) => e.id !== id));
+      // Check user permissions first
+      const isAdmin = profile?.role === "admin" || profile?.role === "project_manager";
+      if (!isAdmin) {
+        toast({
+          title: "Permission denied",
+          description: "Only administrators and project managers can delete estimates.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("estimates")
+        .delete()
+        .eq("id", id)
+        .select();
+      
+      if (error) {
+        console.error("Error deleting estimate:", error);
+        toast({
+          title: "Error deleting estimate",
+          description: error.message || "An error occurred while deleting the estimate.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Check if anything was actually deleted
+      if (!data || data.length === 0) {
+        toast({
+          title: "Cannot delete estimate",
+          description: "The estimate could not be deleted. This may be due to database permissions. Please ensure the RLS policy allows deletion for your role.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       toast({
         title: "Estimate deleted",
-        description: "The estimate has been removed.",
+        description: "The estimate has been successfully deleted.",
+        variant: "success",
       });
+
+      // Refresh the estimates list
+      fetchEstimates();
     } catch (error: any) {
       console.error("Error deleting estimate:", error);
+      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred";
       toast({
-        title: "Error",
-        description: error.message || "Failed to delete estimate",
+        title: "Error deleting estimate",
+        description: errorMessage,
         variant: "destructive",
       });
     }

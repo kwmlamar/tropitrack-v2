@@ -53,11 +53,16 @@ export function DatePicker({
   const [open, setOpen] = React.useState(false);
   const [inputValue, setInputValue] = React.useState("");
 
-  // Parse the ISO string value to a Date object
+  // Parse the ISO string value to a Date object (using local timezone)
   const selectedDate = React.useMemo(() => {
     if (!value) return undefined;
-    const parsed = parse(value, "yyyy-MM-dd", new Date());
-    return isValid(parsed) ? parsed : undefined;
+    // Parse date string (YYYY-MM-DD) as local date to avoid timezone shifts
+    const [year, month, day] = value.split('-').map(Number);
+    if (year && month && day) {
+      const date = new Date(year, month - 1, day);
+      return isValid(date) ? date : undefined;
+    }
+    return undefined;
   }, [value]);
 
   // Update input value when selected date changes
@@ -71,7 +76,11 @@ export function DatePicker({
 
   const handleSelect = (date: Date | undefined) => {
     if (date) {
-      onChange?.(format(date, "yyyy-MM-dd"));
+      // Format date using local date components to avoid timezone issues
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      onChange?.(`${year}-${month}-${day}`);
     }
     setOpen(false);
   };

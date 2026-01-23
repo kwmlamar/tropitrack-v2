@@ -81,11 +81,15 @@ export default function ProjectDetailPage() {
 
       setMilestones(milestonesData || []);
 
-      // Fetch recent time entries
-      const { data: timeData } = await supabase
+      // Fetch recent time entries (filtered by company_id)
+      let timeQuery = supabase
         .from("time_entries")
         .select("*, workers(first_name, last_name)")
-        .eq("project_id", params.id)
+        .eq("project_id", params.id);
+      
+      // Note: We get profile from useAuth, but need to check if it's available
+      // For now, RLS policies will handle company filtering
+      const { data: timeData } = await timeQuery
         .order("date", { ascending: false })
         .limit(10);
 

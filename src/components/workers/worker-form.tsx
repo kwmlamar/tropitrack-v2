@@ -22,6 +22,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Wallet, Info } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useAuth } from "@/lib/auth-context";
 import type { Worker } from "@/types";
 
 const workerSchema = z.object({
@@ -54,6 +55,7 @@ interface WorkerFormProps {
 export function WorkerForm({ worker, isEditing = false }: WorkerFormProps) {
   const router = useRouter();
   const { toast } = useToast();
+  const { profile } = useAuth();
   const [loading, setLoading] = useState(false);
   const supabase = createClient();
 
@@ -90,8 +92,19 @@ export function WorkerForm({ worker, isEditing = false }: WorkerFormProps) {
   const onSubmit = async (data: WorkerFormData) => {
     setLoading(true);
     try {
+      if (!profile?.company_id) {
+        toast({
+          title: "Error",
+          description: "You must be associated with a company to create workers.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
       const workerData = {
         ...data,
+        company_id: profile.company_id,
         email: data.email || null,
         hourly_rate: data.worker_type === "hourly" ? data.hourly_rate : null,
         salary_amount: data.worker_type === "salary" ? data.salary_amount : null,

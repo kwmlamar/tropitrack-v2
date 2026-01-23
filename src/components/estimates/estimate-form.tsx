@@ -111,10 +111,15 @@ export function EstimateForm({ estimate, lineItems = [], mode }: EstimateFormPro
 
   const fetchReferenceData = async () => {
     try {
+      let workersQuery = supabase.from("workers").select("*").eq("status", "active");
+      if (profile?.company_id) {
+        workersQuery = workersQuery.eq("company_id", profile.company_id);
+      }
+      
       const [clientsRes, materialsRes, workersRes, equipmentRes] = await Promise.all([
         supabase.from("clients").select("*").order("name"),
         supabase.from("materials").select("*").order("name"),
-        supabase.from("workers").select("*").eq("status", "active").order("last_name"),
+        workersQuery.order("last_name"),
         supabase.from("equipment").select("*").eq("status", "available").order("name"),
       ]);
 

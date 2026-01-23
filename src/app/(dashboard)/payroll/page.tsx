@@ -153,11 +153,15 @@ export default function PayrollPage() {
     e.preventDefault();
     setSubmitting(true);
     try {
+      // Ensure dates are in YYYY-MM-DD format (no time component)
+      const startDate = periodForm.start_date.split('T')[0];
+      const endDate = periodForm.end_date.split('T')[0];
+      
       const { data, error } = await supabase
         .from("pay_periods")
         .insert({
-          start_date: periodForm.start_date,
-          end_date: periodForm.end_date,
+          start_date: startDate,
+          end_date: endDate,
           status: "open",
         })
         .select()
@@ -192,7 +196,7 @@ export default function PayrollPage() {
     setSubmitting(true);
     try {
       // Fetch time entries for the pay period with worker NIB settings
-      const { data: timeEntries } = await supabase
+      const { data: timeEntries, error: timeEntriesError } = await supabase
         .from("time_entries")
         .select(`
           worker_id,
@@ -203,6 +207,10 @@ export default function PayrollPage() {
         `)
         .gte("date", selectedPeriod.start_date)
         .lte("date", selectedPeriod.end_date);
+
+      if (timeEntriesError) {
+        throw new Error(`Failed to fetch time entries: ${timeEntriesError.message}`);
+      }
 
       if (!timeEntries || timeEntries.length === 0) {
         toast({
@@ -230,17 +238,25 @@ export default function PayrollPage() {
       }> = {};
 
       timeEntries.forEach((entry: any) => {
+        // Convert DECIMAL to number
+        const regularHours = typeof entry.regular_hours === 'string' 
+          ? parseFloat(entry.regular_hours) 
+          : Number(entry.regular_hours) || 0;
+        const overtimeHours = typeof entry.overtime_hours === 'string'
+          ? parseFloat(entry.overtime_hours)
+          : Number(entry.overtime_hours) || 0;
+
         if (!workerTotals[entry.worker_id]) {
           workerTotals[entry.worker_id] = {
             regular_hours: 0,
             overtime_hours: 0,
-            hourly_rate: entry.workers?.hourly_rate || 0,
-            overtime_multiplier: entry.workers?.overtime_rate_multiplier || 1.5,
+            hourly_rate: Number(entry.workers?.hourly_rate) || 0,
+            overtime_multiplier: Number(entry.workers?.overtime_rate_multiplier) || 1.5,
             nib_enabled: entry.workers?.nib_enabled ?? true,
           };
         }
-        workerTotals[entry.worker_id].regular_hours += entry.regular_hours;
-        workerTotals[entry.worker_id].overtime_hours += entry.overtime_hours;
+        workerTotals[entry.worker_id].regular_hours += regularHours;
+        workerTotals[entry.worker_id].overtime_hours += overtimeHours;
       });
 
       // Create payroll entries with proper NIB calculations
@@ -313,11 +329,26 @@ export default function PayrollPage() {
       });
 
       setProcessDialogOpen(false);
-      fetchData();
+      
+      // Refresh the pay periods list
+      const { data: periodsData } = await supabase
+        .from("pay_periods")
+        .select("*")
+        .order("start_date", { ascending: false });
+      setPayPeriods(periodsData || []);
+      
+      // Refresh the selected period to show the new payroll entries
+      if (selectedPeriod) {
+        const updatedPeriod = periodsData?.find((p) => p.id === selectedPeriod.id);
+        if (updatedPeriod) {
+          await fetchPeriodEntries(updatedPeriod);
+        }
+      }
     } catch (error: unknown) {
+      console.error("Payroll processing error:", error);
       const errorMessage = error instanceof Error ? error.message : "An error occurred";
       toast({
-        title: "Error",
+        title: "Error processing payroll",
         description: errorMessage,
         variant: "destructive",
       });

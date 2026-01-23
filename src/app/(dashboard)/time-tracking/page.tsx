@@ -62,7 +62,7 @@ interface TimeEntryWithRelations extends TimeEntry {
 }
 
 export default function TimeTrackingPage() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
   const [entries, setEntries] = useState<TimeEntryWithRelations[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -95,26 +95,36 @@ export default function TimeTrackingPage() {
       // #region agent log
       fetch('http://127.0.0.1:7242/ingest/219dfdb1-3353-46ca-9c1b-4d9e8cfab01b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'time-tracking/page.tsx:89',message:'fetchData entry',data:{selectedProject,selectedDate},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
       // #endregion
-      // Fetch projects
-      const { data: projectsData } = await supabase
+      // Fetch projects (filtered by company_id)
+      let projectsQuery = supabase
         .from("projects")
         .select("*")
-        .in("status", ["active", "planning"])
-        .order("name");
+        .in("status", ["active", "planning"]);
+      
+      if (profile?.company_id) {
+        projectsQuery = projectsQuery.eq("company_id", profile.company_id);
+      }
+      
+      const { data: projectsData } = await projectsQuery.order("name");
       // #region agent log
       fetch('http://127.0.0.1:7242/ingest/219dfdb1-3353-46ca-9c1b-4d9e8cfab01b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'time-tracking/page.tsx:98',message:'projects fetched',data:{projectsCount:projectsData?.length||0,projectIds:projectsData?.map(p=>p.id)||[],hasEmptyIds:projectsData?.some(p=>!p.id||p.id==='')||false},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
       // #endregion
       setProjects(projectsData || []);
 
       // Fetch active workers
-      const { data: workersData } = await supabase
+      let workersQuery = supabase
         .from("workers")
         .select("*")
-        .eq("status", "active")
-        .order("last_name");
+        .eq("status", "active");
+      
+      if (profile?.company_id) {
+        workersQuery = workersQuery.eq("company_id", profile.company_id);
+      }
+      
+      const { data: workersData } = await workersQuery.order("last_name");
       setWorkers(workersData || []);
 
-      // Fetch time entries
+      // Fetch time entries (filtered by company_id)
       let query = supabase
         .from("time_entries")
         .select(`
@@ -122,14 +132,17 @@ export default function TimeTrackingPage() {
           workers(first_name, last_name, hourly_rate),
           projects(name)
         `)
-        .eq("date", selectedDate)
-        .order("created_at", { ascending: false });
+        .eq("date", selectedDate);
+      
+      if (profile?.company_id) {
+        query = query.eq("company_id", profile.company_id);
+      }
 
       if (selectedProject && selectedProject !== "all") {
         query = query.eq("project_id", selectedProject);
       }
 
-      const { data: entriesData } = await query;
+      const { data: entriesData } = await query.order("created_at", { ascending: false });
       setEntries((entriesData || []) as TimeEntryWithRelations[]);
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -140,7 +153,14 @@ export default function TimeTrackingPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !profile?.company_id) {
+      toast({
+        title: "Error",
+        description: "Unable to create time entry. Please ensure you're logged in and associated with a company.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -153,6 +173,7 @@ export default function TimeTrackingPage() {
 
       const { error } = await supabase.from("time_entries").insert({
         ...formData,
+        company_id: profile.company_id,
         regular_hours: regular,
         overtime_hours: overtime,
         created_by: user.id,

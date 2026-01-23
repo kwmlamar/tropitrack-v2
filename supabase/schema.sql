@@ -299,8 +299,18 @@ ALTER TABLE public.payroll_entries ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view payroll entries" ON public.payroll_entries
     FOR SELECT USING (auth.role() = 'authenticated');
 
-CREATE POLICY "Admins can manage payroll entries" ON public.payroll_entries
-    FOR ALL USING (
+-- Drop the old policy
+DROP POLICY IF EXISTS "Admins can manage payroll entries" ON public.payroll_entries;
+
+-- Create new policies
+CREATE POLICY "Users can create payroll entries" ON public.payroll_entries
+    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Users can update payroll entries" ON public.payroll_entries
+    FOR UPDATE USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Admins can delete payroll entries" ON public.payroll_entries
+    FOR DELETE USING (
         EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
     );
 

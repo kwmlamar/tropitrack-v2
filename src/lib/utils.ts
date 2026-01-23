@@ -17,11 +17,31 @@ export function formatCurrency(amount: number): string {
 
 // Date formatting utilities
 export function formatDate(date: string | Date): string {
-  return new Intl.DateTimeFormat("en-BS", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  }).format(new Date(date));
+  let year: number, month: number, day: number;
+  
+  if (typeof date === 'string') {
+    // Handle date strings - extract just the date part (YYYY-MM-DD) before any T or space
+    const dateOnly = date.split('T')[0].split(' ')[0];
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) {
+      // Parse date components directly to avoid timezone shifts
+      [year, month, day] = dateOnly.split('-').map(Number);
+    } else {
+      // Fallback for other date formats
+      const dateObj = new Date(date);
+      year = dateObj.getFullYear();
+      month = dateObj.getMonth() + 1;
+      day = dateObj.getDate();
+    }
+  } else {
+    // For Date objects, use local date components
+    year = date.getFullYear();
+    month = date.getMonth() + 1;
+    day = date.getDate();
+  }
+  
+  // Format using date components directly
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${monthNames[month - 1]} ${day}, ${year}`;
 }
 
 export function formatDateTime(date: string | Date): string {

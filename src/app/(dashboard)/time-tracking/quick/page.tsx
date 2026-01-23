@@ -135,7 +135,7 @@ function generateId() {
 }
 
 export default function QuickTimeEntryPage() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
   const supabase = createClient();
 
@@ -194,9 +194,29 @@ export default function QuickTimeEntryPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
+      // Fetch projects (filtered by company_id)
+      let projectsQuery = supabase
+        .from("projects")
+        .select("*")
+        .in("status", ["active", "planning"]);
+      
+      if (profile?.company_id) {
+        projectsQuery = projectsQuery.eq("company_id", profile.company_id);
+      }
+      
+      // Fetch workers (filtered by company_id)
+      let workersQuery = supabase
+        .from("workers")
+        .select("*")
+        .eq("status", "active");
+      
+      if (profile?.company_id) {
+        workersQuery = workersQuery.eq("company_id", profile.company_id);
+      }
+      
       const [projectsRes, workersRes] = await Promise.all([
-        supabase.from("projects").select("*").in("status", ["active", "planning"]).order("name"),
-        supabase.from("workers").select("*").eq("status", "active").order("last_name"),
+        projectsQuery.order("name"),
+        workersQuery.order("last_name"),
       ]);
       setProjects(projectsRes.data || []);
       setWorkers(workersRes.data || []);
@@ -224,11 +244,17 @@ export default function QuickTimeEntryPage() {
       return;
     }
 
-    const { data } = await supabase
+    let query = supabase
       .from("time_entries")
       .select("worker_id, regular_hours, overtime_hours")
       .eq("date", selectedDate)
       .in("worker_id", workerIds);
+    
+    if (profile?.company_id) {
+      query = query.eq("company_id", profile.company_id);
+    }
+    
+    const { data } = await query;
 
     const entries = new Map<string, number>();
     data?.forEach((entry) => {
@@ -348,10 +374,16 @@ export default function QuickTimeEntryPage() {
   const copyYesterday = async () => {
     const yesterday = new Date(selectedDate);
     yesterday.setDate(yesterday.getDate() - 1);
-    const { data, error } = await supabase
+    let query = supabase
       .from("time_entries")
       .select("worker_id, project_id, regular_hours, overtime_hours, workers(first_name, last_name, hourly_rate)")
       .eq("date", yesterday.toISOString().split("T")[0]);
+    
+    if (profile?.company_id) {
+      query = query.eq("company_id", profile.company_id);
+    }
+    
+    const { data, error } = await query;
 
     if (error || !data?.length) {
       toast({ title: "No entries found", description: "No time entries found for yesterday.", variant: "destructive" });
@@ -377,10 +409,16 @@ export default function QuickTimeEntryPage() {
   const copyLastWeek = async () => {
     const lastWeek = new Date(selectedDate);
     lastWeek.setDate(lastWeek.getDate() - 7);
-    const { data, error } = await supabase
+    let query = supabase
       .from("time_entries")
       .select("worker_id, project_id, regular_hours, overtime_hours, workers(first_name, last_name, hourly_rate)")
       .eq("date", lastWeek.toISOString().split("T")[0]);
+    
+    if (profile?.company_id) {
+      query = query.eq("company_id", profile.company_id);
+    }
+    
+    const { data, error } = await query;
 
     if (error || !data?.length) {
       toast({ title: "No entries found", description: "No time entries found for last week.", variant: "destructive" });
@@ -484,7 +522,10 @@ export default function QuickTimeEntryPage() {
 
   // Save all entries
   const saveAll = async () => {
-    if (!user) return;
+    if (!user || !profile?.company_id) {
+      toast({ title: "Error", description: "Unable to save. Please ensure you're logged in and associated with a company.", variant: "destructive" });
+      return;
+    }
 
     const validRows = rows.filter((row) => row.worker_id && row.hours > 0);
     if (validRows.length === 0) {
@@ -515,6 +556,16 @@ export default function QuickTimeEntryPage() {
   };
 
   const performSave = async (rowsToSave: TimeEntryRow[]) => {
+    if (!profile?.company_id) {
+      toast({
+        title: "Error",
+        description: "Company information not available. Please refresh the page.",
+        variant: "destructive",
+      });
+      setSaving(false);
+      return;
+    }
+
     setSaving(true);
     setRows((prev) => prev.map((row) => (rowsToSave.find((r) => r.id === row.id) ? { ...row, status: "saving" as const } : row)));
 
@@ -528,6 +579,7 @@ export default function QuickTimeEntryPage() {
         return {
           worker_id: row.worker_id,
           project_id: row.project_id || globalProject,
+          company_id: profile.company_id,
           date: selectedDate,
           start_time: "07:00",
           end_time: `${Math.floor(endHour).toString().padStart(2, "0")}:${Math.round((endHour % 1) * 60).toString().padStart(2, "0")}`,

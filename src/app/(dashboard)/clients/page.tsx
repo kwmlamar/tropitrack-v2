@@ -34,6 +34,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/lib/auth-context";
 import { formatCurrency } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -62,6 +63,7 @@ export default function ClientsPage() {
   const [saving, setSaving] = useState(false);
   const supabase = createClient();
   const { toast } = useToast();
+  const { profile } = useAuth();
 
   // Form state
   const [formData, setFormData] = useState({
@@ -75,15 +77,23 @@ export default function ClientsPage() {
   });
 
   useEffect(() => {
-    fetchClients();
-  }, []);
+    if (profile?.company_id) {
+      fetchClients();
+    }
+  }, [profile?.company_id]);
 
   const fetchClients = async () => {
     setLoading(true);
     try {
+      if (!profile?.company_id) {
+        setClients([]);
+        setLoading(false);
+        return;
+      }
       const { data, error } = await supabase
         .from("client_balances")
         .select("*")
+        .eq("company_id", profile.company_id)
         .order("name");
 
       if (error) throw error;
@@ -91,10 +101,16 @@ export default function ClientsPage() {
     } catch (error) {
       console.error("Error fetching clients:", error);
       // If the view doesn't exist, fall back to clients table
+      if (!profile?.company_id) {
+        setClients([]);
+        setLoading(false);
+        return;
+      }
       try {
         const { data, error } = await supabase
           .from("clients")
           .select("*")
+          .eq("company_id", profile.company_id)
           .order("name");
 
         if (error) throw error;
@@ -191,7 +207,17 @@ export default function ClientsPage() {
         });
       } else {
         // Create new client
+        if (!profile?.company_id) {
+          toast({
+            title: "Error",
+            description: "User is not associated with a company. Cannot add client.",
+            variant: "destructive",
+          });
+          setSaving(false);
+          return;
+        }
         const { error } = await supabase.from("clients").insert({
+          company_id: profile.company_id,
           name: formData.name,
           email: formData.email || null,
           phone: formData.phone || null,

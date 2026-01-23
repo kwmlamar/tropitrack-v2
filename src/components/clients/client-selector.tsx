@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -67,18 +68,27 @@ export function ClientSelector({
   });
 
   const supabase = createClient();
+  const { profile } = useAuth();
   const selectedClient = clients.find((c) => c.id === value);
 
   useEffect(() => {
-    fetchClients();
-  }, []);
+    if (profile?.company_id) {
+      fetchClients();
+    }
+  }, [profile?.company_id]);
 
   const fetchClients = async () => {
     setLoading(true);
     try {
+      if (!profile?.company_id) {
+        setClients([]);
+        setLoading(false);
+        return;
+      }
       const { data } = await supabase
         .from("clients")
         .select("*")
+        .eq("company_id", profile.company_id)
         .order("name");
       setClients(data || []);
     } catch (error) {
@@ -90,12 +100,17 @@ export function ClientSelector({
 
   const handleCreateClient = async () => {
     if (!newClient.name.trim()) return;
+    if (!profile?.company_id) {
+      console.error("User is not associated with a company");
+      return;
+    }
 
     setCreatingClient(true);
     try {
       const { data, error } = await supabase
         .from("clients")
         .insert({
+          company_id: profile.company_id,
           name: newClient.name.trim(),
           email: newClient.email.trim() || null,
           phone: newClient.phone.trim() || null,
