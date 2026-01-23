@@ -109,14 +109,11 @@ function SignupForm() {
 
       console.log("Validating join code:", normalizedCode);
 
-      // First, try to check if the column exists by attempting a simple query
+      // Use RPC function to validate join code (bypasses RLS)
       const { data, error } = await supabase
-        .from("companies")
-        .select("id, name, join_code")
-        .eq("join_code", normalizedCode)
-        .single();
+        .rpc("validate_join_code", { p_join_code: normalizedCode });
 
-      console.log("Join code query result:", { data, error });
+      console.log("Join code validation result:", { data, error });
 
       if (error) {
         console.error("Join code validation error:", {
@@ -126,28 +123,14 @@ function SignupForm() {
           hint: error.hint,
         });
 
-        // Check if it's a column doesn't exist error
+        // Check if function doesn't exist (migration not run)
         if (
-          error.message?.includes("column") && 
-          (error.message?.includes("join_code") || error.message?.includes("does not exist"))
+          error.message?.includes("function") && 
+          (error.message?.includes("validate_join_code") || error.message?.includes("does not exist"))
         ) {
           toast({
             title: "Feature Not Available",
             description: "Join codes are not set up yet. Please run the migration in Supabase or contact your administrator.",
-            variant: "destructive",
-          });
-        } else if (error.code === "PGRST116") {
-          // No rows returned - code doesn't exist
-          toast({
-            title: "Invalid Join Code",
-            description: `The code "${normalizedCode}" was not found. Please check the code and try again, or contact your administrator.`,
-            variant: "destructive",
-          });
-        } else if (error.code === "42501") {
-          // Permission denied (RLS policy)
-          toast({
-            title: "Access Denied",
-            description: "You don't have permission to validate join codes. Please contact your administrator.",
             variant: "destructive",
           });
         } else {
@@ -165,18 +148,19 @@ function SignupForm() {
           variant: "destructive",
         });
         setCodeValid(false);
-      } else if (!data.join_code) {
+      } else if (!data.valid) {
+        // RPC function returned valid: false
         toast({
           title: "Invalid Join Code",
-          description: "This company doesn't have a join code set. Please contact your administrator.",
+          description: data.error || `The code "${normalizedCode}" was not found. Please check the code and try again.`,
           variant: "destructive",
         });
         setCodeValid(false);
       } else {
         console.log("Join code validated successfully:", data);
         setCompanyData({
-          company_name: data.name,
-          join_code: data.join_code,
+          company_name: data.company_name,
+          join_code: normalizedCode,
         });
         setCodeValid(true);
       }

@@ -40,6 +40,33 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Function to validate join code (public, no auth required)
+CREATE OR REPLACE FUNCTION public.validate_join_code(p_join_code TEXT)
+RETURNS JSON AS $$
+DECLARE
+    v_company_id UUID;
+    v_company_name TEXT;
+BEGIN
+    -- Find company by join code (bypasses RLS with SECURITY DEFINER)
+    SELECT id, name INTO v_company_id, v_company_name
+    FROM public.companies
+    WHERE join_code = UPPER(TRIM(p_join_code));
+    
+    IF v_company_id IS NULL THEN
+        RETURN json_build_object(
+            'valid', false,
+            'error', 'Invalid join code'
+        );
+    END IF;
+    
+    RETURN json_build_object(
+        'valid', true,
+        'company_id', v_company_id,
+        'company_name', v_company_name
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 -- Function to join company by code
 CREATE OR REPLACE FUNCTION public.join_company_by_code(
     p_join_code TEXT,
@@ -60,7 +87,7 @@ BEGIN
     -- Find company by join code
     SELECT id, name INTO v_company_id, v_company_name
     FROM public.companies
-    WHERE join_code = p_join_code;
+    WHERE join_code = UPPER(TRIM(p_join_code));
     
     IF v_company_id IS NULL THEN
         RAISE EXCEPTION 'Invalid join code';
@@ -90,7 +117,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Grant execute permission
+-- Grant execute permissions
+GRANT EXECUTE ON FUNCTION public.validate_join_code(TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.join_company_by_code(TEXT, UUID, TEXT) TO authenticated;
 
 COMMENT ON COLUMN public.companies.join_code IS 'Unique code that allows users to join this company during signup';
