@@ -219,7 +219,7 @@ export default function TeamManagementPage() {
         };
 
         // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/219dfdb1-3353-46ca-9c1b-4d9e8cfab01b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'team/page.tsx:218',message:'Calling Edge Function',data:{url:`${supabaseUrl}/functions/v1/send-invitation-email`,hasToken:!!session.access_token,requestBody},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        fetch('http://127.0.0.1:7242/ingest/219dfdb1-3353-46ca-9c1b-4d9e8cfab01b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'team/page.tsx:218',message:'Calling API route',data:{url:'/api/invitations/send-email',hasToken:!!session.access_token,requestBody},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
         // #endregion
 
         const emailResponse = await fetch(
