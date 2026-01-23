@@ -196,14 +196,16 @@ export default function TeamManagementPage() {
 
       // Send invitation email via Edge Function
       try {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/219dfdb1-3353-46ca-9c1b-4d9e8cfab01b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'team/page.tsx:197',message:'Starting email send',data:{invitationId:invitationData.id,email:inviteForm.email,role:inviteForm.role},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
+        
         const { data: { session } } = await supabase.auth.getSession();
 
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        if (!supabaseUrl) {
-          throw new Error("NEXT_PUBLIC_SUPABASE_URL is not configured");
-        }
-
         if (!session?.access_token) {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/219dfdb1-3353-46ca-9c1b-4d9e8cfab01b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'team/page.tsx:206',message:'No session token',data:{hasSession:!!session},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+          // #endregion
           throw new Error("No authentication session found");
         }
 
@@ -216,8 +218,12 @@ export default function TeamManagementPage() {
           inviter_name: profile.full_name || "Team Admin",
         };
 
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/219dfdb1-3353-46ca-9c1b-4d9e8cfab01b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'team/page.tsx:218',message:'Calling Edge Function',data:{url:`${supabaseUrl}/functions/v1/send-invitation-email`,hasToken:!!session.access_token,requestBody},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
+
         const emailResponse = await fetch(
-          `${supabaseUrl}/functions/v1/send-invitation-email`,
+          `/api/invitations/send-email`,
           {
             method: "POST",
             headers: {
@@ -227,6 +233,10 @@ export default function TeamManagementPage() {
             body: JSON.stringify(requestBody),
           }
         );
+
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/219dfdb1-3353-46ca-9c1b-4d9e8cfab01b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'team/page.tsx:231',message:'Edge Function response',data:{status:emailResponse.status,ok:emailResponse.ok,statusText:emailResponse.statusText},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
 
         if (!emailResponse.ok) {
           const errorText = await emailResponse.text();
@@ -238,6 +248,10 @@ export default function TeamManagementPage() {
           } catch {
             errorMessage = errorText || errorMessage;
           }
+
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/219dfdb1-3353-46ca-9c1b-4d9e8cfab01b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'team/page.tsx:242',message:'Email send failed',data:{status:emailResponse.status,errorMessage},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+          // #endregion
 
           console.error("Failed to send invitation email:", {
             status: emailResponse.status,
@@ -253,10 +267,16 @@ export default function TeamManagementPage() {
           });
         } else {
           const responseData = await emailResponse.json();
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/219dfdb1-3353-46ca-9c1b-4d9e8cfab01b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'team/page.tsx:255',message:'Email send success',data:{responseData},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+          // #endregion
           console.log("Invitation email sent successfully:", responseData);
         }
       } catch (emailError) {
         const errorMessage = emailError instanceof Error ? emailError.message : "Unknown error";
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/219dfdb1-3353-46ca-9c1b-4d9e8cfab01b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'team/page.tsx:258',message:'Email send exception',data:{errorMessage,errorType:emailError?.constructor?.name},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+        // #endregion
         console.error("Error sending invitation email:", emailError);
         
         // Show warning but continue - invitation is created
