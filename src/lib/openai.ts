@@ -1,8 +1,34 @@
 import OpenAI from "openai";
 
-// OpenAI client - only use on server side (API routes)
-export const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+// Lazy initialization of OpenAI client to avoid build-time errors
+// Only initializes when actually called at runtime
+let _openai: OpenAI | null = null;
+
+function getOpenAIClient(): OpenAI {
+  if (!_openai) {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Error("Missing credentials. Please pass an `apiKey`, or set the `OPENAI_API_KEY` environment variable.");
+    }
+    _openai = new OpenAI({
+      apiKey,
+    });
+  }
+  return _openai;
+}
+
+// Export getter function that returns the client
+// This prevents initialization during build time
+export function getOpenAI(): OpenAI {
+  return getOpenAIClient();
+}
+
+// For backward compatibility, export a proxy object
+// This allows existing code using `openai.chat.completions.create()` to continue working
+export const openai = new Proxy({} as OpenAI, {
+  get(_target, prop) {
+    return getOpenAIClient()[prop as keyof OpenAI];
+  },
 });
 
 export const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
