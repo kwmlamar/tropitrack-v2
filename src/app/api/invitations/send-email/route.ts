@@ -232,9 +232,23 @@ If you didn't expect this invitation, you can safely ignore this email.
 
     if (!resendResponse.ok) {
       const errorData = await resendResponse.text();
-      console.error("Resend API error:", errorData);
+      let errorMessage = `Failed to send email (${resendResponse.status})`;
+      
+      try {
+        const errorJson = JSON.parse(errorData);
+        errorMessage = errorJson.message || errorJson.error || errorMessage;
+        console.error("Resend API error:", {
+          status: resendResponse.status,
+          statusText: resendResponse.statusText,
+          error: errorJson,
+        });
+      } catch {
+        console.error("Resend API error (raw):", errorData);
+        errorMessage = errorData || errorMessage;
+      }
+      
       return NextResponse.json(
-        { error: `Failed to send email: ${errorData}` },
+        { error: errorMessage },
         { status: 500 }
       );
     }
