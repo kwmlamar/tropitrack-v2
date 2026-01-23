@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 function SignupForm() {
   const searchParams = useSearchParams();
   const inviteToken = searchParams?.get("invite");
+  const joinCode = searchParams?.get("code");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -23,23 +24,31 @@ function SignupForm() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [validatingInvite, setValidatingInvite] = useState(false);
+  const [validatingCode, setValidatingCode] = useState(false);
   const [invitationValid, setInvitationValid] = useState(false);
+  const [codeValid, setCodeValid] = useState(false);
   const [invitationData, setInvitationData] = useState<{
     company_name: string;
     role: string;
     email: string;
+  } | null>(null);
+  const [companyData, setCompanyData] = useState<{
+    company_name: string;
+    join_code: string;
   } | null>(null);
 
   const router = useRouter();
   const { toast } = useToast();
   const supabase = createClient();
 
-  // Validate invitation token on mount
+  // Validate invitation token or join code on mount
   useEffect(() => {
     if (inviteToken) {
       validateInvitation();
+    } else if (joinCode) {
+      validateJoinCode();
     }
-  }, [inviteToken]);
+  }, [inviteToken, joinCode]);
 
   const validateInvitation = async () => {
     if (!inviteToken) return;
@@ -76,6 +85,44 @@ function SignupForm() {
       setInvitationValid(false);
     } finally {
       setValidatingInvite(false);
+    }
+  };
+
+  const validateJoinCode = async () => {
+    if (!joinCode) return;
+
+    setValidatingCode(true);
+    try {
+      const { data, error } = await supabase
+        .from("companies")
+        .select("id, name, join_code")
+        .eq("join_code", joinCode.toUpperCase())
+        .single();
+
+      if (error || !data) {
+        toast({
+          title: "Invalid Join Code",
+          description: "This join code is invalid. Please check and try again.",
+          variant: "destructive",
+        });
+        setCodeValid(false);
+      } else {
+        setCompanyData({
+          company_name: data.name,
+          join_code: data.join_code,
+        });
+        setCodeValid(true);
+      }
+    } catch (error) {
+      console.error("Error validating join code:", error);
+      toast({
+        title: "Error",
+        description: "Failed to validate join code. Please try again.",
+        variant: "destructive",
+      });
+      setCodeValid(false);
+    } finally {
+      setValidatingCode(false);
     }
   };
 
@@ -147,6 +194,29 @@ function SignupForm() {
             variant: "success",
           });
         }
+      } else if (joinCode && codeValid && authData.user) {
+        // Join company by code
+        const { data: joinData, error: joinError } = await supabase
+          .rpc("join_company_by_code", {
+            p_join_code: joinCode.toUpperCase(),
+            p_user_id: authData.user.id,
+            p_role: "project_manager", // Default role for code-based joins
+          });
+
+        if (joinError) {
+          console.error("Error joining company:", joinError);
+          toast({
+            title: "Error joining company",
+            description: joinError.message || "Failed to join company. Please contact support.",
+            variant: "destructive",
+          });
+        } else if (joinData) {
+          toast({
+            title: "Welcome to the team!",
+            description: `You've successfully joined ${companyData?.company_name || "the company"}`,
+            variant: "success",
+          });
+        }
       } else {
         toast({
           title: "Account created!",
@@ -156,7 +226,7 @@ function SignupForm() {
       }
 
       // Redirect to dashboard or login
-      if (inviteToken) {
+      if (inviteToken || (joinCode && codeValid)) {
         router.push("/dashboard");
       } else {
         router.push("/login");
@@ -174,7 +244,7 @@ function SignupForm() {
     }
   };
 
-  if (validatingInvite) {
+  if (validatingInvite || validatingCode) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 to-amber-50 p-4">
         <Card className="w-full max-w-md">
@@ -200,6 +270,8 @@ function SignupForm() {
           <CardDescription>
             {inviteToken && invitationValid
               ? `Join ${invitationData?.company_name}`
+              : joinCode && codeValid
+              ? `Join ${companyData?.company_name}`
               : "Create your account to get started"}
           </CardDescription>
         </CardHeader>
@@ -225,12 +297,44 @@ function SignupForm() {
           </div>
         )}
 
+        {joinCode && codeValid && companyData && (
+          <div className="px-6 pb-4">
+            <Alert className="bg-green-50 border-green-200">
+              <CheckCircle className="h-4 w-4 text-green-600" />
+              <AlertDescription className="text-green-900">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold mb-1">
+                      Join {companyData.company_name}
+                    </p>
+                    <p className="text-sm">
+                      Enter your details below to create your account and join the company
+                    </p>
+                  </div>
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                </div>
+              </AlertDescription>
+            </Alert>
+          </div>
+        )}
+
         {inviteToken && !invitationValid && !validatingInvite && (
           <div className="px-6 pb-4">
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
                 This invitation link is invalid or has expired. Please request a new invitation.
+              </AlertDescription>
+            </Alert>
+          </div>
+        )}
+
+        {joinCode && !codeValid && !validatingCode && (
+          <div className="px-6 pb-4">
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                This join code is invalid. Please check the code and try again.
               </AlertDescription>
             </Alert>
           </div>
@@ -303,7 +407,11 @@ function SignupForm() {
               disabled={loading || (!!inviteToken && !invitationValid)}
             >
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {inviteToken && invitationValid ? "Create Account & Join" : "Create Account"}
+              {inviteToken && invitationValid
+                ? "Create Account & Join"
+                : joinCode && codeValid
+                ? "Create Account & Join Company"
+                : "Create Account"}
             </Button>
             <div className="text-sm text-muted-foreground text-center">
               Already have an account?{" "}

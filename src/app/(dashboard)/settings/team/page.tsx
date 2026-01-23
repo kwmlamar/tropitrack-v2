@@ -61,6 +61,8 @@ export default function TeamManagementPage() {
     email: "",
     role: "admin" as InvitationRole,
   });
+  const [joinCode, setJoinCode] = useState<string | null>(null);
+  const [regeneratingCode, setRegeneratingCode] = useState(false);
 
   useEffect(() => {
     if (profile?.company_id) {
@@ -130,6 +132,66 @@ export default function TeamManagementPage() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const regenerateJoinCode = async () => {
+    if (!profile?.company_id) return;
+
+    setRegeneratingCode(true);
+    try {
+      // Generate a new code (8 characters, uppercase alphanumeric)
+      const generateCode = () => {
+        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // Removed confusing chars
+        let code = "";
+        for (let i = 0; i < 8; i++) {
+          code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return code;
+      };
+
+      let newCode = generateCode();
+      let attempts = 0;
+      let codeExists = true;
+
+      // Check if code exists and regenerate if needed (max 10 attempts)
+      while (codeExists && attempts < 10) {
+        const { data: existing } = await supabase
+          .from("companies")
+          .select("id")
+          .eq("join_code", newCode)
+          .single();
+
+        if (!existing) {
+          codeExists = false;
+        } else {
+          newCode = generateCode();
+          attempts++;
+        }
+      }
+
+      const { error: updateError } = await supabase
+        .from("companies")
+        .update({ join_code: newCode })
+        .eq("id", profile.company_id);
+
+      if (updateError) throw updateError;
+
+      setJoinCode(newCode);
+      toast({
+        title: "Join code regenerated",
+        description: "A new join code has been generated.",
+        variant: "default",
+      });
+    } catch (error) {
+      console.error("Error regenerating join code:", error);
+      toast({
+        title: "Error",
+        description: "Failed to regenerate join code. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setRegeneratingCode(false);
     }
   };
 
@@ -441,6 +503,96 @@ export default function TeamManagementPage() {
       </Header>
 
       <div className="flex-1 p-6 space-y-6">
+        {/* Company Join Code Section */}
+        {isAdmin && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-green-600 dark:text-green-400" />
+                Company Join Code
+              </CardTitle>
+              <CardDescription>
+                Share this code with team members so they can join your company during signup
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Alternative to Email Invitations</AlertTitle>
+                  <AlertDescription>
+                    Instead of sending email invitations, you can share this code with team members.
+                    They can enter it when signing up to automatically join your company.
+                  </AlertDescription>
+                </Alert>
+                <div className="flex items-center gap-4 p-4 border rounded-lg bg-muted/50">
+                  <div className="flex-1">
+                    <Label className="text-sm text-muted-foreground">Join Code</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <code className="text-2xl font-bold tracking-wider font-mono bg-background px-4 py-2 rounded border">
+                        {joinCode || "Loading..."}
+                      </code>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Users can enter this code at: {typeof window !== "undefined" ? window.location.origin : ""}/signup
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={regenerateJoinCode}
+                    disabled={regeneratingCode}
+                  >
+                    {regeneratingCode ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Regenerating...
+                      </>
+                    ) : (
+                      <>
+                        <Users className="h-4 w-4 mr-2" />
+                        Regenerate Code
+                      </>
+                    )}
+                  </Button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (joinCode) {
+                        navigator.clipboard.writeText(joinCode);
+                        toast({
+                          title: "Copied!",
+                          description: "Join code copied to clipboard",
+                        });
+                      }
+                    }}
+                  >
+                    Copy Code
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (joinCode && typeof window !== "undefined") {
+                        const signupUrl = `${window.location.origin}/signup?code=${joinCode}`;
+                        navigator.clipboard.writeText(signupUrl);
+                        toast({
+                          title: "Copied!",
+                          description: "Signup link with code copied to clipboard",
+                        });
+                      }
+                    }}
+                  >
+                    Copy Signup Link
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Admins Section */}
         <Card>
           <CardHeader>
