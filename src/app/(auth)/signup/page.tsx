@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Building2, Loader2, Mail, AlertCircle, CheckCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
-export default function SignupPage() {
+function SignupForm() {
   const searchParams = useSearchParams();
   const inviteToken = searchParams?.get("invite");
 
@@ -259,9 +259,9 @@ export default function SignupPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                disabled={loading || (inviteToken && invitationValid)}
-                readOnly={inviteToken && invitationValid}
-                className={inviteToken && invitationValid ? "bg-muted" : ""}
+                disabled={loading || (!!inviteToken && invitationValid)}
+                readOnly={!!inviteToken && invitationValid}
+                className={!!inviteToken && invitationValid ? "bg-muted" : ""}
               />
               {inviteToken && invitationValid && (
                 <p className="text-xs text-muted-foreground">
@@ -300,7 +300,7 @@ export default function SignupPage() {
             <Button
               type="submit"
               className="w-full"
-              disabled={loading || (inviteToken && !invitationValid)}
+              disabled={loading || (!!inviteToken && !invitationValid)}
             >
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {inviteToken && invitationValid ? "Create Account & Join" : "Create Account"}
@@ -315,5 +315,24 @@ export default function SignupPage() {
         </form>
       </Card>
     </div>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 to-amber-50 p-4">
+          <Card className="w-full max-w-md">
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+              <p className="text-muted-foreground">Loading...</p>
+            </CardContent>
+          </Card>
+        </div>
+      }
+    >
+      <SignupForm />
+    </Suspense>
   );
 }

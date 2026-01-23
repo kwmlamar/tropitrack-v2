@@ -23,14 +23,14 @@ export function NotificationsBell() {
   const fetchUnreadCount = async () => {
     if (!profile?.id) return;
 
-    const { data, error } = await supabase
+    const { count, error } = await supabase
       .from("notifications")
-      .select("id", { count: "exact", head: true })
+      .select("*", { count: "exact", head: true })
       .eq("user_id", profile.id)
       .eq("read", false);
 
-    if (!error && data !== null) {
-      setUnreadCount(data);
+    if (!error && count !== null) {
+      setUnreadCount(count);
     }
   };
 
