@@ -127,19 +127,17 @@ export function SearchModal() {
     [session?.access_token, fetchHistory]
   );
 
-  // Debounced search on input change
+  // Handle input change (no auto-search)
   const handleInputChange = (value: string) => {
     setQuery(value);
 
+    // Clear any pending debounced search
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
     }
 
-    if (value.trim().length > 2) {
-      debounceRef.current = setTimeout(() => {
-        performSearch(value);
-      }, 500);
-    } else {
+    // Reset search state if input is cleared
+    if (!value.trim()) {
       setHasSearched(false);
       setResults([]);
       setSummary("");
@@ -202,32 +200,20 @@ export function SearchModal() {
         <Search className="h-5 w-5" />
       </button>
 
-      {/* Search modal */}
+      {/* Search modal with Claude-like design */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl p-0 gap-0 overflow-hidden">
-          {/* Search input */}
-          <form onSubmit={handleSubmit} className="border-b">
-            <div className="flex items-center px-4">
-              {loading ? (
-                <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
-              ) : (
-                <Sparkles className="h-5 w-5 text-primary" />
-              )}
-              <Input
-                ref={inputRef}
-                type="text"
-                placeholder="Ask anything... e.g., 'Show me unpaid invoices older than 30 days'"
-                value={query}
-                onChange={(e) => handleInputChange(e.target.value)}
-                className="flex-1 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-base py-6 px-3"
-              />
-            </div>
-          </form>
+        {/* Gradient overlay - Claude style (outside modal, full screen) */}
+        {open && (
+          <div className="fixed inset-0 pointer-events-none z-50">
+            <div className="absolute bottom-0 left-0 right-0 h-[50vh] bg-gradient-to-t from-primary/10 via-primary/5 to-transparent" />
+          </div>
+        )}
 
-          {/* Content area */}
-          <div className="min-h-[300px] max-h-[60vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-3xl h-[85vh] p-0 gap-0 overflow-hidden border-0 bg-background/80 backdrop-blur-xl">
+          {/* Main content area with results */}
+          <div className="flex-1 overflow-y-auto px-6 pt-6 pb-32">
             {error && (
-              <div className="p-4 bg-destructive/10 text-destructive text-sm">
+              <div className="p-4 bg-destructive/10 text-destructive text-sm rounded-2xl mb-4">
                 {error}
               </div>
             )}
@@ -251,35 +237,60 @@ export function SearchModal() {
             )}
 
             {loading && (
-              <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Loader2 className="h-5 w-5 animate-spin" />
+              <div className="flex items-center justify-center py-12">
+                <div className="flex items-center gap-3 text-muted-foreground">
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
                   <span>Searching with AI...</span>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Footer */}
-          <div className="border-t px-4 py-2 flex items-center justify-between text-xs text-muted-foreground">
-            <div className="flex items-center gap-3">
-              <span>
-                <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono">
-                  Enter
-                </kbd>{" "}
-                to search
-              </span>
-              <span>
-                <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono">
-                  Esc
-                </kbd>{" "}
-                to close
-              </span>
-            </div>
-            <span className="flex items-center gap-1">
-              <Sparkles className="h-3 w-3" />
-              Powered by AI
-            </span>
+          {/* Search input bar - Liquid glass style at bottom */}
+          <div className="absolute bottom-6 left-6 right-6 pointer-events-auto z-10">
+            <form onSubmit={handleSubmit} className="relative">
+              {/* Liquid glass container */}
+              <div className="relative rounded-[28px] bg-background/80 backdrop-blur-2xl border border-border/50 shadow-2xl shadow-primary/5 overflow-hidden">
+                {/* Subtle inner glow */}
+                <div className="absolute inset-0 rounded-[28px] bg-gradient-to-b from-primary/5 to-transparent pointer-events-none" />
+
+                {/* Input container */}
+                <div className="relative flex items-center gap-3 px-6 py-4">
+                  {loading ? (
+                    <Loader2 className="h-5 w-5 text-primary animate-spin flex-shrink-0" />
+                  ) : (
+                    <Sparkles className="h-5 w-5 text-primary flex-shrink-0" />
+                  )}
+                  <Input
+                    ref={inputRef}
+                    type="text"
+                    placeholder="Ask anything... e.g., 'Show me unpaid invoices older than 30 days'"
+                    value={query}
+                    onChange={(e) => handleInputChange(e.target.value)}
+                    className="flex-1 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-base bg-transparent placeholder:text-muted-foreground/60 h-auto p-0"
+                  />
+
+                  {/* Keyboard hint */}
+                  <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground/60 flex-shrink-0">
+                    <kbd className="px-2 py-1 rounded-lg bg-muted/50 border border-border/50 font-mono text-[10px]">
+                      Enter
+                    </kbd>
+                    <span>to send</span>
+                  </div>
+                </div>
+
+                {/* Bottom helper text */}
+                <div className="px-6 pb-3 pt-0 flex items-center justify-between text-[11px] text-muted-foreground/50">
+                  <span className="flex items-center gap-1.5">
+                    <Sparkles className="h-3 w-3" />
+                    Powered by AI
+                  </span>
+                  <span className="hidden sm:block">
+                    Press <kbd className="px-1.5 py-0.5 rounded bg-muted/50 border border-border/50 font-mono text-[10px]">Esc</kbd> to close
+                  </span>
+                </div>
+              </div>
+            </form>
           </div>
         </DialogContent>
       </Dialog>
