@@ -23,6 +23,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/lib/auth-context";
 import { formatCurrency, formatDate, getProjectStatusColor, calculatePercentage } from "@/lib/utils";
 import {
   BarChart3,
@@ -62,6 +63,7 @@ interface WorkerHoursData {
 }
 
 export default function ReportsPage() {
+  const { profile } = useAuth();
   const [projectCosts, setProjectCosts] = useState<ProjectCostData[]>([]);
   const [workerHours, setWorkerHours] = useState<WorkerHoursData[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);

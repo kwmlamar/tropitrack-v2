@@ -84,7 +84,7 @@ interface PayPeriodWithEntries extends PayPeriod {
 }
 
 export default function PayrollPage() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
   const [payPeriods, setPayPeriods] = useState<PayPeriodWithEntries[]>([]);
   const [workers, setWorkers] = useState<Worker[]>([]);

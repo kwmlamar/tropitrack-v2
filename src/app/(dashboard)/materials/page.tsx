@@ -58,7 +58,7 @@ import {
 import type { Material, Project, Vendor } from "@/types";
 
 export default function MaterialsPage() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
   const [materials, setMaterials] = useState<Material[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);

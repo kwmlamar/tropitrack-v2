@@ -63,6 +63,7 @@ const nextConfig = {
       },
     ],
   },
+  transpilePackages: ['@react-pdf/renderer'],
 };
 
 module.exports = withPWA(nextConfig);
