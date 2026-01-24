@@ -11,7 +11,6 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/hooks/use-toast";
-import { createClient } from "@/lib/supabase/client";
 import {
   ArrowRight,
   Clock,
@@ -111,7 +110,6 @@ export default function AssistantPage() {
   const [isChatMode, setIsChatMode] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
-  const supabase = createClient();
 
   // Auto-scroll to bottom of chat
   useEffect(() => {
@@ -135,31 +133,67 @@ export default function AssistantPage() {
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    const currentQuery = query;
     setQuery("");
     setIsChatMode(true);
     setIsLoading(true);
 
     try {
-      // Call AI search API
-      const response = await fetch("/api/ai/search", {
+      // Build conversation history from existing messages (before adding the new user message)
+      const conversationHistory = messages.map((msg) => ({
+        role: msg.role,
+        content: msg.content,
+      }));
+
+      // Call AI chat API
+      const response = await fetch("/api/ai/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session?.access_token}`,
         },
-        body: JSON.stringify({ query: userMessage.content }),
+        body: JSON.stringify({
+          message: currentQuery,
+          conversation_history: conversationHistory,
+        }),
       });
 
       const data = await response.json();
 
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: data.summary || data.answer || "I found some results for your query. Please check the search results above.",
-        timestamp: new Date(),
-      };
-
-      setMessages((prev) => [...prev, assistantMessage]);
+      if (data.success && data.message) {
+        const assistantMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: data.message,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, assistantMessage]);
+      } else {
+        // Show the specific error message from the API
+        const errorContent = data.message || data.error || "Failed to get response";
+        const errorMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: errorContent,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+        
+        // Show toast for quota/billing errors
+        if (data.errorCode === 429 || data.error === "QUOTA_EXCEEDED") {
+          toast({
+            title: "OpenAI Quota Exceeded",
+            description: "Please check your OpenAI account billing and add credits if needed.",
+            variant: "destructive",
+          });
+        } else if (data.errorCode === 401 || data.error === "INVALID_API_KEY") {
+          toast({
+            title: "OpenAI API Key Error",
+            description: "Please check your OPENAI_API_KEY environment variable.",
+            variant: "destructive",
+          });
+        }
+      }
     } catch (error) {
       console.error("Error:", error);
       const errorMessage: Message = {
@@ -169,6 +203,11 @@ export default function AssistantPage() {
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);
+      toast({
+        title: "Error",
+        description: "Failed to connect to AI service. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }

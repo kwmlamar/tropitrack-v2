@@ -90,11 +90,26 @@ npm install
 cp .env.example .env.local
 ```
 
-Edit `.env.local` with your Supabase credentials:
+Edit `.env.local` with your credentials:
 ```
+# Supabase Configuration
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+
+# OpenAI Configuration (Required for AI features)
+OPENAI_API_KEY=your_openai_api_key
 ```
+
+**Getting your OpenAI API Key:**
+1. Go to https://platform.openai.com/api-keys
+2. Sign in or create an account
+3. Click "Create new secret key"
+4. Copy the key and add it to your `.env.local` file as `OPENAI_API_KEY`
+
+**Note:** The OpenAI API key is required for AI-powered features like:
+- Smart search functionality
+- AI-generated descriptions for projects, estimates, invoices, and materials
 
 5. Create an admin user:
    - Go to Supabase Authentication > Users
