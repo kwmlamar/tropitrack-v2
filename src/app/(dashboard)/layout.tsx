@@ -7,14 +7,7 @@ import { MobileNav } from "@/components/mobile/mobile-nav";
 function DashboardContent({ children }: { children: React.ReactNode }) {
   const { loading } = useAuth();
 
-  // #region agent log
-  {(()=>{fetch('http://127.0.0.1:7242/ingest/219dfdb1-3353-46ca-9c1b-4d9e8cfab01b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/layout.tsx:7',message:'DashboardContent render',data:{loading},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});return null})()}
-  // #endregion
-
   if (loading) {
-    // #region agent log
-    {(()=>{fetch('http://127.0.0.1:7242/ingest/219dfdb1-3353-46ca-9c1b-4d9e8cfab01b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/layout.tsx:9',message:'Showing loading screen',data:{loading},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});return null})()}
-    // #endregion
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="text-center">

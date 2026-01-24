@@ -23,7 +23,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = async (userId: string, clearLoading = false) => {
     try {
       const { data, error } = await supabase
         .from("profiles")
@@ -41,14 +41,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error("Error fetching profile:", error);
       setProfile(null);
     } finally {
-      setLoading(false);
+      if (clearLoading) setLoading(false);
     }
   };
 
   const refreshProfile = async () => {
     if (user) {
       setLoading(true);
-      await fetchProfile(user.id);
+      await fetchProfile(user.id, true);
     }
   };
 
@@ -61,30 +61,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (error) {
           console.error("Error getting session:", error);
-          if (mounted) {
-            setLoading(false);
-          }
+          if (mounted) setLoading(false);
           return;
         }
 
         if (mounted) {
           setSession(session);
           setUser(session?.user ?? null);
-          
-          if (!session?.user) {
-            setLoading(false);
-          }
+          setLoading(false);
         }
 
-        // Fetch profile
+        // Fetch profile in background — don't block UI; dashboard pages handle loading profile
         if (session?.user) {
-          await fetchProfile(session.user.id);
+          fetchProfile(session.user.id, false).catch(() => {});
         }
       } catch (error) {
         console.error("Error in getSession:", error);
-        if (mounted) {
-          setLoading(false);
-        }
+        if (mounted) setLoading(false);
       }
     };
 
@@ -96,22 +89,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (mounted) {
             setSession(session);
             setUser(session?.user ?? null);
-            
-            if (!session?.user) {
-              setProfile(null);
-              setLoading(false);
-            }
+            if (!session?.user) setProfile(null);
+            setLoading(false);
           }
 
-          // Fetch profile
           if (session?.user) {
-            await fetchProfile(session.user.id);
+            fetchProfile(session.user.id, false).catch(() => {});
           }
         } catch (error) {
           console.error("Error in auth state change:", error);
-          if (mounted) {
-            setLoading(false);
-          }
+          if (mounted) setLoading(false);
         }
       }
     );
