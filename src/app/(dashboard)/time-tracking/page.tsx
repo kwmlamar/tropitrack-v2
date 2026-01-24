@@ -86,42 +86,34 @@ export default function TimeTrackingPage() {
   });
 
   useEffect(() => {
-    fetchData();
-  }, [selectedDate, selectedProject]);
+    if (profile?.company_id) {
+      fetchData();
+    }
+  }, [selectedDate, selectedProject, profile?.company_id]);
 
   const fetchData = async () => {
+    if (!profile?.company_id) return;
+    
     setLoading(true);
     try {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/219dfdb1-3353-46ca-9c1b-4d9e8cfab01b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'time-tracking/page.tsx:89',message:'fetchData entry',data:{selectedProject,selectedDate},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       // Fetch projects (filtered by company_id)
-      let projectsQuery = supabase
+      const { data: projectsData } = await supabase
         .from("projects")
         .select("*")
-        .in("status", ["active", "planning"]);
+        .eq("company_id", profile.company_id)
+        .in("status", ["active", "planning"])
+        .order("name");
       
-      if (profile?.company_id) {
-        projectsQuery = projectsQuery.eq("company_id", profile.company_id);
-      }
-      
-      const { data: projectsData } = await projectsQuery.order("name");
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/219dfdb1-3353-46ca-9c1b-4d9e8cfab01b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'time-tracking/page.tsx:98',message:'projects fetched',data:{projectsCount:projectsData?.length||0,projectIds:projectsData?.map(p=>p.id)||[],hasEmptyIds:projectsData?.some(p=>!p.id||p.id==='')||false},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       setProjects(projectsData || []);
 
-      // Fetch active workers
-      let workersQuery = supabase
+      // Fetch active workers (filtered by company_id)
+      const { data: workersData } = await supabase
         .from("workers")
         .select("*")
-        .eq("status", "active");
+        .eq("company_id", profile.company_id)
+        .eq("status", "active")
+        .order("last_name");
       
-      if (profile?.company_id) {
-        workersQuery = workersQuery.eq("company_id", profile.company_id);
-      }
-      
-      const { data: workersData } = await workersQuery.order("last_name");
       setWorkers(workersData || []);
 
       // Fetch time entries (filtered by company_id)
@@ -132,11 +124,8 @@ export default function TimeTrackingPage() {
           workers(first_name, last_name, hourly_rate),
           projects(name)
         `)
+        .eq("company_id", profile.company_id)
         .eq("date", selectedDate);
-      
-      if (profile?.company_id) {
-        query = query.eq("company_id", profile.company_id);
-      }
 
       if (selectedProject && selectedProject !== "all") {
         query = query.eq("project_id", selectedProject);

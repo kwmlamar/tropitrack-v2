@@ -71,26 +71,35 @@ export default function ReportsPage() {
   const supabase = createClient();
 
   useEffect(() => {
-    fetchData();
-  }, [selectedProject, dateRange]);
+    if (profile?.company_id) {
+      fetchData();
+    }
+  }, [selectedProject, dateRange, profile?.company_id]);
 
   const fetchData = async () => {
+    if (!profile?.company_id) return;
+    
     setLoading(true);
     try {
-      // Fetch projects
+      // Fetch projects (filtered by company_id)
       const { data: projectsData } = await supabase
         .from("projects")
         .select("*")
+        .eq("company_id", profile.company_id)
         .order("name");
       setProjects(projectsData || []);
 
-      // Fetch project cost summary
+      // Fetch project cost summary (filtered by company_id via projects join if needed, but for now we'll filter the result or assume the view includes company_id)
+      // Actually, let's filter by the projects we just fetched
+      const projectIds = projectsData?.map(p => p.id) || [];
+      
       const { data: costData } = await supabase
         .from("project_cost_summary")
-        .select("*");
+        .select("*")
+        .in("project_id", projectIds);
       setProjectCosts(costData || []);
 
-      // Fetch worker hours aggregated
+      // Fetch worker hours aggregated (filtered by company_id)
       const { data: workersData } = await supabase
         .from("workers")
         .select(`
@@ -99,6 +108,7 @@ export default function ReportsPage() {
           last_name,
           hourly_rate
         `)
+        .eq("company_id", profile.company_id)
         .eq("status", "active");
 
       // Get time entries for each worker

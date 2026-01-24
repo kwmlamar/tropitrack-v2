@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/lib/auth-context";
 import type { CalendarEvent, CalendarFilters } from "@/types";
 
 interface UseCalendarEventsOptions {
@@ -26,8 +27,11 @@ export function useCalendarEvents({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const supabase = createClient();
+  const { profile } = useAuth();
 
   const fetchEvents = useCallback(async () => {
+    if (!profile?.company_id) return;
+    
     setLoading(true);
     setError(null);
 
@@ -43,6 +47,7 @@ export function useCalendarEvents({
         const { data: projects } = await supabase
           .from("projects")
           .select("id, name, client_name, start_date, estimated_end_date, status")
+          .eq("company_id", profile.company_id)
           .or(`start_date.gte.${rangeStart},estimated_end_date.lte.${rangeEnd}`)
           .in("status", ["planning", "active"]);
 
@@ -76,7 +81,8 @@ export function useCalendarEvents({
       if (filters.showMilestones) {
         const { data: milestones } = await supabase
           .from("project_milestones")
-          .select("id, name, due_date, is_completed, project_id, projects(name)")
+          .select("id, name, due_date, is_completed, project_id, projects!inner(name, company_id)")
+          .eq("projects.company_id", profile.company_id)
           .gte("due_date", rangeStart)
           .lte("due_date", rangeEnd)
           .eq("is_completed", false);
@@ -99,6 +105,7 @@ export function useCalendarEvents({
         const { data: invoices } = await supabase
           .from("invoices")
           .select("id, invoice_number, client_name, due_date, balance_due, status")
+          .eq("company_id", profile.company_id)
           .gte("due_date", rangeStart)
           .lte("due_date", rangeEnd)
           .in("status", ["sent", "viewed", "partial", "overdue"]);
@@ -120,7 +127,8 @@ export function useCalendarEvents({
       if (filters.showDeliveries) {
         const { data: purchaseOrders } = await supabase
           .from("purchase_orders")
-          .select("id, po_number, expected_delivery_date, vendor_id, vendors(name)")
+          .select("id, po_number, expected_delivery_date, vendor_id, vendors!inner(name, company_id)")
+          .eq("vendors.company_id", profile.company_id)
           .gte("expected_delivery_date", rangeStart)
           .lte("expected_delivery_date", rangeEnd)
           .in("status", ["ordered", "partial_received"]);
@@ -145,6 +153,7 @@ export function useCalendarEvents({
         const { data: timeEntries } = await supabase
           .from("time_entries")
           .select("id, date, worker_id, project_id, regular_hours, workers(first_name, last_name), projects(name)")
+          .eq("company_id", profile.company_id)
           .gte("date", rangeStart)
           .lte("date", rangeEnd);
 
@@ -176,7 +185,8 @@ export function useCalendarEvents({
       if (filters.showEquipment) {
         const { data: equipmentUsage } = await supabase
           .from("equipment_usage")
-          .select("id, start_date, end_date, equipment_id, project_id, equipment(name), projects(name)")
+          .select("id, start_date, end_date, equipment_id, project_id, equipment!inner(name, company_id), projects(name)")
+          .eq("equipment.company_id", profile.company_id)
           .or(`start_date.gte.${rangeStart},end_date.lte.${rangeEnd}`);
 
         equipmentUsage?.forEach((usage: any) => {
@@ -200,7 +210,7 @@ export function useCalendarEvents({
     } finally {
       setLoading(false);
     }
-  }, [currentDate, filters, supabase]);
+  }, [currentDate, filters, supabase, profile?.company_id]);
 
   useEffect(() => {
     fetchEvents();

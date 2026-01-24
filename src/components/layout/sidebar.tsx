@@ -56,7 +56,7 @@ export function Sidebar() {
   return (
     <div
       className={cn(
-        "flex flex-col border-r bg-card transition-all duration-300",
+        "hidden md:flex flex-col border-r bg-card transition-all duration-300",
         collapsed ? "w-[70px]" : "w-[250px]"
       )}
     >

@@ -61,15 +61,20 @@ export default function EstimatesPage() {
   const { profile } = useAuth();
 
   useEffect(() => {
-    fetchEstimates();
-  }, [statusFilter]);
+    if (profile?.company_id) {
+      fetchEstimates();
+    }
+  }, [statusFilter, profile?.company_id]);
 
   const fetchEstimates = async () => {
+    if (!profile?.company_id) return;
+    
     setLoading(true);
     try {
       let query = supabase
         .from("estimates")
         .select("*")
+        .eq("company_id", profile.company_id)
         .order("created_at", { ascending: false });
 
       if (statusFilter !== "all") {

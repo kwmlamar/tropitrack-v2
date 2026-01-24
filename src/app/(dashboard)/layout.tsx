@@ -2,6 +2,7 @@
 
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { Sidebar } from "@/components/layout/sidebar";
+import { MobileNav } from "@/components/mobile/mobile-nav";
 
 function DashboardContent({ children }: { children: React.ReactNode }) {
   const { loading } = useAuth();
@@ -27,7 +28,8 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar />
-      <main className="flex-1 overflow-auto">{children}</main>
+      <main className="flex-1 overflow-auto pb-safe md:pb-0">{children}</main>
+      <MobileNav />
     </div>
   );
 }

@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme-provider";
+import { InstallPrompt } from "@/components/mobile/install-prompt";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -21,30 +22,45 @@ const baseUrl = getBaseUrl();
 
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
-  title: "TropiTrack v2 - Construction Project Management",
-  description: "Complete construction project management system for Bahamian construction companies",
+  title: "TropiTrack - Construction Management",
+  description: "Construction project management, time tracking, and payroll for Caribbean businesses",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "TropiTrack",
+  },
   icons: {
-    icon: "/logo.png",
-    apple: "/logo.png",
+    icon: "/icons/icon-192x192.png",
+    apple: "/icons/icon-192x192.png",
   },
   openGraph: {
-    title: "TropiTrack v2 - Construction Project Management",
-    description: "Complete construction project management system for Bahamian construction companies",
+    title: "TropiTrack - Construction Management",
+    description: "Construction project management, time tracking, and payroll for Caribbean businesses",
     images: [
       {
-        url: "/logo.png",
-        width: 1200,
-        height: 630,
-        alt: "TropiTrack v2 Logo",
+        url: "/icons/icon-512x512.png",
+        width: 512,
+        height: 512,
+        alt: "TropiTrack Logo",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "TropiTrack v2 - Construction Project Management",
-    description: "Complete construction project management system for Bahamian construction companies",
-    images: ["/logo.png"],
+    title: "TropiTrack - Construction Management",
+    description: "Construction project management, time tracking, and payroll for Caribbean businesses",
+    images: ["/icons/icon-512x512.png"],
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#3B82F6",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -58,6 +74,7 @@ export default function RootLayout({
         <ThemeProvider defaultTheme="system" storageKey="tropitrack-theme">
           {children}
           <Toaster />
+          <InstallPrompt />
         </ThemeProvider>
       </body>
     </html>

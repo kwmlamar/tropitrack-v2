@@ -99,8 +99,10 @@ export default function VendorsPage() {
   });
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (profile?.company_id) {
+      fetchData();
+    }
+  }, [profile?.company_id]);
 
   const handleScanComplete = (data: ParsedReceipt, imageFile: File | null) => {
     setScannedData(data);
@@ -193,17 +195,21 @@ export default function VendorsPage() {
   };
 
   const fetchData = async () => {
+    if (!profile?.company_id) return;
+    
     setLoading(true);
     try {
       const { data: vendorsData } = await supabase
         .from("vendors")
         .select("*")
+        .eq("company_id", profile.company_id)
         .order("name");
       setVendors(vendorsData || []);
 
       const { data: poData } = await supabase
         .from("purchase_orders")
-        .select("*, vendors(name)")
+        .select("*, vendors!inner(name, company_id)")
+        .eq("vendors.company_id", profile.company_id)
         .order("created_at", { ascending: false })
         .limit(20);
       setPurchaseOrders(poData || []);

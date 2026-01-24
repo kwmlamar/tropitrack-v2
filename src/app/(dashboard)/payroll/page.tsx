@@ -101,10 +101,14 @@ export default function PayrollPage() {
   });
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (profile?.company_id) {
+      fetchData();
+    }
+  }, [profile?.company_id]);
 
   const fetchData = async () => {
+    if (!profile?.company_id) return;
+    
     setLoading(true);
     try {
       // Fetch pay periods
@@ -114,10 +118,11 @@ export default function PayrollPage() {
         .order("start_date", { ascending: false });
       setPayPeriods(periodsData || []);
 
-      // Fetch active workers
+      // Fetch active workers (filtered by company_id)
       const { data: workersData } = await supabase
         .from("workers")
         .select("*")
+        .eq("company_id", profile.company_id)
         .eq("status", "active")
         .order("last_name");
       setWorkers(workersData || []);

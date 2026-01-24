@@ -93,16 +93,21 @@ export default function MaterialsPage() {
   });
 
   useEffect(() => {
-    fetchData();
-  }, [categoryFilter]);
+    if (profile?.company_id) {
+      fetchData();
+    }
+  }, [categoryFilter, profile?.company_id]);
 
   const fetchData = async () => {
+    if (!profile?.company_id) return;
+    
     setLoading(true);
     try {
       // Fetch materials
       let query = supabase
         .from("materials")
         .select("*")
+        .eq("company_id", profile.company_id)
         .order("name");
 
       if (categoryFilter !== "all") {
@@ -116,14 +121,20 @@ export default function MaterialsPage() {
       const { data: projectsData } = await supabase
         .from("projects")
         .select("*")
-        .in("status", ["active", "planning"]);
+        .eq("company_id", profile.company_id)
+        .in("status", ["active", "planning"])
+        .order("name");
+      
       setProjects(projectsData || []);
 
       // Fetch vendors
       const { data: vendorsData } = await supabase
         .from("vendors")
         .select("*")
-        .eq("status", "active");
+        .eq("company_id", profile.company_id)
+        .eq("status", "active")
+        .order("name");
+      
       setVendors(vendorsData || []);
     } catch (error) {
       console.error("Error fetching data:", error);

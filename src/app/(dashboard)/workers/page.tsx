@@ -55,18 +55,16 @@ export default function WorkersPage() {
   const { profile } = useAuth();
 
   useEffect(() => {
-    fetchWorkers();
-  }, [statusFilter]);
+    if (profile?.company_id) {
+      fetchWorkers();
+    }
+  }, [statusFilter, profile?.company_id]);
 
   const fetchWorkers = async () => {
+    if (!profile?.company_id) return;
+    
     setLoading(true);
     try {
-      if (!profile?.company_id) {
-        setWorkers([]);
-        setLoading(false);
-        return;
-      }
-
       let query = supabase
         .from("workers")
         .select("*")

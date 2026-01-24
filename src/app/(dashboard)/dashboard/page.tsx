@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { formatCurrency, formatDate, getProjectStatusColor } from "@/lib/utils";
+import { MobileTimeEntry } from "@/components/mobile/mobile-time-entry";
 import {
   FolderKanban,
   Users,
@@ -47,18 +48,16 @@ export default function DashboardPage() {
   const { profile } = useAuth();
 
   useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    if (profile?.company_id) {
+      fetchDashboardData();
+    }
+  }, [profile?.company_id]);
 
   const fetchDashboardData = async () => {
+    if (!profile?.company_id) return;
+    
+    setLoading(true);
     try {
-      if (!profile?.company_id) {
-        setStats({ activeProjects: 0, totalWorkers: 0, lowStockMaterials: 0, totalRevenue: 0, totalExpenses: 0 });
-        setRecentProjects([]);
-        setLowStockItems([]);
-        setLoading(false);
-        return;
-      }
       // Fetch active projects count, filtered by company_id
       const { count: projectCount } = await supabase
         .from("projects")
@@ -67,16 +66,11 @@ export default function DashboardPage() {
         .eq("status", "active");
 
       // Fetch active workers count
-      let workersCountQuery = supabase
+      const { count: workerCount } = await supabase
         .from("workers")
         .select("*", { count: "exact", head: true })
+        .eq("company_id", profile.company_id)
         .eq("status", "active");
-      
-      if (profile?.company_id) {
-        workersCountQuery = workersCountQuery.eq("company_id", profile.company_id);
-      }
-      
-      const { count: workerCount } = await workersCountQuery;
 
       // Fetch recent projects, filtered by company_id
       const { data: projects } = await supabase
@@ -86,11 +80,12 @@ export default function DashboardPage() {
         .order("created_at", { ascending: false })
         .limit(5);
 
-      // Fetch low stock materials
+      // Fetch low stock materials, filtered by company_id
       const { data: lowStock, count: lowStockCount } = await supabase
         .from("materials")
         .select("*", { count: "exact" })
-        .lte("quantity_in_stock", supabase.rpc("get_minimum_stock_level"))
+        .eq("company_id", profile.company_id)
+        .lte("quantity_in_stock", 10) // Simplified for now as RPC might not be available or filtered
         .limit(5);
 
       // Calculate revenue from contracts, filtered by company_id
@@ -177,6 +172,11 @@ export default function DashboardPage() {
       </Header>
 
       <div className="flex-1 p-6 space-y-6">
+        {/* Mobile Quick Time Entry - Only on mobile */}
+        <div className="md:hidden">
+          <MobileTimeEntry />
+        </div>
+
         {/* Stats Grid */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {statCards.map((stat) => (

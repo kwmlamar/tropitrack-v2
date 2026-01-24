@@ -56,15 +56,20 @@ export default function InvoicesPage() {
   const { profile } = useAuth();
 
   useEffect(() => {
-    fetchInvoices();
-  }, []);
+    if (profile?.company_id) {
+      fetchInvoices();
+    }
+  }, [profile?.company_id]);
 
   const fetchInvoices = async () => {
+    if (!profile?.company_id) return;
+    
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from("invoices")
         .select("*")
+        .eq("company_id", profile.company_id)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
