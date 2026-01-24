@@ -7,6 +7,7 @@ import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Download, Loader2 } from "lucide-react";
 import type { Estimate, EstimateLineItem } from "@/types";
@@ -28,12 +29,20 @@ export default function EstimatePreviewPage() {
   const router = useRouter();
   const estimateId = params.id as string;
   const { toast } = useToast();
+  const { profile } = useAuth();
   const supabase = createClient();
 
   const [loading, setLoading] = useState(true);
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   const [lineItems, setLineItems] = useState<EstimateLineItem[]>([]);
   const [pdfReady, setPdfReady] = useState(false);
+  const [companyInfo, setCompanyInfo] = useState<{
+    name: string;
+    address?: string;
+    city?: string;
+    phone?: string;
+    email?: string;
+  } | null>(null);
 
   useEffect(() => {
     fetchEstimateData();
@@ -48,13 +57,20 @@ export default function EstimatePreviewPage() {
   const fetchEstimateData = async () => {
     setLoading(true);
     try {
-      const [estimateRes, itemsRes] = await Promise.all([
+      const [estimateRes, itemsRes, companyRes] = await Promise.all([
         supabase.from("estimates").select("*").eq("id", estimateId).single(),
         supabase
           .from("estimate_line_items")
           .select("*")
           .eq("estimate_id", estimateId)
           .order("order_index"),
+        profile?.company_id
+          ? supabase
+              .from("companies")
+              .select("*")
+              .eq("id", profile.company_id)
+              .single()
+          : Promise.resolve({ data: null, error: null }),
       ]);
 
       if (estimateRes.error) throw estimateRes.error;
@@ -63,6 +79,17 @@ export default function EstimatePreviewPage() {
       console.log("Line items:", itemsRes.data);
       setEstimate(estimateRes.data);
       setLineItems(itemsRes.data || []);
+
+      // Set company info from database
+      if (companyRes.data) {
+        setCompanyInfo({
+          name: companyRes.data.name,
+          address: companyRes.data.address || undefined,
+          city: companyRes.data.city || undefined,
+          phone: companyRes.data.phone || undefined,
+          email: companyRes.data.email || undefined,
+        });
+      }
     } catch (error) {
       console.error("Error fetching estimate:", error);
       toast({
@@ -110,7 +137,11 @@ export default function EstimatePreviewPage() {
           {pdfReady && (
             <PDFDownloadLink
               document={
-                <EstimatePDFTemplate estimate={estimate} lineItems={lineItems} />
+                <EstimatePDFTemplate
+                  estimate={estimate}
+                  lineItems={lineItems}
+                  companyInfo={companyInfo || undefined}
+                />
               }
               fileName={`Estimate-${estimate.estimate_number}.pdf`}
             >
@@ -138,7 +169,11 @@ export default function EstimatePreviewPage() {
                   style={{ width: "100%", height: "calc(100vh - 200px)", border: "none" }}
                   showToolbar={false}
                 >
-                  <EstimatePDFTemplate estimate={estimate} lineItems={lineItems} />
+                  <EstimatePDFTemplate
+                    estimate={estimate}
+                    lineItems={lineItems}
+                    companyInfo={companyInfo || undefined}
+                  />
                 </PDFViewer>
               </div>
             ) : (

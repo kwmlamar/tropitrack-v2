@@ -400,8 +400,8 @@ export default function ClientsPage() {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-blue-100 rounded-lg">
-                  <Users2 className="h-6 w-6 text-blue-600" />
+                <div className="p-3 bg-blue-100 dark:bg-blue-950/50 rounded-lg">
+                  <Users2 className="h-6 w-6 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Total Clients</p>
@@ -413,8 +413,8 @@ export default function ClientsPage() {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-green-100 rounded-lg">
-                  <DollarSign className="h-6 w-6 text-green-600" />
+                <div className="p-3 bg-green-100 dark:bg-green-950/50 rounded-lg">
+                  <DollarSign className="h-6 w-6 text-green-600 dark:text-green-400" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Total Outstanding</p>
@@ -426,8 +426,8 @@ export default function ClientsPage() {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-amber-100 rounded-lg">
-                  <AlertCircle className="h-6 w-6 text-amber-600" />
+                <div className="p-3 bg-amber-100 dark:bg-amber-950/50 rounded-lg">
+                  <AlertCircle className="h-6 w-6 text-amber-600 dark:text-amber-400" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Clients with Overdue</p>

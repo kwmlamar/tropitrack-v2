@@ -7,6 +7,7 @@ import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Download, Loader2 } from "lucide-react";
 import type { Invoice, InvoiceLineItem, Payment } from "@/types";
@@ -28,6 +29,7 @@ export default function InvoicePreviewPage() {
   const router = useRouter();
   const invoiceId = params.id as string;
   const { toast } = useToast();
+  const { profile } = useAuth();
   const supabase = createClient();
 
   const [loading, setLoading] = useState(true);
@@ -35,6 +37,13 @@ export default function InvoicePreviewPage() {
   const [lineItems, setLineItems] = useState<InvoiceLineItem[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [pdfReady, setPdfReady] = useState(false);
+  const [companyInfo, setCompanyInfo] = useState<{
+    name: string;
+    address?: string;
+    city?: string;
+    phone?: string;
+    email?: string;
+  } | null>(null);
 
   useEffect(() => {
     fetchInvoiceData();
@@ -49,7 +58,7 @@ export default function InvoicePreviewPage() {
   const fetchInvoiceData = async () => {
     setLoading(true);
     try {
-      const [invoiceRes, itemsRes, paymentsRes] = await Promise.all([
+      const [invoiceRes, itemsRes, paymentsRes, companyRes] = await Promise.all([
         supabase.from("invoices").select("*").eq("id", invoiceId).single(),
         supabase
           .from("invoice_line_items")
@@ -61,6 +70,13 @@ export default function InvoicePreviewPage() {
           .select("*")
           .eq("invoice_id", invoiceId)
           .order("payment_date", { ascending: false }),
+        profile?.company_id
+          ? supabase
+              .from("companies")
+              .select("*")
+              .eq("id", profile.company_id)
+              .single()
+          : Promise.resolve({ data: null, error: null }),
       ]);
 
       if (invoiceRes.error) throw invoiceRes.error;
@@ -68,6 +84,17 @@ export default function InvoicePreviewPage() {
       setInvoice(invoiceRes.data);
       setLineItems(itemsRes.data || []);
       setPayments(paymentsRes.data || []);
+
+      // Set company info from database
+      if (companyRes.data) {
+        setCompanyInfo({
+          name: companyRes.data.name,
+          address: companyRes.data.address || undefined,
+          city: companyRes.data.city || undefined,
+          phone: companyRes.data.phone || undefined,
+          email: companyRes.data.email || undefined,
+        });
+      }
     } catch (error) {
       console.error("Error fetching invoice:", error);
       toast({
@@ -119,6 +146,7 @@ export default function InvoicePreviewPage() {
                   invoice={invoice}
                   lineItems={lineItems}
                   payments={payments}
+                  companyInfo={companyInfo || undefined}
                 />
               }
               fileName={`Invoice-${invoice.invoice_number}.pdf`}
@@ -150,6 +178,7 @@ export default function InvoicePreviewPage() {
                   invoice={invoice}
                   lineItems={lineItems}
                   payments={payments}
+                  companyInfo={companyInfo || undefined}
                 />
               </PDFViewer>
             ) : (
