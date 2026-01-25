@@ -10,6 +10,7 @@ import {
   Receipt,
   User,
   ShoppingCart,
+  Calculator,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -31,6 +32,7 @@ const typeIcons: Record<string, React.ElementType> = {
   vendor: Building2,
   client: User,
   purchase_order: ShoppingCart,
+  payroll: Calculator,
 };
 
 const typeLabels: Record<string, string> = {
@@ -42,6 +44,7 @@ const typeLabels: Record<string, string> = {
   vendor: "Vendor",
   client: "Client",
   purchase_order: "Purchase Order",
+  payroll: "Payroll",
 };
 
 const typeColors: Record<string, string> = {
@@ -53,6 +56,7 @@ const typeColors: Record<string, string> = {
   vendor: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900 dark:text-cyan-300",
   client: "bg-pink-100 text-pink-700 dark:bg-pink-900 dark:text-pink-300",
   purchase_order: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300",
+  payroll: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300",
 };
 
 export function SearchResults({
@@ -108,7 +112,9 @@ export function SearchResults({
                 <div className="flex items-center gap-2 px-2 py-1.5">
                   <Icon className="h-4 w-4 text-muted-foreground" />
                   <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    {label}s ({items.length})
+                    {type === "payroll" && items.length === 1
+                      ? "Payroll (1)"
+                      : `${label}s (${items.length})`}
                   </span>
                 </div>
                 <div className="space-y-1">
@@ -132,7 +138,7 @@ export function SearchResults({
                           variant="secondary"
                           className={`flex-shrink-0 ${typeColors[type] || ""}`}
                         >
-                          {label}
+                          {type === "payroll" ? "Payroll" : label}
                         </Badge>
                       </div>
                     </Link>

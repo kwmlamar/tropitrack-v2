@@ -14,10 +14,10 @@ DATABASE TABLES:
 2. workers - Employees and contractors
    - id (UUID), first_name (TEXT), last_name (TEXT), email (TEXT), phone (TEXT)
    - worker_type (hourly/salary/contract), status (active/inactive/terminated)
-   - hourly_rate (DECIMAL), overtime_rate (DECIMAL), position (TEXT), department (TEXT)
+   - hourly_rate (DECIMAL), overtime_rate_multiplier (DECIMAL), position (TEXT), department (TEXT)
 
-3. time_entries - Work hours tracking
-   - id (UUID), worker_id (UUID), project_id (UUID), date (DATE)
+3. time_entries - Work hours tracking (company-scoped via company_id)
+   - id (UUID), worker_id (UUID), project_id (UUID), company_id (UUID), date (DATE)
    - start_time (TIME), end_time (TIME), break_minutes (INT)
    - regular_hours (DECIMAL), overtime_hours (DECIMAL), notes (TEXT)
 
@@ -92,7 +92,7 @@ OUTPUT FORMAT (JSON):
   },
   "supabase_query": {
     "table": "table_name",
-    "select": "*" or "column1, column2",
+    "select": "*" or "column1, column2" or "col1, relation(col_a, col_b)",
     "filters": [
       {"column": "status", "operator": "eq", "value": "active"}
     ],
@@ -102,13 +102,27 @@ OUTPUT FORMAT (JSON):
   "summary": "Human readable description of what this query finds"
 }
 
+SELECT RULES (critical):
+- "select" must be ONLY: "*" OR comma-separated column names from the table.
+- Optional: embedded relations like "workers(first_name, last_name)" — relation name followed by (fields).
+- NEVER use SQL functions: no SUM(), AVG(), COUNT(), MIN(), MAX() in select.
+- NEVER use raw SQL expressions, arithmetic (+, -, *), or "table.col" dot notation.
+- Use actual column names from the schema only (e.g. regular_hours, overtime_hours, hourly_rate). Do not concatenate names (e.g. "regular_hoursworkers" is invalid).
+- For "sum" or "count" intents: still use "select": "*" or specific columns; filtering/aggregation is done application-side.
+
 FILTER OPERATORS: eq, neq, gt, gte, lt, lte, like, ilike, in, is
+
+DATE RULES:
+- All date filter values MUST be YYYY-MM-DD (e.g. "2026-01-20").
+- "This week" = Monday through Sunday containing today. Use the exact start/end dates provided in the user message context.
+- "Last week" = previous Mon–Sun. "Last 7 days" = today minus 7 days through today.
 
 EXAMPLES:
 - "Projects over budget" → Compare budget vs project_cost_summary.total_cost
 - "Unpaid invoices older than 30 days" → invoices where balance_due > 0 and due_date < now - 30 days
-- "Workers with overtime last week" → time_entries with overtime_hours > 0 in last 7 days
+- "Workers with overtime last week" → time_entries with overtime_hours > 0, date gte/lte last week Mon–Sun
 - "Materials from Kelly's" → materials or purchase_orders linked to vendor with name ilike '%kelly%'
+- "Calculate this week's payroll" / "This week's payroll" → table: time_entries, select: "*", filters: [{"column": "date", "operator": "gte", "value": "<this_week_start YYYY-MM-DD>"}, {"column": "date", "operator": "lte", "value": "<this_week_end YYYY-MM-DD>"}]. Use the exact this_week_start and this_week_end from the user message context.
 `;
 
 // Description generation prompts by content type

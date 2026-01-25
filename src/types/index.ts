@@ -931,7 +931,7 @@ export interface UserAIPreferences {
 // Smart Search Types
 export interface SearchResult {
   id: string;
-  type: "project" | "invoice" | "estimate" | "worker" | "material" | "vendor" | "purchase_order" | "client";
+  type: "project" | "invoice" | "estimate" | "worker" | "material" | "vendor" | "purchase_order" | "client" | "payroll";
   title: string;
   subtitle?: string;
   url: string;

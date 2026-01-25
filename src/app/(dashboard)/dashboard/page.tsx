@@ -97,12 +97,33 @@ export default function DashboardPage() {
 
       const totalRevenue = revenueData?.reduce((sum, p) => sum + (p.contract_value || 0), 0) || 0;
 
+      // Calculate actual expenses by summing all project costs from the view
+      const { data: projectCosts } = await supabase
+        .from("project_cost_summary")
+        .select("labor_cost, material_cost, equipment_cost, overhead_cost");
+
+      let laborCosts = 0;
+      let materialCosts = 0;
+      let equipmentCosts = 0;
+      let overheadCosts = 0;
+
+      if (projectCosts) {
+        projectCosts.forEach((project: any) => {
+          laborCosts += project.labor_cost || 0;
+          materialCosts += project.material_cost || 0;
+          equipmentCosts += project.equipment_cost || 0;
+          overheadCosts += project.overhead_cost || 0;
+        });
+      }
+
+      const totalExpenses = laborCosts + materialCosts + equipmentCosts + overheadCosts;
+
       setStats({
         activeProjects: projectCount || 0,
         totalWorkers: workerCount || 0,
         lowStockMaterials: lowStockCount || 0,
         totalRevenue,
-        totalExpenses: totalRevenue * 0.7, // Placeholder calculation
+        totalExpenses,
       });
 
       setRecentProjects(projects || []);

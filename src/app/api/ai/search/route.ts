@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { openai, OPENAI_MODEL, MAX_DAILY_SEARCHES } from "@/lib/openai";
 import { SMART_SEARCH_SYSTEM_PROMPT } from "@/lib/ai-prompts";
+import { sanitizeSupabaseSelect } from "@/lib/utils";
 import type { SearchResult, SmartSearchResponse } from "@/types";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -48,6 +49,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
+    // Get user's company for scoping queries
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("company_id")
+      .eq("id", user.id)
+      .single();
+
+    const companyId = profile?.company_id ?? null;
+
     // Check rate limit
     const { data: searchCount } = await supabase.rpc("increment_search_count", {
       p_user_id: user.id,
@@ -77,6 +87,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Compute today and this week (Mon–Sun) for relative-date queries (use local date)
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth();
+    const d = now.getDate();
+    const today = `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    const day = now.getDay();
+    const monOffset = day === 0 ? -6 : 1 - day;
+    const mon = new Date(y, m, d + monOffset);
+    const sun = new Date(mon);
+    sun.setDate(sun.getDate() + 6);
+    const thisWeekStart = `${mon.getFullYear()}-${String(mon.getMonth() + 1).padStart(2, "0")}-${String(mon.getDate()).padStart(2, "0")}`;
+    const thisWeekEnd = `${sun.getFullYear()}-${String(sun.getMonth() + 1).padStart(2, "0")}-${String(sun.getDate()).padStart(2, "0")}`;
+
+    const dateContext = `Today is ${today}. This week (Mon–Sun) is ${thisWeekStart} to ${thisWeekEnd}.`;
+
     // Call OpenAI to parse the natural language query
     const completion = await openai.chat.completions.create({
       model: OPENAI_MODEL,
@@ -84,7 +110,7 @@ export async function POST(request: NextRequest) {
         { role: "system", content: SMART_SEARCH_SYSTEM_PROMPT },
         {
           role: "user",
-          content: `Parse this natural language query and return the JSON structure: "${query}"`,
+          content: `${dateContext}\n\nParse this natural language query and return the JSON structure: "${query}"`,
         },
       ],
       response_format: { type: "json_object" },
@@ -99,16 +125,58 @@ export async function POST(request: NextRequest) {
 
     const parsed: ParsedQuery = JSON.parse(responseText);
 
-    // Execute the query against Supabase
-    const results = await executeSupabaseQuery(supabase, parsed);
+    // Fallback: "calculate this week's payroll" / "this week's payroll" → query time_entries with this week's date range
+    const q = query.toLowerCase();
+    const isPayrollThisWeek = q.includes("this week") && q.includes("payroll");
+    if (isPayrollThisWeek) {
+      if (!parsed.supabase_query) parsed.supabase_query = { table: "time_entries", select: "*", filters: [] };
+      parsed.supabase_query.table = "time_entries";
+      parsed.supabase_query.select =
+        "*, workers(first_name, last_name, hourly_rate, overtime_rate_multiplier)";
+      if (!parsed.intent) parsed.intent = { entity_type: "time_entries", action: "list", filters: {} };
+      parsed.intent.entity_type = "time_entries";
+      const filters = parsed.supabase_query.filters ?? [];
+      parsed.supabase_query.filters = filters;
+      const hasDateFilter = filters.some((f: { column: string }) => f.column === "date");
+      if (!hasDateFilter) {
+        filters.push(
+          { column: "date", operator: "gte", value: thisWeekStart },
+          { column: "date", operator: "lte", value: thisWeekEnd }
+        );
+      }
+    }
 
-    // Generate natural language summary
-    const summary = generateSummary(parsed, results);
-
-    // Transform results to SearchResult format
-    const searchResults = transformResults(parsed.intent.entity_type, results);
+    // Execute the query against Supabase (with company scoping when available)
+    const results = await executeSupabaseQuery(supabase, parsed, companyId);
 
     const executionTimeMs = Date.now() - startTime;
+
+    let summary: string;
+    let searchResults: SearchResult[];
+
+    if (isPayrollThisWeek) {
+      const payroll = computePayrollSummary(results as PayrollEntry[]);
+      summary =
+        payroll.workerCount === 0
+          ? `No time entries this week. View payroll to add or adjust entries.`
+          : `This week: ${payroll.totalHours.toFixed(1)} hours, BSD $${payroll.totalGross.toFixed(2)} gross across ${payroll.workerCount} worker${payroll.workerCount === 1 ? "" : "s"}. View full payroll →`;
+      searchResults = [
+        {
+          id: "payroll-this-week",
+          type: "payroll",
+          title: "Payroll – This week",
+          subtitle:
+            payroll.workerCount === 0
+              ? "0 hrs · BSD $0"
+              : `${payroll.totalHours.toFixed(1)} hrs · BSD $${payroll.totalGross.toLocaleString()} gross`,
+          url: "/payroll",
+          metadata: payroll,
+        },
+      ];
+    } else {
+      summary = generateSummary(parsed, results);
+      searchResults = transformResults(parsed.intent.entity_type, results);
+    }
 
     // Save search to history
     await supabase.from("search_queries").insert({
@@ -152,14 +220,30 @@ export async function POST(request: NextRequest) {
   }
 }
 
+const TABLES_WITH_COMPANY_ID = new Set([
+  "time_entries",
+  "workers",
+  "projects",
+  "invoices",
+  "estimates",
+  "materials",
+  "clients",
+]);
+
 async function executeSupabaseQuery(
   supabase: any,
-  parsed: ParsedQuery
+  parsed: ParsedQuery,
+  companyId: string | null
 ): Promise<unknown[]> {
   const { table, select, filters, order, limit } = parsed.supabase_query;
+  const safeSelect = sanitizeSupabaseSelect(select);
 
-  // Start building the query
-  let query = supabase.from(table).select(select || "*");
+  let query = supabase.from(table).select(safeSelect);
+
+  // Scope by company when table has company_id and user has a company
+  if (companyId && TABLES_WITH_COMPANY_ID.has(table)) {
+    query = query.eq("company_id", companyId);
+  }
 
   // Apply filters
   for (const filter of filters || []) {
@@ -219,6 +303,58 @@ async function executeSupabaseQuery(
   return data || [];
 }
 
+type PayrollEntry = {
+  worker_id: string;
+  regular_hours: number | string;
+  overtime_hours: number | string;
+  workers?: {
+    first_name?: string;
+    last_name?: string;
+    hourly_rate?: number | string;
+    overtime_rate_multiplier?: number | string;
+  } | null;
+};
+
+function computePayrollSummary(entries: PayrollEntry[]): {
+  totalHours: number;
+  totalGross: number;
+  workerCount: number;
+  byWorker: Array<{ name: string; hours: number; gross: number }>;
+} {
+  const byWorker: Record<
+    string,
+    { reg: number; ot: number; rate: number; mult: number; name: string }
+  > = {};
+
+  for (const e of entries) {
+    const reg = Number(e.regular_hours) || 0;
+    const ot = Number(e.overtime_hours) || 0;
+    const rate = Number(e.workers?.hourly_rate) || 0;
+    const mult = Number(e.workers?.overtime_rate_multiplier) || 1.5;
+    const name = [e.workers?.first_name, e.workers?.last_name].filter(Boolean).join(" ") || "Unknown";
+
+    if (!byWorker[e.worker_id]) {
+      byWorker[e.worker_id] = { reg: 0, ot: 0, rate, mult, name };
+    }
+    byWorker[e.worker_id].reg += reg;
+    byWorker[e.worker_id].ot += ot;
+  }
+
+  let totalHours = 0;
+  let totalGross = 0;
+  const list: Array<{ name: string; hours: number; gross: number }> = [];
+
+  for (const w of Object.values(byWorker)) {
+    const hours = w.reg + w.ot;
+    const gross = w.reg * w.rate + w.ot * w.rate * w.mult;
+    totalHours += hours;
+    totalGross += gross;
+    list.push({ name: w.name, hours, gross });
+  }
+
+  return { totalHours, totalGross, workerCount: list.length, byWorker: list };
+}
+
 function generateSummary(parsed: ParsedQuery, results: unknown[]): string {
   const count = results.length;
   const entityType = parsed.intent.entity_type;
@@ -249,6 +385,13 @@ function generateSummary(parsed: ParsedQuery, results: unknown[]): string {
     }>;
     const names = workers.slice(0, 3).map((w) => `${w.first_name} ${w.last_name}`);
     summary = `Found ${count} worker${count > 1 ? "s" : ""}: ${names.join(", ")}${count > 3 ? ` and ${count - 3} more` : ""}.`;
+  } else if (entityType === "time_entries" && count > 0) {
+    const entries = results as Array<{ regular_hours?: number; overtime_hours?: number }>;
+    const totalHours = entries.reduce(
+      (sum, e) => sum + (Number(e.regular_hours) || 0) + (Number(e.overtime_hours) || 0),
+      0
+    );
+    summary = `Found ${count} time entr${count === 1 ? "y" : "ies"} totaling ${totalHours.toFixed(1)} hours.`;
   }
 
   return summary;
@@ -307,6 +450,10 @@ function transformResults(
       case "clients":
         title = record.name as string;
         subtitle = record.email as string || record.phone as string || "";
+        break;
+      case "time_entries":
+        title = `Time entry ${new Date(record.date as string).toLocaleDateString()}`;
+        subtitle = `${(Number(record.regular_hours) || 0) + (Number(record.overtime_hours) || 0)} hrs`;
         break;
       default:
         title = (record.name as string) || (record.id as string);

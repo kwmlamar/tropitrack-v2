@@ -224,3 +224,20 @@ export function getWeekNumber(date: Date): number {
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
   return Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
 }
+
+/**
+ * Sanitize AI-generated Supabase/PostgREST select string.
+ * PostgREST only accepts: * | col1,col2 | relation(col1,col2).
+ * Rejects SUM(), AVG(), table.col, arithmetic, etc. Falls back to "*" when invalid.
+ */
+export function sanitizeSupabaseSelect(select: string | null | undefined): string {
+  const s = (select || "").trim();
+  if (!s) return "*";
+  // Reject SQL aggregates (SUM, AVG, COUNT, MIN, MAX)
+  if (/\b(SUM|AVG|COUNT|MIN|MAX)\s*\(/i.test(s)) return "*";
+  // Reject table.col dot notation (e.g. regular_hoursworkers.hourly_rate)
+  if (/\w+\.\w+/.test(s)) return "*";
+  // Reject arithmetic/expression concatenation in select (e.g. SUM(...)+SUM(...))
+  if (/\+\s*SUM|\)\s*\+|[\+]\s*\)/.test(s)) return "*";
+  return s;
+}
