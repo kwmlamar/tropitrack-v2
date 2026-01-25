@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Mail, AlertCircle, CheckCircle } from "lucide-react";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
+import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 
 function SignupForm() {
   const searchParams = useSearchParams();
@@ -470,6 +471,17 @@ function SignupForm() {
                 ? "Create Account & Join Company"
                 : "Create Account"}
             </Button>
+            <div className="relative w-full">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">Or</span>
+              </div>
+            </div>
+            <GoogleSignInButton disabled={loading}>
+              Continue with Google
+            </GoogleSignInButton>
             <div className="text-sm text-muted-foreground text-center">
               Already have an account?{" "}
               <Link href="/login" className="text-primary hover:underline">

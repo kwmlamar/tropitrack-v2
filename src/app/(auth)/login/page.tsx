@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -11,14 +11,28 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import Image from "next/image";
+import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 
-export default function LoginPage() {
+function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const supabase = createClient();
+
+  useEffect(() => {
+    const err = searchParams?.get("error");
+    if (err === "auth_callback") {
+      toast({
+        title: "Sign-in failed",
+        description: "Google sign-in could not be completed. Please try again or use email and password.",
+        variant: "destructive",
+      });
+      router.replace("/login");
+    }
+  }, [searchParams, router, toast]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,6 +122,15 @@ export default function LoginPage() {
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Sign In
             </Button>
+            <div className="relative w-full">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">Or</span>
+              </div>
+            </div>
+            <GoogleSignInButton disabled={loading} />
             <div className="text-sm text-muted-foreground text-center space-y-2">
               <Link href="/forgot-password" className="text-primary hover:underline block">
                 Forgot your password?
@@ -123,5 +146,17 @@ export default function LoginPage() {
         </form>
       </Card>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 to-amber-50 dark:from-neutral-950 dark:to-neutral-900">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }
