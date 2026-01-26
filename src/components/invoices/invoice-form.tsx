@@ -39,6 +39,9 @@ import {
   Calculator,
 } from "lucide-react";
 import { AIDescriptionField } from "@/components/ai/ai-description-field";
+import { TemplateSelector } from "@/components/templates/template-selector";
+import { FlexibleLineItemForm } from "@/components/line-items/flexible-line-item-form";
+import { QuickEntryButtons } from "@/components/line-items/quick-entry-buttons";
 import type {
   Invoice,
   InvoiceLineItem,
@@ -46,6 +49,8 @@ import type {
   InvoiceLineCategory,
   Client,
   Project,
+  DocumentTemplate,
+  LineItemEntryMode,
 } from "@/types";
 
 interface InvoiceFormProps {
@@ -58,9 +63,11 @@ interface LineItemFormData {
   id?: string;
   category: InvoiceLineCategory;
   description: string;
-  quantity: number;
-  unit: string;
-  unit_rate: number;
+  quantity?: number;
+  unit?: string;
+  unit_rate?: number;
+  entry_mode: LineItemEntryMode;
+  manual_amount?: number;
   notes?: string;
 }
 
@@ -99,6 +106,12 @@ export function InvoiceForm({ invoice, lineItems = [], mode }: InvoiceFormProps)
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [projectCosts, setProjectCosts] = useState<ProjectCostData | null>(null);
   const [loadingCosts, setLoadingCosts] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<DocumentTemplate | null>(null);
+  const [templateId, setTemplateId] = useState<string | undefined>(invoice?.template_id);
+  const [showLineItemForm, setShowLineItemForm] = useState(false);
+  const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
+  const [quickMode, setQuickMode] = useState<LineItemEntryMode | undefined>(undefined);
+  const [quickCategory, setQuickCategory] = useState<string | undefined>(undefined);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -129,9 +142,11 @@ export function InvoiceForm({ invoice, lineItems = [], mode }: InvoiceFormProps)
           quantity: item.quantity,
           unit: item.unit || "",
           unit_rate: item.unit_rate,
+          entry_mode: item.entry_mode || "detailed",
+          manual_amount: item.manual_amount,
           notes: item.notes,
         }))
-      : [{ category: "labor" as InvoiceLineCategory, description: "", quantity: 1, unit: "hours", unit_rate: 0 }]
+      : []
   );
 
   // Selected items from project
@@ -301,6 +316,7 @@ export function InvoiceForm({ invoice, lineItems = [], mode }: InvoiceFormProps)
           quantity: labor.hours,
           unit: "hours",
           unit_rate: labor.rate,
+          entry_mode: "detailed",
         });
       }
     });
@@ -314,6 +330,7 @@ export function InvoiceForm({ invoice, lineItems = [], mode }: InvoiceFormProps)
           quantity: mat.quantity,
           unit: mat.unit,
           unit_rate: mat.unit_cost,
+          entry_mode: "simple",
         });
       }
     });
@@ -327,6 +344,7 @@ export function InvoiceForm({ invoice, lineItems = [], mode }: InvoiceFormProps)
           quantity: equip.days,
           unit: "days",
           unit_rate: equip.rate,
+          entry_mode: "simple",
         });
       }
     });
@@ -342,27 +360,58 @@ export function InvoiceForm({ invoice, lineItems = [], mode }: InvoiceFormProps)
     });
   };
 
-  const addLineItem = () => {
-    setItems([
-      ...items,
-      { category: "labor", description: "", quantity: 1, unit: "hours", unit_rate: 0 },
-    ]);
+  const handleQuickAdd = (mode: LineItemEntryMode, category: string) => {
+    setQuickMode(mode);
+    setQuickCategory(category);
+    setShowLineItemForm(true);
+  };
+
+  const handleAddLineItem = () => {
+    setQuickMode(undefined);
+    setQuickCategory(undefined);
+    setEditingItemIndex(null);
+    setShowLineItemForm(true);
+  };
+
+  const handleEditLineItem = (index: number) => {
+    setEditingItemIndex(index);
+    setShowLineItemForm(true);
+  };
+
+  const handleSaveLineItem = (item: any) => {
+    if (editingItemIndex !== null) {
+      // Edit existing item
+      const newItems = [...items];
+      newItems[editingItemIndex] = { ...item, id: items[editingItemIndex].id };
+      setItems(newItems);
+    } else {
+      // Add new item
+      setItems([...items, item]);
+    }
+    setShowLineItemForm(false);
+    setEditingItemIndex(null);
+    setQuickMode(undefined);
+    setQuickCategory(undefined);
+  };
+
+  const handleCancelLineItem = () => {
+    setShowLineItemForm(false);
+    setEditingItemIndex(null);
+    setQuickMode(undefined);
+    setQuickCategory(undefined);
   };
 
   const removeLineItem = (index: number) => {
-    if (items.length > 1) {
-      setItems(items.filter((_, i) => i !== index));
-    }
-  };
-
-  const updateLineItem = (index: number, field: keyof LineItemFormData, value: any) => {
-    const newItems = [...items];
-    newItems[index] = { ...newItems[index], [field]: value };
-    setItems(newItems);
+    setItems(items.filter((_, i) => i !== index));
   };
 
   // Calculate totals
-  const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unit_rate, 0);
+  const subtotal = items.reduce((sum, item) => {
+    if (item.entry_mode === "lump_sum") {
+      return sum + (item.manual_amount || 0);
+    }
+    return sum + ((item.quantity || 0) * (item.unit_rate || 0));
+  }, 0);
   const taxAmount = subtotal * (formData.tax_rate / 100);
   const totalAmount = subtotal + taxAmount;
 
@@ -378,12 +427,29 @@ export function InvoiceForm({ invoice, lineItems = [], mode }: InvoiceFormProps)
     setSaving(true);
 
     try {
+      if (!profile) {
+        throw new Error("User profile not loaded. Please refresh the page and try again.");
+      }
+
+      if (!profile.company_id) {
+        throw new Error("You must be associated with a company to create invoices. Please contact your administrator to assign you to a company.");
+      }
+
       if (!formData.client_name) {
         throw new Error("Client name is required");
       }
 
-      if (items.some((item) => !item.description || item.unit_rate <= 0)) {
-        throw new Error("All line items must have a description and rate");
+      if (items.some((item) => !item.description)) {
+        throw new Error("All line items must have a description");
+      }
+
+      if (items.some((item) => {
+        if (item.entry_mode === "lump_sum") {
+          return !item.manual_amount || item.manual_amount <= 0;
+        }
+        return !item.unit_rate || item.unit_rate <= 0;
+      })) {
+        throw new Error("All line items must have a valid amount or rate");
       }
 
       if (mode === "create") {
@@ -391,6 +457,7 @@ export function InvoiceForm({ invoice, lineItems = [], mode }: InvoiceFormProps)
           .from("invoices")
           .insert({
             invoice_number: generateInvoiceNumber(),
+            company_id: profile.company_id,
             client_id: formData.client_id || null,
             project_id: formData.project_id || null,
             client_name: formData.client_name,
@@ -403,6 +470,7 @@ export function InvoiceForm({ invoice, lineItems = [], mode }: InvoiceFormProps)
             tax_rate: formData.tax_rate,
             notes: formData.notes || null,
             terms: formData.terms || null,
+            template_id: templateId || null,
             status: "draft",
             created_by: profile?.id,
           })
@@ -411,17 +479,25 @@ export function InvoiceForm({ invoice, lineItems = [], mode }: InvoiceFormProps)
 
         if (invoiceError) throw invoiceError;
 
-        const lineItemsToInsert = items.map((item, index) => ({
-          invoice_id: newInvoice.id,
-          category: item.category,
-          description: item.description,
-          quantity: item.quantity,
-          unit: item.unit || null,
-          unit_rate: item.unit_rate,
-          amount: item.quantity * item.unit_rate,
-          notes: item.notes || null,
-          order_index: index,
-        }));
+        const lineItemsToInsert = items.map((item, index) => {
+          const amount = item.entry_mode === "lump_sum"
+            ? (item.manual_amount || 0)
+            : ((item.quantity || 0) * (item.unit_rate || 0));
+
+          return {
+            invoice_id: newInvoice.id,
+            category: item.category,
+            description: item.description,
+            quantity: item.entry_mode === "lump_sum" ? null : item.quantity,
+            unit: item.entry_mode === "lump_sum" ? null : (item.unit || null),
+            unit_rate: item.entry_mode === "lump_sum" ? null : item.unit_rate,
+            entry_mode: item.entry_mode,
+            manual_amount: item.entry_mode === "lump_sum" ? item.manual_amount : null,
+            amount: amount,
+            notes: item.notes || null,
+            order_index: index,
+          };
+        });
 
         const { error: itemsError } = await supabase
           .from("invoice_line_items")
@@ -451,6 +527,7 @@ export function InvoiceForm({ invoice, lineItems = [], mode }: InvoiceFormProps)
             tax_rate: formData.tax_rate,
             notes: formData.notes || null,
             terms: formData.terms || null,
+            template_id: templateId || null,
           })
           .eq("id", invoice!.id);
 
@@ -458,17 +535,25 @@ export function InvoiceForm({ invoice, lineItems = [], mode }: InvoiceFormProps)
 
         await supabase.from("invoice_line_items").delete().eq("invoice_id", invoice!.id);
 
-        const lineItemsToInsert = items.map((item, index) => ({
-          invoice_id: invoice!.id,
-          category: item.category,
-          description: item.description,
-          quantity: item.quantity,
-          unit: item.unit || null,
-          unit_rate: item.unit_rate,
-          amount: item.quantity * item.unit_rate,
-          notes: item.notes || null,
-          order_index: index,
-        }));
+        const lineItemsToInsert = items.map((item, index) => {
+          const amount = item.entry_mode === "lump_sum"
+            ? (item.manual_amount || 0)
+            : ((item.quantity || 0) * (item.unit_rate || 0));
+
+          return {
+            invoice_id: invoice!.id,
+            category: item.category,
+            description: item.description,
+            quantity: item.entry_mode === "lump_sum" ? null : item.quantity,
+            unit: item.entry_mode === "lump_sum" ? null : (item.unit || null),
+            unit_rate: item.entry_mode === "lump_sum" ? null : item.unit_rate,
+            entry_mode: item.entry_mode,
+            manual_amount: item.entry_mode === "lump_sum" ? item.manual_amount : null,
+            amount: amount,
+            notes: item.notes || null,
+            order_index: index,
+          };
+        });
 
         const { error: itemsError } = await supabase
           .from("invoice_line_items")
@@ -485,9 +570,21 @@ export function InvoiceForm({ invoice, lineItems = [], mode }: InvoiceFormProps)
       }
     } catch (error: any) {
       console.error("Error saving invoice:", error);
+      
+      // Provide helpful error messages for common issues
+      let errorMessage = error.message || "Failed to save invoice";
+      
+      if (error.code === "42501" || error.message?.includes("row-level security")) {
+        if (!profile?.company_id) {
+          errorMessage = "You must be associated with a company to create invoices. Please contact your administrator to assign you to a company.";
+        } else {
+          errorMessage = "Permission denied. Please ensure you're associated with a company and try again. If this persists, contact your administrator.";
+        }
+      }
+      
       toast({
-        title: "Error",
-        description: error.message || "Failed to save invoice",
+        title: "Error saving invoice",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -798,103 +895,118 @@ export function InvoiceForm({ invoice, lineItems = [], mode }: InvoiceFormProps)
         </Card>
       </div>
 
+      {/* Template Selection */}
+      <Separator />
+      <TemplateSelector
+        type="invoice"
+        selectedTemplateId={templateId}
+        onTemplateChange={(id, template) => {
+          setTemplateId(id);
+          setSelectedTemplate(template);
+        }}
+      />
+
       {/* Line Items */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Line Items</CardTitle>
-              <CardDescription>Add billable items</CardDescription>
-            </div>
-            <Button type="button" variant="outline" onClick={addLineItem}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Item
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {items.map((item, index) => (
-            <div key={index} className="grid gap-4 p-4 border rounded-lg bg-muted/50">
-              <div className="grid gap-4 md:grid-cols-6">
-                <div className="space-y-2">
-                  <Label>Category</Label>
-                  <Select
-                    value={item.category}
-                    onValueChange={(value) => updateLineItem(index, "category", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categoryOptions.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2 md:col-span-2">
-                  <Label>Description *</Label>
-                  <Input
-                    value={item.description}
-                    onChange={(e) => updateLineItem(index, "description", e.target.value)}
-                    placeholder="Item description"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Qty</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={item.quantity}
-                    onChange={(e) => updateLineItem(index, "quantity", parseFloat(e.target.value) || 0)}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Unit</Label>
-                  <Input
-                    value={item.unit}
-                    onChange={(e) => updateLineItem(index, "unit", e.target.value)}
-                    placeholder="hours"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Rate (BSD)</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={item.unit_rate}
-                    onChange={(e) => updateLineItem(index, "unit_rate", parseFloat(e.target.value) || 0)}
-                  />
-                </div>
+      {!showLineItemForm ? (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Line Items</CardTitle>
+                <CardDescription>Add billable items</CardDescription>
               </div>
+              <Button type="button" onClick={handleAddLineItem}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Item
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Quick Entry Buttons */}
+            {items.length === 0 && (
+              <QuickEntryButtons onQuickAdd={handleQuickAdd} />
+            )}
 
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">
-                  Line Total: <span className="font-medium text-foreground">{formatCurrency(item.quantity * item.unit_rate)}</span>
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removeLineItem(index)}
-                  disabled={items.length === 1}
+            {/* Existing Line Items */}
+            {items.map((item, index) => {
+              const itemAmount = item.entry_mode === "lump_sum"
+                ? (item.manual_amount || 0)
+                : ((item.quantity || 0) * (item.unit_rate || 0));
+
+              return (
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50"
                 >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-medium text-muted-foreground uppercase">
+                        {item.category}
+                      </span>
+                      {item.entry_mode === "lump_sum" && (
+                        <span className="text-xs px-2 py-0.5 bg-primary/10 text-primary rounded">
+                          Lump Sum
+                        </span>
+                      )}
+                    </div>
+                    <div className="font-medium">{item.description}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {item.entry_mode === "lump_sum" ? (
+                        "Total amount"
+                      ) : (
+                        <>
+                          {item.quantity} {item.unit} × {formatCurrency(item.unit_rate || 0)}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <div className="text-lg font-bold">
+                        {formatCurrency(itemAmount)}
+                      </div>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditLineItem(index)}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeLineItem(index)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {items.length === 0 && !showLineItemForm && (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>No line items added yet</p>
+                <p className="text-sm mt-1">Use the quick add buttons above or click "Add Item"</p>
               </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        <FlexibleLineItemForm
+          type="invoice"
+          onSave={handleSaveLineItem}
+          onCancel={handleCancelLineItem}
+          initialData={editingItemIndex !== null ? items[editingItemIndex] : undefined}
+          quickMode={quickMode}
+          quickCategory={quickCategory}
+        />
+      )}
 
       {/* Summary */}
       <div className="grid gap-6 lg:grid-cols-2">

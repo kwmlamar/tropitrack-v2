@@ -591,6 +591,8 @@ export interface Estimate {
   updated_at: string;
 }
 
+export type LineItemEntryMode = "detailed" | "simple" | "lump_sum";
+
 export interface EstimateLineItem {
   id: string;
   estimate_id: string;
@@ -599,10 +601,12 @@ export interface EstimateLineItem {
   material_id?: string;
   equipment_id?: string;
   description: string;
-  quantity: number;
+  quantity?: number;
   unit?: string;
-  unit_rate: number;
+  unit_rate?: number;
   amount: number;
+  entry_mode: LineItemEntryMode;
+  manual_amount?: number;
   notes?: string;
   order_index: number;
   created_at: string;
@@ -631,9 +635,11 @@ export interface EstimateLineItemFormData {
   material_id?: string;
   equipment_id?: string;
   description: string;
-  quantity: number;
+  quantity?: number;
   unit?: string;
-  unit_rate: number;
+  unit_rate?: number;
+  entry_mode: LineItemEntryMode;
+  manual_amount?: number;
   notes?: string;
 }
 
@@ -689,10 +695,12 @@ export interface InvoiceLineItem {
   material_allocation_id?: string;
   equipment_usage_id?: string;
   description: string;
-  quantity: number;
+  quantity?: number;
   unit?: string;
-  unit_rate: number;
+  unit_rate?: number;
   amount: number;
+  entry_mode: LineItemEntryMode;
+  manual_amount?: number;
   notes?: string;
   order_index: number;
   created_at: string;
@@ -720,9 +728,11 @@ export interface InvoiceLineItemFormData {
   material_allocation_id?: string;
   equipment_usage_id?: string;
   description: string;
-  quantity: number;
+  quantity?: number;
   unit?: string;
-  unit_rate: number;
+  unit_rate?: number;
+  entry_mode: LineItemEntryMode;
+  manual_amount?: number;
   notes?: string;
 }
 
@@ -766,6 +776,113 @@ export interface PaymentFormData {
   payment_method: PaymentMethod;
   reference_number?: string;
   notes?: string;
+}
+
+// ============================================
+// DOCUMENT TEMPLATE TYPES
+// ============================================
+
+export type DocumentTemplateType = "estimate" | "invoice";
+export type TemplateGroupBy = "category" | "phase" | "none" | "custom";
+export type TemplateLineItemFormat = "detailed" | "summary" | "minimal";
+export type TemplateTotalFormat = "standard" | "minimal" | "detailed";
+export type LineItemDisplayFormat = "standard" | "lump_sum" | "hidden_rate";
+
+export interface DocumentTemplate {
+  id: string;
+  company_id: string;
+  name: string;
+  type: DocumentTemplateType;
+  is_default: boolean;
+
+  // Display settings
+  show_quantities: boolean;
+  show_rates: boolean;
+  show_hours: boolean;
+  show_unit_costs: boolean;
+  show_subtotals: boolean;
+  show_markup_percentage: boolean;
+  show_profit_margin: boolean;
+  show_line_item_descriptions: boolean;
+
+  // Grouping options
+  group_by: TemplateGroupBy;
+  show_group_subtotals: boolean;
+
+  // Formatting
+  line_item_format: TemplateLineItemFormat;
+  total_format: TemplateTotalFormat;
+
+  // Custom settings (for future extensibility)
+  custom_settings?: Record<string, any>;
+
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DocumentTemplateFormData {
+  name: string;
+  type: DocumentTemplateType;
+  is_default?: boolean;
+  show_quantities?: boolean;
+  show_rates?: boolean;
+  show_hours?: boolean;
+  show_unit_costs?: boolean;
+  show_subtotals?: boolean;
+  show_markup_percentage?: boolean;
+  show_profit_margin?: boolean;
+  show_line_item_descriptions?: boolean;
+  group_by?: TemplateGroupBy;
+  show_group_subtotals?: boolean;
+  line_item_format?: TemplateLineItemFormat;
+  total_format?: TemplateTotalFormat;
+  custom_settings?: Record<string, any>;
+}
+
+export interface LineItemGroup {
+  id: string;
+  estimate_id?: string;
+  invoice_id?: string;
+  name: string;
+  description?: string;
+  display_order: number;
+  show_subtotal: boolean;
+  created_at: string;
+}
+
+export interface LineItemGroupFormData {
+  name: string;
+  description?: string;
+  display_order?: number;
+  show_subtotal?: boolean;
+}
+
+// Add group and display settings to existing line item types
+export interface EstimateLineItemWithGroup extends EstimateLineItem {
+  group_id?: string;
+  display_format: LineItemDisplayFormat;
+  show_in_document: boolean;
+  custom_label?: string;
+  display_order: number;
+  group?: LineItemGroup;
+}
+
+export interface InvoiceLineItemWithGroup extends InvoiceLineItem {
+  group_id?: string;
+  display_format: LineItemDisplayFormat;
+  show_in_document: boolean;
+  custom_label?: string;
+  display_order: number;
+  group?: LineItemGroup;
+}
+
+// Template presets for quick selection
+export interface TemplatePreset {
+  name: string;
+  type: DocumentTemplateType;
+  description: string;
+  settings: Omit<DocumentTemplateFormData, 'name' | 'type'>;
+  useCase: string;
 }
 
 // ============================================

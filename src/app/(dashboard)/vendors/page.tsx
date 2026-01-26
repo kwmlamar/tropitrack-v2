@@ -77,6 +77,7 @@ export default function VendorsPage() {
   const [creatingPO, setCreatingPO] = useState(false);
   const [scannedData, setScannedData] = useState<ParsedReceipt | null>(null);
   const [scannedImageFile, setScannedImageFile] = useState<File | null>(null);
+  const [viewingReceipt, setViewingReceipt] = useState<{ po: any; imageUrl: string } | null>(null);
   const supabase = createClient();
 
   const [vendorForm, setVendorForm] = useState({
@@ -141,13 +142,57 @@ export default function VendorsPage() {
       // Upload receipt image if available
       let receiptImagePath: string | null = null;
       if (scannedImageFile) {
-        const fileName = `receipts/${poNumber}-${Date.now()}.jpg`;
-        const { error: uploadError } = await supabase.storage
-          .from("documents")
-          .upload(fileName, scannedImageFile);
+        try {
+          // First, verify the bucket exists by trying to list it
+          const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
+          
+          if (bucketError) {
+            console.error("Error checking buckets:", bucketError);
+            throw new Error("Could not access storage. Please ensure the 'documents' bucket exists.");
+          }
 
-        if (!uploadError) {
-          receiptImagePath = fileName;
+          const documentsBucket = buckets?.find(b => b.id === 'documents');
+          if (!documentsBucket) {
+            console.error("Documents bucket not found. Available buckets:", buckets?.map(b => b.id));
+            throw new Error("The 'documents' storage bucket does not exist. Please create it in Supabase Dashboard > Storage.");
+          }
+
+          const fileName = `receipts/${poNumber}-${Date.now()}.jpg`;
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from("documents")
+            .upload(fileName, scannedImageFile, {
+              cacheControl: '3600',
+              upsert: false,
+              metadata: {
+                user_id: profile?.id,
+                company_id: profile?.company_id,
+                po_number: poNumber,
+                uploaded_at: new Date().toISOString(),
+              }
+            });
+
+          if (uploadError) {
+            console.error("Error uploading receipt image:", uploadError);
+            // Continue with PO creation even if receipt upload fails
+            toast({
+              title: "Warning",
+              description: `Purchase order created, but receipt image could not be saved: ${uploadError.message}. You can add it later.`,
+              variant: "default",
+            });
+          } else if (uploadData?.path) {
+            receiptImagePath = uploadData.path;
+            console.log("Receipt uploaded successfully:", receiptImagePath);
+          } else {
+            console.warn("Upload succeeded but no path returned");
+          }
+        } catch (uploadErr: any) {
+          console.error("Exception uploading receipt:", uploadErr);
+          // Continue with PO creation even if receipt upload fails
+          toast({
+            title: "Warning",
+            description: uploadErr?.message || "Purchase order created, but receipt image could not be saved. You can add it later.",
+            variant: "default",
+          });
         }
       }
 
@@ -161,13 +206,19 @@ export default function VendorsPage() {
         notes: poForm.notes,
         receipt_image_path: receiptImagePath,
         ocr_raw_text: scannedData?.raw_text || null,
+        company_id: profile?.company_id,
+        created_by: profile?.id,
       });
 
       if (error) throw error;
 
+      const successMessage = receiptImagePath 
+        ? `${poNumber} has been created with the scanned receipt attached.`
+        : `${poNumber} has been created${scannedImageFile ? ' (receipt upload failed)' : ''}.`;
+
       toast({
         title: "Purchase Order created",
-        description: `${poNumber} has been created from the scanned receipt.`,
+        description: successMessage,
         variant: "success",
       });
 
@@ -208,8 +259,8 @@ export default function VendorsPage() {
 
       const { data: poData } = await supabase
         .from("purchase_orders")
-        .select("*, vendors!inner(name, company_id)")
-        .eq("vendors.company_id", profile.company_id)
+        .select("*, vendors(name)")
+        .eq("company_id", profile.company_id)
         .order("created_at", { ascending: false })
         .limit(20);
       setPurchaseOrders(poData || []);
@@ -224,8 +275,17 @@ export default function VendorsPage() {
     e.preventDefault();
     setSubmitting(true);
     try {
+      if (!profile) {
+        throw new Error("User profile not loaded. Please refresh the page and try again.");
+      }
+
+      if (!profile.company_id) {
+        throw new Error("You must be associated with a company to create vendors. Please contact your administrator to assign you to a company.");
+      }
+
       const { error } = await supabase.from("vendors").insert({
         ...vendorForm,
+        company_id: profile.company_id,
         email: vendorForm.email || null,
         phone: vendorForm.phone || null,
       });
@@ -250,15 +310,118 @@ export default function VendorsPage() {
         notes: "",
       });
       fetchData();
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "An error occurred";
+    } catch (error: any) {
+      console.error("Error saving vendor:", error);
+      
+      // Provide helpful error messages for common issues
+      let errorMessage = error.message || "Failed to save vendor";
+      
+      if (error.code === "42501" || error.message?.includes("row-level security")) {
+        if (!profile?.company_id) {
+          errorMessage = "You must be associated with a company to create vendors. Please contact your administrator to assign you to a company.";
+        } else {
+          errorMessage = "Permission denied. Please ensure you're associated with a company and try again. If this persists, contact your administrator.";
+        }
+      }
+      
       toast({
-        title: "Error",
+        title: "Error saving vendor",
         description: errorMessage,
         variant: "destructive",
       });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleViewReceipt = async (po: any) => {
+    if (!po.receipt_image_path) {
+      toast({
+        title: "No receipt",
+        description: "No receipt image is attached to this purchase order.",
+        variant: "default",
+      });
+      return;
+    }
+
+    try {
+      // Try to get a signed URL (works for both public and private buckets)
+      // For public buckets, we could use getPublicUrl, but signed URLs work for both
+      const { data: signedData, error: urlError } = await supabase.storage
+        .from("documents")
+        .createSignedUrl(po.receipt_image_path, 3600); // URL valid for 1 hour
+
+      if (urlError) {
+        console.error("Error creating signed URL:", urlError);
+        // If signed URL fails, try public URL as fallback
+        const { data: publicUrlData } = supabase.storage
+          .from("documents")
+          .getPublicUrl(po.receipt_image_path);
+        
+        if (publicUrlData?.publicUrl) {
+          setViewingReceipt({ po, imageUrl: publicUrlData.publicUrl });
+        } else {
+          throw urlError;
+        }
+      } else if (signedData?.signedUrl) {
+        setViewingReceipt({ po, imageUrl: signedData.signedUrl });
+      } else {
+        throw new Error("Could not generate receipt URL");
+      }
+    } catch (error) {
+      console.error("Error loading receipt:", error);
+      toast({
+        title: "Error",
+        description: "Could not load receipt image. Please ensure the storage bucket exists and you have permission to access it.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeletePO = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this purchase order? This action cannot be undone.")) return;
+
+    try {
+      // Check user permissions
+      const isAdmin = profile?.role === "admin" || profile?.role === "project_manager";
+      if (!isAdmin) {
+        toast({
+          title: "Permission denied",
+          description: "Only administrators and project managers can delete purchase orders.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { error } = await supabase
+        .from("purchase_orders")
+        .delete()
+        .eq("id", id);
+
+      if (error) {
+        console.error("Error deleting purchase order:", error);
+        toast({
+          title: "Error deleting purchase order",
+          description: error.message || "An error occurred while deleting the purchase order.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Purchase order deleted",
+        description: "The purchase order has been successfully deleted.",
+        variant: "success",
+      });
+
+      fetchData();
+    } catch (error: any) {
+      console.error("Error deleting purchase order:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete purchase order",
+        variant: "destructive",
+      });
     }
   };
 
@@ -610,9 +773,34 @@ export default function VendorsPage() {
                           </TableCell>
                           <TableCell>{formatCurrency(po.total_amount)}</TableCell>
                           <TableCell className="text-right">
-                            <Button variant="ghost" size="icon">
-                              <Eye className="h-4 w-4" />
-                            </Button>
+                            <div className="flex items-center justify-end gap-2">
+                              {po.receipt_image_path && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleViewReceipt(po)}
+                                  title="View receipt"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              )}
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem
+                                    className="text-destructive"
+                                    onClick={() => handleDeletePO(po.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -639,6 +827,65 @@ export default function VendorsPage() {
         onOpenChange={setScannerOpen}
         onScanComplete={handleScanComplete}
       />
+
+      {/* Receipt Viewer Dialog */}
+      <Dialog open={!!viewingReceipt} onOpenChange={(open) => !open && setViewingReceipt(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>
+              Receipt - {viewingReceipt?.po.po_number}
+            </DialogTitle>
+            <DialogDescription>
+              {viewingReceipt?.po.vendors?.name} • {viewingReceipt?.po.order_date && formatDate(viewingReceipt.po.order_date)}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {viewingReceipt?.imageUrl && (
+              <div className="border rounded-lg overflow-hidden bg-muted">
+                <img
+                  src={viewingReceipt.imageUrl}
+                  alt={`Receipt for ${viewingReceipt.po.po_number}`}
+                  className="w-full h-auto max-h-[60vh] object-contain"
+                  onError={(e) => {
+                    console.error("Error loading receipt image");
+                    toast({
+                      title: "Error",
+                      description: "Could not load receipt image. It may have been deleted.",
+                      variant: "destructive",
+                    });
+                    setViewingReceipt(null);
+                  }}
+                />
+              </div>
+            )}
+            {viewingReceipt?.po.ocr_raw_text && (
+              <div className="space-y-2">
+                <Label>Scanned Text</Label>
+                <Textarea
+                  value={viewingReceipt.po.ocr_raw_text}
+                  readOnly
+                  rows={6}
+                  className="font-mono text-sm"
+                />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewingReceipt(null)}>
+              Close
+            </Button>
+            {viewingReceipt?.imageUrl && (
+              <Button
+                onClick={() => {
+                  window.open(viewingReceipt.imageUrl, "_blank");
+                }}
+              >
+                Open in New Tab
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Create PO from Scan Dialog */}
       <Dialog open={poDialogOpen} onOpenChange={setPoDialogOpen}>

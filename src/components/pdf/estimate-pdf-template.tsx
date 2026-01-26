@@ -7,7 +7,7 @@ import {
   View,
   StyleSheet,
 } from "@react-pdf/renderer";
-import type { Estimate, EstimateLineItem } from "@/types";
+import type { Estimate, EstimateLineItem, DocumentTemplate } from "@/types";
 
 const styles = StyleSheet.create({
   page: {
@@ -261,6 +261,7 @@ const styles = StyleSheet.create({
 interface EstimatePDFProps {
   estimate: Estimate;
   lineItems: EstimateLineItem[];
+  template?: DocumentTemplate;
   companyInfo?: {
     name: string;
     address?: string;
@@ -312,6 +313,7 @@ const getStatusColor = (status: string) => {
 export function EstimatePDFTemplate({
   estimate,
   lineItems,
+  template,
   companyInfo = {
     name: "TropiTech Solutions",
     address: "Nassau",
@@ -321,6 +323,14 @@ export function EstimatePDFTemplate({
   },
   paymentInstructions,
 }: EstimatePDFProps) {
+  // Use template settings or defaults
+  const showQuantities = template?.show_quantities ?? true;
+  const showRates = template?.show_rates ?? true;
+  const showUnitCosts = template?.show_unit_costs ?? true;
+  const showSubtotals = template?.show_subtotals ?? true;
+  const showMarkupPercentage = template?.show_markup_percentage ?? false;
+  const showProfitMargin = template?.show_profit_margin ?? false;
+  const showLineItemDescriptions = template?.show_line_item_descriptions ?? true;
   const overheadAmount =
     (estimate.subtotal || 0) * ((estimate.overhead_markup_percent || 0) / 100);
   const subtotalAfterOverhead = (estimate.subtotal || 0) + overheadAmount;
@@ -398,37 +408,52 @@ export function EstimatePDFTemplate({
         <View style={styles.table}>
           <View style={styles.tableHeader}>
             <Text style={[styles.tableHeaderText, styles.col1]}>Description</Text>
-            <Text style={[styles.tableHeaderText, styles.col2]}>Qty</Text>
-            <Text style={[styles.tableHeaderText, styles.col3]}>Unit</Text>
-            <Text style={[styles.tableHeaderText, styles.col4]}>Rate</Text>
+            {showQuantities && <Text style={[styles.tableHeaderText, styles.col2]}>Qty</Text>}
+            {showQuantities && <Text style={[styles.tableHeaderText, styles.col3]}>Unit</Text>}
+            {showRates && <Text style={[styles.tableHeaderText, styles.col4]}>Rate</Text>}
             <Text style={[styles.tableHeaderText, styles.col5]}>Amount</Text>
           </View>
-          {lineItems.map((item, index) => (
-            <View
-              key={item.id}
-              style={[styles.tableRow, ...(index % 2 === 1 ? [styles.tableRowAlt] : [])]}
-            >
-              <View style={styles.col1}>
-                <Text style={styles.categoryBadge}>{item.category}</Text>
-                <Text>{item.description}</Text>
+          {lineItems.map((item, index) => {
+            const isLumpSum = item.entry_mode === "lump_sum";
+            const hasQuantity = item.quantity !== null && item.quantity !== undefined;
+            const hasRate = item.unit_rate !== null && item.unit_rate !== undefined;
+
+            return (
+              <View
+                key={item.id}
+                style={[styles.tableRow, ...(index % 2 === 1 ? [styles.tableRowAlt] : [])]}
+              >
+                <View style={styles.col1}>
+                  <Text style={styles.categoryBadge}>{item.category}</Text>
+                  {showLineItemDescriptions && <Text>{item.description}</Text>}
+                  {!showLineItemDescriptions && <Text>{item.category}</Text>}
+                </View>
+                {showQuantities && (
+                  <Text style={styles.col2}>{hasQuantity ? item.quantity : "-"}</Text>
+                )}
+                {showQuantities && (
+                  <Text style={styles.col3}>{hasQuantity && item.unit ? item.unit : "-"}</Text>
+                )}
+                {showRates && (
+                  <Text style={styles.col4}>{hasRate ? formatCurrency(item.unit_rate) : "-"}</Text>
+                )}
+                <Text style={styles.col5}>{formatCurrency(item.amount)}</Text>
               </View>
-              <Text style={styles.col2}>{item.quantity}</Text>
-              <Text style={styles.col3}>{item.unit}</Text>
-              <Text style={styles.col4}>{formatCurrency(item.unit_rate)}</Text>
-              <Text style={styles.col5}>{formatCurrency(item.amount)}</Text>
-            </View>
-          ))}
+            );
+          })}
         </View>
 
         {/* Totals */}
         <View style={styles.totalsSection}>
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Subtotal</Text>
-            <Text style={styles.totalValue}>
-              {formatCurrency(estimate.subtotal)}
-            </Text>
-          </View>
-          {estimate.overhead_markup_percent > 0 && (
+          {showSubtotals && (
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Subtotal</Text>
+              <Text style={styles.totalValue}>
+                {formatCurrency(estimate.subtotal)}
+              </Text>
+            </View>
+          )}
+          {showMarkupPercentage && estimate.overhead_markup_percent > 0 && (
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>
                 Overhead ({estimate.overhead_markup_percent}%)
@@ -438,7 +463,7 @@ export function EstimatePDFTemplate({
               </Text>
             </View>
           )}
-          {estimate.profit_margin_percent > 0 && (
+          {showProfitMargin && estimate.profit_margin_percent > 0 && (
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>
                 Profit Margin ({estimate.profit_margin_percent}%)
