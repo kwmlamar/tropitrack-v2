@@ -33,8 +33,10 @@ import {
   CheckCircle2,
   Circle,
   Plus,
+  Truck,
+  Receipt,
 } from "lucide-react";
-import type { Project, ProjectMilestone, TimeEntry, MaterialAllocation } from "@/types";
+import type { Project, ProjectMilestone, TimeEntry, MaterialAllocation, PurchaseOrder } from "@/types";
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -44,6 +46,7 @@ export default function ProjectDetailPage() {
   const [milestones, setMilestones] = useState<ProjectMilestone[]>([]);
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
   const [allocations, setAllocations] = useState<MaterialAllocation[]>([]);
+  const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [costSummary, setCostSummary] = useState({
     labor: 0,
@@ -103,6 +106,15 @@ export default function ProjectDetailPage() {
         .order("allocated_date", { ascending: false });
 
       setAllocations(allocData || []);
+
+      // Fetch purchase orders linked to this project
+      const { data: poData } = await supabase
+        .from("purchase_orders")
+        .select("*, vendors(name)")
+        .eq("project_id", params.id)
+        .order("order_date", { ascending: false });
+
+      setPurchaseOrders(poData || []);
 
       // Fetch cost summary from view
       const { data: costData } = await supabase
@@ -289,6 +301,7 @@ export default function ProjectDetailPage() {
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="milestones">Milestones</TabsTrigger>
             <TabsTrigger value="costs">Costs</TabsTrigger>
+            <TabsTrigger value="purchases">Purchases</TabsTrigger>
             <TabsTrigger value="time">Time Entries</TabsTrigger>
             <TabsTrigger value="materials">Materials</TabsTrigger>
           </TabsList>
@@ -424,72 +437,275 @@ export default function ProjectDetailPage() {
           </TabsContent>
 
           <TabsContent value="costs" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {(() => {
+              const poTotal = purchaseOrders.reduce((sum, po) => sum + (po.total_amount || 0), 0);
+              const grandTotal = costSummary.total + poTotal;
+              return (
+                <>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">
+                          Labor Costs
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-2xl font-bold">{formatCurrency(costSummary.labor)}</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">
+                          Material Costs
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-2xl font-bold">{formatCurrency(costSummary.materials)}</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="border-primary/50 bg-primary/5">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                          <Receipt className="h-3 w-3" />
+                          Purchase Orders
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-2xl font-bold">{formatCurrency(poTotal)}</p>
+                        <p className="text-xs text-muted-foreground">{purchaseOrders.length} POs</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">
+                          Equipment Costs
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-2xl font-bold">{formatCurrency(costSummary.equipment)}</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">
+                          Overhead
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-2xl font-bold">{formatCurrency(costSummary.overhead)}</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Total Project Cost</CardTitle>
+                      <CardDescription>
+                        Including labor, materials, purchase orders, equipment, and overhead
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-3xl font-bold">{formatCurrency(grandTotal)}</p>
+                      <div className="mt-4 space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span>Labor</span>
+                          <span>{calculatePercentage(costSummary.labor, grandTotal || 1).toFixed(1)}%</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span>Materials (allocated)</span>
+                          <span>{calculatePercentage(costSummary.materials, grandTotal || 1).toFixed(1)}%</span>
+                        </div>
+                        <div className="flex justify-between text-sm font-medium text-primary">
+                          <span className="flex items-center gap-1">
+                            <Receipt className="h-3 w-3" />
+                            Purchase Orders
+                          </span>
+                          <span>{calculatePercentage(poTotal, grandTotal || 1).toFixed(1)}%</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span>Equipment</span>
+                          <span>{calculatePercentage(costSummary.equipment, grandTotal || 1).toFixed(1)}%</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span>Overhead</span>
+                          <span>{calculatePercentage(costSummary.overhead, grandTotal || 1).toFixed(1)}%</span>
+                        </div>
+                      </div>
+                      <Separator className="my-4" />
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <p className="text-muted-foreground">Budget</p>
+                          <p className="font-medium">{formatCurrency(project.budget)}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Remaining</p>
+                          <p className={`font-medium ${project.budget - grandTotal < 0 ? "text-red-600" : "text-green-600"}`}>
+                            {formatCurrency(project.budget - grandTotal)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Contract Value</p>
+                          <p className="font-medium">{formatCurrency(project.contract_value)}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Est. Profit</p>
+                          <p className={`font-medium ${project.contract_value - grandTotal < 0 ? "text-red-600" : "text-green-600"}`}>
+                            {formatCurrency(project.contract_value - grandTotal)}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
+              );
+            })()}
+          </TabsContent>
+
+          <TabsContent value="purchases" className="space-y-4">
+            {/* PO Summary */}
+            <div className="grid gap-4 md:grid-cols-3">
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground">
-                    Labor Costs
+                    Total PO Spend
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-2xl font-bold">{formatCurrency(costSummary.labor)}</p>
+                  <p className="text-2xl font-bold">
+                    {formatCurrency(purchaseOrders.reduce((sum, po) => sum + (po.total_amount || 0), 0))}
+                  </p>
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground">
-                    Material Costs
+                    Purchase Orders
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-2xl font-bold">{formatCurrency(costSummary.materials)}</p>
+                  <p className="text-2xl font-bold">{purchaseOrders.length}</p>
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground">
-                    Equipment Costs
+                    Vendors Used
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-2xl font-bold">{formatCurrency(costSummary.equipment)}</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">
-                    Overhead
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold">{formatCurrency(costSummary.overhead)}</p>
+                  <p className="text-2xl font-bold">
+                    {new Set(purchaseOrders.map((po) => po.vendor_id)).size}
+                  </p>
                 </CardContent>
               </Card>
             </div>
+
+            {/* Vendor Spending Breakdown */}
+            {purchaseOrders.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Spending by Vendor</CardTitle>
+                  <CardDescription>Material purchases for this project</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {(() => {
+                      const vendorTotals = new Map<string, { name: string; total: number; count: number }>();
+                      purchaseOrders.forEach((po) => {
+                        const vendorId = po.vendor_id || "unknown";
+                        const existing = vendorTotals.get(vendorId) || { name: po.vendors?.name || "Unknown", total: 0, count: 0 };
+                        existing.total += po.total_amount || 0;
+                        existing.count += 1;
+                        vendorTotals.set(vendorId, existing);
+                      });
+                      const sorted = Array.from(vendorTotals.values()).sort((a, b) => b.total - a.total);
+                      const maxTotal = sorted[0]?.total || 1;
+                      return sorted.map((vendor, idx) => (
+                        <div key={idx} className="space-y-1">
+                          <div className="flex justify-between text-sm">
+                            <span className="font-medium flex items-center gap-2">
+                              <Truck className="h-3 w-3" />
+                              {vendor.name}
+                            </span>
+                            <span className="text-muted-foreground">
+                              {vendor.count} PO{vendor.count !== 1 ? "s" : ""} • {formatCurrency(vendor.total)}
+                            </span>
+                          </div>
+                          <div className="h-2 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-primary rounded-full"
+                              style={{ width: `${(vendor.total / maxTotal) * 100}%` }}
+                            />
+                          </div>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Purchase Orders List */}
             <Card>
-              <CardHeader>
-                <CardTitle>Total Project Cost</CardTitle>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Purchase Orders</CardTitle>
+                  <CardDescription>All vendor purchases for this project</CardDescription>
+                </div>
+                <Link href="/vendors?tab=purchase-orders">
+                  <Button size="sm">
+                    <Plus className="h-4 w-4 mr-2" />
+                    New PO
+                  </Button>
+                </Link>
               </CardHeader>
               <CardContent>
-                <p className="text-3xl font-bold">{formatCurrency(costSummary.total)}</p>
-                <div className="mt-4 space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Labor</span>
-                    <span>{calculatePercentage(costSummary.labor, costSummary.total || 1).toFixed(1)}%</span>
+                {purchaseOrders.length > 0 ? (
+                  <div className="space-y-3">
+                    {purchaseOrders.map((po) => (
+                      <div
+                        key={po.id}
+                        className="flex items-center justify-between p-4 rounded-lg border"
+                      >
+                        <div className="flex items-center gap-3">
+                          {po.receipt_image_path ? (
+                            <Receipt className="h-5 w-5 text-green-500" />
+                          ) : (
+                            <FileText className="h-5 w-5 text-muted-foreground" />
+                          )}
+                          <div>
+                            <p className="font-medium">{po.po_number}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {po.vendors?.name} • {po.order_date ? formatDate(po.order_date) : "No date"}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold">{formatCurrency(po.total_amount)}</p>
+                          <Badge
+                            variant="outline"
+                            className={
+                              po.status === "approved" || po.status === "received"
+                                ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                                : po.status === "draft"
+                                ? "bg-neutral-100 text-neutral-600"
+                                : "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+                            }
+                          >
+                            {po.status}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span>Materials</span>
-                    <span>{calculatePercentage(costSummary.materials, costSummary.total || 1).toFixed(1)}%</span>
+                ) : (
+                  <div className="text-center py-8">
+                    <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground">No purchase orders linked to this project</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Create a PO and assign it to this project to track material costs
+                    </p>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span>Equipment</span>
-                    <span>{calculatePercentage(costSummary.equipment, costSummary.total || 1).toFixed(1)}%</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span>Overhead</span>
-                    <span>{calculatePercentage(costSummary.overhead, costSummary.total || 1).toFixed(1)}%</span>
-                  </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

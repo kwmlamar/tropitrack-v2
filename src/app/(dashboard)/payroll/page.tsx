@@ -49,7 +49,11 @@ import {
   Loader2,
   Calculator,
   FileText,
+  Check,
+  X,
+  Banknote,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import type { PayPeriod, Worker } from "@/types";
 
 // NIB Constants (Bahamian National Insurance Board)
@@ -67,6 +71,10 @@ interface PayrollEntry {
   gross_pay: number;
   deductions: number;
   net_pay: number;
+  is_paid?: boolean;
+  paid_at?: string;
+  total_paid?: number;
+  payment_status?: "unpaid" | "partial" | "paid";
   deduction_details?: {
     nib_employee?: number;
     nib_employer?: number;
@@ -92,7 +100,15 @@ export default function PayrollPage() {
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [processDialogOpen, setProcessDialogOpen] = useState(false);
+  const [payDialogOpen, setPayDialogOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [selectedEntries, setSelectedEntries] = useState<Set<string>>(new Set());
+  const [payingEntryId, setPayingEntryId] = useState<string | null>(null);
+  const [payingBulk, setPayingBulk] = useState(false);
+  const [singlePayDialogOpen, setSinglePayDialogOpen] = useState(false);
+  const [payingEntry, setPayingEntry] = useState<PayrollEntry | null>(null);
+  const [payAmount, setPayAmount] = useState<string>("");
+  const [payMethod, setPayMethod] = useState<string>("cash");
   const supabase = createClient();
 
   const [periodForm, setPeriodForm] = useState({
@@ -396,6 +412,197 @@ export default function PayrollPage() {
     }
   };
 
+  const handleToggleEntry = (entryId: string) => {
+    const newSelected = new Set(selectedEntries);
+    if (newSelected.has(entryId)) {
+      newSelected.delete(entryId);
+    } else {
+      newSelected.add(entryId);
+    }
+    setSelectedEntries(newSelected);
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked && selectedPeriod?.entries) {
+      // Select all entries with remaining balance
+      const unpaidIds = selectedPeriod.entries
+        .filter((e) => !e.is_paid && e.payment_status !== "paid")
+        .map((e) => e.id);
+      setSelectedEntries(new Set(unpaidIds));
+    } else {
+      setSelectedEntries(new Set());
+    }
+  };
+
+  const handlePaySelected = async () => {
+    if (selectedEntries.size === 0 || !selectedPeriod) return;
+
+    const currentPeriodId = selectedPeriod.id;
+    setPayingBulk(true);
+    try {
+      // Get selected entries with their remaining balances
+      const selectedEntryList = selectedPeriod.entries?.filter((e) => selectedEntries.has(e.id)) || [];
+
+      // Create payment transactions for each (pays remaining balance)
+      const transactions = selectedEntryList.map((entry) => ({
+        payroll_entry_id: entry.id,
+        amount: entry.net_pay - (entry.total_paid || 0),
+        payment_method: "cash",
+        created_by: user?.id,
+      }));
+
+      const { error } = await supabase
+        .from("payment_transactions")
+        .insert(transactions);
+
+      if (error) throw error;
+
+      // Check if all entries in the period are now paid
+      const { data: allEntries } = await supabase
+        .from("payroll_entries")
+        .select("id, is_paid")
+        .eq("pay_period_id", currentPeriodId);
+
+      const allPaid = allEntries?.every((e) => e.is_paid || selectedEntries.has(e.id));
+
+      // If all are paid, update the period status
+      if (allPaid) {
+        await supabase
+          .from("pay_periods")
+          .update({ status: "paid" })
+          .eq("id", currentPeriodId);
+      }
+
+      toast({
+        title: "Payment recorded",
+        description: `Paid ${selectedEntryList.length} worker(s).`,
+        variant: "success",
+      });
+
+      setSelectedEntries(new Set());
+      setPayDialogOpen(false);
+
+      // Refresh data
+      const { data: periodsData } = await supabase
+        .from("pay_periods")
+        .select("*")
+        .order("start_date", { ascending: false });
+      setPayPeriods(periodsData || []);
+
+      const updatedPeriod = periodsData?.find((p) => p.id === currentPeriodId);
+      if (updatedPeriod) {
+        await fetchPeriodEntries(updatedPeriod);
+      }
+    } catch (error: any) {
+      console.error("Error recording payments:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to record payments",
+        variant: "destructive",
+      });
+    } finally {
+      setPayingBulk(false);
+    }
+  };
+
+  const openPayDialog = (entry: PayrollEntry) => {
+    setPayingEntry(entry);
+    const remaining = entry.net_pay - (entry.total_paid || 0);
+    setPayAmount(remaining.toFixed(2));
+    setPayMethod("cash");
+    setSinglePayDialogOpen(true);
+  };
+
+  const handlePaySingleEntry = async () => {
+    if (!selectedPeriod || !payingEntry) return;
+
+    const amount = parseFloat(payAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast({
+        title: "Invalid amount",
+        description: "Please enter a valid payment amount",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const remaining = payingEntry.net_pay - (payingEntry.total_paid || 0);
+    if (amount > remaining + 0.01) {
+      toast({
+        title: "Amount exceeds balance",
+        description: `Maximum payment is ${formatCurrency(remaining)}`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const currentPeriodId = selectedPeriod.id;
+    setPayingEntryId(payingEntry.id);
+    try {
+      // Insert payment transaction (trigger will update payroll_entry)
+      const { error } = await supabase
+        .from("payment_transactions")
+        .insert({
+          payroll_entry_id: payingEntry.id,
+          amount: amount,
+          payment_method: payMethod,
+          created_by: user?.id,
+        });
+
+      if (error) throw error;
+
+      // Check if all entries in the period are now paid
+      const { data: allEntries } = await supabase
+        .from("payroll_entries")
+        .select("id, is_paid, net_pay, total_paid")
+        .eq("pay_period_id", currentPeriodId);
+
+      const allPaid = allEntries?.every((e) => {
+        if (e.id === payingEntry.id) {
+          return (e.total_paid || 0) + amount >= e.net_pay;
+        }
+        return e.is_paid;
+      });
+
+      if (allPaid) {
+        await supabase
+          .from("pay_periods")
+          .update({ status: "paid" })
+          .eq("id", currentPeriodId);
+      }
+
+      toast({
+        title: "Payment recorded",
+        description: `${formatCurrency(amount)} paid to ${payingEntry.worker?.first_name}`,
+        variant: "success",
+      });
+
+      setSinglePayDialogOpen(false);
+      setPayingEntry(null);
+
+      // Refresh data
+      const { data: periodsData } = await supabase
+        .from("pay_periods")
+        .select("*")
+        .order("start_date", { ascending: false });
+      setPayPeriods(periodsData || []);
+
+      const updatedPeriod = periodsData?.find((p) => p.id === currentPeriodId);
+      if (updatedPeriod) {
+        await fetchPeriodEntries(updatedPeriod);
+      }
+    } catch (error: any) {
+      console.error("Error recording payment:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to record payment",
+        variant: "destructive",
+      });
+    } finally {
+      setPayingEntryId(null);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       open: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
@@ -411,6 +618,15 @@ export default function PayrollPage() {
   const totalNetPay = selectedPeriod?.entries?.reduce((sum, e) => sum + e.net_pay, 0) || 0;
   const totalNibEmployee = selectedPeriod?.entries?.reduce((sum, e) => sum + (e.deduction_details?.nib_employee || 0), 0) || 0;
   const totalNibEmployer = selectedPeriod?.entries?.reduce((sum, e) => sum + (e.deduction_details?.nib_employer || 0), 0) || 0;
+
+  const paidEntries = selectedPeriod?.entries?.filter((e) => e.payment_status === "paid" || e.is_paid) || [];
+  const partialEntries = selectedPeriod?.entries?.filter((e) => e.payment_status === "partial") || [];
+  const unpaidEntries = selectedPeriod?.entries?.filter((e) => !e.is_paid && e.payment_status !== "partial") || [];
+  const totalPaidAmount = selectedPeriod?.entries?.reduce((sum, e) => sum + (e.total_paid || 0), 0) || 0;
+  const totalUnpaidAmount = totalNetPay - totalPaidAmount;
+  const selectedTotal = selectedPeriod?.entries
+    ?.filter((e) => selectedEntries.has(e.id))
+    .reduce((sum, e) => sum + (e.net_pay - (e.total_paid || 0)), 0) || 0;
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -551,16 +767,66 @@ export default function PayrollPage() {
                         </DialogContent>
                       </Dialog>
                     )}
-                    {selectedPeriod.status === "processing" && (
-                      <Button onClick={handleMarkPaid}>
-                        Mark as Paid
-                      </Button>
+                    {selectedPeriod.status === "processing" && unpaidEntries.length > 0 && (
+                      <>
+                        {selectedEntries.size > 0 && (
+                          <Dialog open={payDialogOpen} onOpenChange={setPayDialogOpen}>
+                            <DialogTrigger asChild>
+                              <Button variant="default">
+                                <Banknote className="h-4 w-4 mr-2" />
+                                Pay Selected ({selectedEntries.size})
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Confirm Payment</DialogTitle>
+                                <DialogDescription>
+                                  You are about to mark {selectedEntries.size} worker(s) as paid
+                                  for a total of {formatCurrency(selectedTotal)}.
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="py-4">
+                                <div className="rounded-lg bg-muted p-4">
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-sm text-muted-foreground">Workers selected</span>
+                                    <span className="font-medium">{selectedEntries.size}</span>
+                                  </div>
+                                  <div className="flex justify-between items-center mt-2">
+                                    <span className="text-sm text-muted-foreground">Total amount</span>
+                                    <span className="text-lg font-bold text-green-600">
+                                      {formatCurrency(selectedTotal)}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                              <DialogFooter>
+                                <Button variant="outline" onClick={() => setPayDialogOpen(false)}>
+                                  Cancel
+                                </Button>
+                                <Button onClick={handlePaySelected} disabled={payingBulk}>
+                                  {payingBulk && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                                  Confirm Payment
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                        )}
+                        <Button variant="outline" onClick={handleMarkPaid}>
+                          Mark All Paid
+                        </Button>
+                      </>
+                    )}
+                    {selectedPeriod.status === "paid" && (
+                      <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 px-3 py-1">
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                        Fully Paid
+                      </Badge>
                     )}
                   </div>
                 </CardHeader>
                 <CardContent>
                   {/* Summary Cards */}
-                  <div className="grid gap-4 md:grid-cols-4 mb-6">
+                  <div className="grid gap-4 md:grid-cols-5 mb-6">
                     <Card>
                       <CardContent className="p-4">
                         <div className="flex items-center gap-2">
@@ -574,7 +840,7 @@ export default function PayrollPage() {
                       <CardContent className="p-4">
                         <div className="flex items-center gap-2">
                           <AlertCircle className="h-4 w-4 text-orange-500" />
-                          <span className="text-sm text-muted-foreground">NIB Employee (4.65%)</span>
+                          <span className="text-sm text-muted-foreground">NIB Employee</span>
                         </div>
                         <p className="text-2xl font-bold mt-1">{formatCurrency(totalNibEmployee)}</p>
                       </CardContent>
@@ -583,21 +849,33 @@ export default function PayrollPage() {
                       <CardContent className="p-4">
                         <div className="flex items-center gap-2">
                           <AlertCircle className="h-4 w-4 text-blue-500" />
-                          <span className="text-sm text-muted-foreground">NIB Employer (6.65%)</span>
+                          <span className="text-sm text-muted-foreground">NIB Employer</span>
                         </div>
                         <p className="text-2xl font-bold mt-1 text-blue-600">{formatCurrency(totalNibEmployer)}</p>
-                        <p className="text-xs text-muted-foreground mt-1">Company expense</p>
                       </CardContent>
                     </Card>
-                    <Card>
+                    <Card className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
                       <CardContent className="p-4">
                         <div className="flex items-center gap-2">
                           <CheckCircle className="h-4 w-4 text-green-600" />
-                          <span className="text-sm text-muted-foreground">Net Pay</span>
+                          <span className="text-sm text-muted-foreground">Paid</span>
                         </div>
                         <p className="text-2xl font-bold mt-1 text-green-600">
-                          {formatCurrency(totalNetPay)}
+                          {formatCurrency(totalPaidAmount)}
                         </p>
+                        <p className="text-xs text-muted-foreground">{paidEntries.length} worker(s)</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800">
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-orange-600" />
+                          <span className="text-sm text-muted-foreground">Unpaid</span>
+                        </div>
+                        <p className="text-2xl font-bold mt-1 text-orange-600">
+                          {formatCurrency(totalUnpaidAmount)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{unpaidEntries.length} worker(s)</p>
                       </CardContent>
                     </Card>
                   </div>
@@ -607,17 +885,47 @@ export default function PayrollPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
+                          {selectedPeriod.status === "processing" && (unpaidEntries.length > 0 || partialEntries.length > 0) && (
+                            <TableHead className="w-10">
+                              <Checkbox
+                                checked={
+                                  (unpaidEntries.length > 0 || partialEntries.length > 0) &&
+                                  [...unpaidEntries, ...partialEntries].every((e) => selectedEntries.has(e.id))
+                                }
+                                onCheckedChange={handleSelectAll}
+                                aria-label="Select all with balance"
+                              />
+                            </TableHead>
+                          )}
                           <TableHead>Worker</TableHead>
                           <TableHead className="text-right">Hours</TableHead>
                           <TableHead className="text-right">Gross Pay</TableHead>
                           <TableHead className="text-right">NIB (EE)</TableHead>
                           <TableHead className="text-right">NIB (ER)</TableHead>
                           <TableHead className="text-right">Net Pay</TableHead>
+                          <TableHead className="text-center">Status</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {selectedPeriod.entries.map((entry) => (
-                          <TableRow key={entry.id}>
+                        {selectedPeriod.entries.map((entry) => {
+                          const isPaid = entry.is_paid || entry.payment_status === "paid";
+                          const hasBalance = !isPaid && (entry.net_pay - (entry.total_paid || 0)) > 0;
+                          return (
+                          <TableRow
+                            key={entry.id}
+                            className={isPaid ? "bg-green-50/50 dark:bg-green-900/10" : entry.payment_status === "partial" ? "bg-amber-50/30 dark:bg-amber-900/10" : ""}
+                          >
+                            {selectedPeriod.status === "processing" && (unpaidEntries.length > 0 || partialEntries.length > 0) && (
+                              <TableCell>
+                                {hasBalance && (
+                                  <Checkbox
+                                    checked={selectedEntries.has(entry.id)}
+                                    onCheckedChange={() => handleToggleEntry(entry.id)}
+                                    aria-label={`Select ${entry.worker?.first_name}`}
+                                  />
+                                )}
+                              </TableCell>
+                            )}
                             <TableCell>
                               <div className="font-medium">
                                 {entry.worker?.first_name} {entry.worker?.last_name}
@@ -640,11 +948,57 @@ export default function PayrollPage() {
                                 ? formatCurrency(entry.deduction_details.nib_employer)
                                 : "-"}
                             </TableCell>
-                            <TableCell className="text-right font-medium text-green-600">
-                              {formatCurrency(entry.net_pay)}
+                            <TableCell className="text-right">
+                              <div className="font-medium text-green-600">{formatCurrency(entry.net_pay)}</div>
+                              {(entry.total_paid || 0) > 0 && !entry.is_paid && (
+                                <div className="text-xs text-muted-foreground">
+                                  Bal: {formatCurrency(entry.net_pay - (entry.total_paid || 0))}
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {entry.is_paid || entry.payment_status === "paid" ? (
+                                <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                                  <Check className="h-3 w-3 mr-1" />
+                                  Paid
+                                </Badge>
+                              ) : entry.payment_status === "partial" ? (
+                                <div className="flex flex-col items-center gap-1">
+                                  <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 text-xs">
+                                    Partial
+                                  </Badge>
+                                  {selectedPeriod.status === "processing" && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => openPayDialog(entry)}
+                                      disabled={payingEntryId !== null || payingBulk}
+                                      className="h-6 text-xs px-2"
+                                    >
+                                      +Pay
+                                    </Button>
+                                  )}
+                                </div>
+                              ) : selectedPeriod.status === "processing" ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openPayDialog(entry)}
+                                  disabled={payingEntryId !== null || payingBulk}
+                                  className="h-7 text-xs"
+                                >
+                                  <Banknote className="h-3 w-3 mr-1" />
+                                  Pay
+                                </Button>
+                              ) : (
+                                <Badge variant="outline" className="text-muted-foreground">
+                                  Pending
+                                </Badge>
+                              )}
                             </TableCell>
                           </TableRow>
-                        ))}
+                        );
+                        })}
                       </TableBody>
                     </Table>
                   ) : (
@@ -672,6 +1026,74 @@ export default function PayrollPage() {
           </Card>
         </div>
       </div>
+
+      {/* Single Payment Dialog */}
+      <Dialog open={singlePayDialogOpen} onOpenChange={setSinglePayDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Record Payment</DialogTitle>
+            <DialogDescription>
+              {payingEntry?.worker?.first_name} {payingEntry?.worker?.last_name}
+            </DialogDescription>
+          </DialogHeader>
+          {payingEntry && (
+            <div className="space-y-4 py-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Net Pay</span>
+                <span className="font-medium">{formatCurrency(payingEntry.net_pay)}</span>
+              </div>
+              {(payingEntry.total_paid || 0) > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Already Paid</span>
+                  <span className="text-green-600">{formatCurrency(payingEntry.total_paid || 0)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-sm font-medium border-t pt-2">
+                <span>Balance Due</span>
+                <span>{formatCurrency(payingEntry.net_pay - (payingEntry.total_paid || 0))}</span>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="pay_amount">Payment Amount</Label>
+                <Input
+                  id="pay_amount"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  max={payingEntry.net_pay - (payingEntry.total_paid || 0)}
+                  value={payAmount}
+                  onChange={(e) => setPayAmount(e.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="pay_method">Method</Label>
+                <Select value={payMethod} onValueChange={setPayMethod}>
+                  <SelectTrigger id="pay_method">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">Cash</SelectItem>
+                    <SelectItem value="check">Check</SelectItem>
+                    <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSinglePayDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handlePaySingleEntry} disabled={payingEntryId !== null}>
+              {payingEntryId && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Record Payment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -362,20 +362,29 @@ export default function VendorsPage() {
         // Monthly spending (last 6 months)
         const monthlyMap = new Map<string, number>();
         const now = new Date();
+        // Initialize last 6 months with 0
         for (let i = 5; i >= 0; i--) {
           const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-          const key = d.toISOString().slice(0, 7);
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
           monthlyMap.set(key, 0);
         }
+        // Add PO amounts to their respective months
         allPOs.forEach((po) => {
           if (po.order_date) {
-            const key = po.order_date.slice(0, 7);
-            if (monthlyMap.has(key)) {
-              monthlyMap.set(key, (monthlyMap.get(key) || 0) + (po.total_amount || 0));
+            // Parse the date properly - order_date is typically YYYY-MM-DD format
+            const dateParts = po.order_date.split('-');
+            if (dateParts.length >= 2) {
+              const key = `${dateParts[0]}-${dateParts[1]}`;
+              if (monthlyMap.has(key)) {
+                monthlyMap.set(key, (monthlyMap.get(key) || 0) + (po.total_amount || 0));
+              }
             }
           }
         });
-        const monthlySpending = Array.from(monthlyMap.entries()).map(([month, total]) => ({ month, total }));
+        // Sort by month and convert to array
+        const monthlySpending = Array.from(monthlyMap.entries())
+          .sort((a, b) => a[0].localeCompare(b[0]))
+          .map(([month, total]) => ({ month, total }));
 
         // Spending by project
         const projectMap = new Map<string, { project_name: string; total: number }>();
@@ -1461,14 +1470,14 @@ export default function VendorsPage() {
               <div className="space-y-2">
                 <Label htmlFor="po_project">Project (Optional)</Label>
                 <Select
-                  value={poForm.project_id}
-                  onValueChange={(value) => setPoForm({ ...poForm, project_id: value })}
+                  value={poForm.project_id || "none"}
+                  onValueChange={(value) => setPoForm({ ...poForm, project_id: value === "none" ? "" : value })}
                 >
                   <SelectTrigger id="po_project">
                     <SelectValue placeholder="Assign to project..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No project</SelectItem>
+                    <SelectItem value="none">No project</SelectItem>
                     {projects.map((project) => (
                       <SelectItem key={project.id} value={project.id}>
                         {project.name}
@@ -1913,6 +1922,21 @@ export default function VendorsPage() {
                 </div>
               )}
 
+              {/* Approval Info */}
+              {selectedPO.approved_at && (
+                <div className="border rounded-lg p-3 bg-green-50 dark:bg-green-900/20 space-y-1">
+                  <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span className="font-medium text-sm">Approved</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {formatDate(selectedPO.approved_at)}
+                  </p>
+                </div>
+              )}
+
               {/* Timestamps */}
               <div className="pt-2 border-t text-xs text-muted-foreground">
                 Created: {formatDate(selectedPO.created_at)}
@@ -1922,10 +1946,22 @@ export default function VendorsPage() {
               </div>
             </div>
           )}
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button variant="outline" onClick={() => setViewPOOpen(false)}>
               Close
             </Button>
+            {selectedPO && !selectedPO.approved_at && (profile?.role === "admin" || profile?.role === "project_manager") && (
+              <Button
+                variant="outline"
+                className="text-green-600 border-green-600 hover:bg-green-50"
+                onClick={() => handleApprovePO(selectedPO)}
+              >
+                <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Approve PO
+              </Button>
+            )}
             <Button
               onClick={() => {
                 setViewPOOpen(false);
@@ -1972,14 +2008,14 @@ export default function VendorsPage() {
               <div className="space-y-2">
                 <Label htmlFor="edit_po_project">Project</Label>
                 <Select
-                  value={editPOForm.project_id}
-                  onValueChange={(value) => setEditPOForm({ ...editPOForm, project_id: value })}
+                  value={editPOForm.project_id || "none"}
+                  onValueChange={(value) => setEditPOForm({ ...editPOForm, project_id: value === "none" ? "" : value })}
                 >
                   <SelectTrigger id="edit_po_project">
                     <SelectValue placeholder="Assign to project..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No project</SelectItem>
+                    <SelectItem value="none">No project</SelectItem>
                     {projects.map((project) => (
                       <SelectItem key={project.id} value={project.id}>
                         {project.name}
