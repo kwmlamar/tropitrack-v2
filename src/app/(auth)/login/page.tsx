@@ -36,36 +36,63 @@ function LoginForm() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Basic validation
+    if (!email || !password) {
+      toast({
+        title: "Missing information",
+        description: "Please enter both email and password.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
         password,
       });
 
       if (error) {
+        console.error("Login error:", error);
         toast({
           title: "Login failed",
-          description: error.message,
+          description: error.message || "Invalid email or password. Please try again.",
           variant: "destructive",
         });
-      } else {
+        setLoading(false);
+        return;
+      }
+
+      if (data?.user) {
+        // Wait a moment for session to be established
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         toast({
           title: "Welcome back!",
           description: "You have successfully logged in.",
           variant: "success",
         });
-        router.push("/dashboard");
-        router.refresh();
+        
+        // Use window.location for more reliable redirect
+        window.location.href = "/dashboard";
+      } else {
+        toast({
+          title: "Login failed",
+          description: "No user data returned. Please try again.",
+          variant: "destructive",
+        });
+        setLoading(false);
       }
-    } catch {
+    } catch (error) {
+      console.error("Unexpected login error:", error);
       toast({
         title: "Error",
-        description: "An unexpected error occurred. Please try again.",
+        description: error instanceof Error ? error.message : "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
-    } finally {
       setLoading(false);
     }
   };

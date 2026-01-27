@@ -63,7 +63,7 @@ interface WorkerHoursData {
 }
 
 export default function ReportsPage() {
-  const { profile } = useAuth();
+  const { profile, loading: authLoading } = useAuth();
   const [projectCosts, setProjectCosts] = useState<ProjectCostData[]>([]);
   const [workerHours, setWorkerHours] = useState<WorkerHoursData[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -73,10 +73,22 @@ export default function ReportsPage() {
   const supabase = createClient();
 
   useEffect(() => {
+    // Wait for auth to finish loading
+    if (authLoading) return;
+    
+    // If profile exists but no company_id, stop loading
+    if (profile && !profile.company_id) {
+      setLoading(false);
+      return;
+    }
+    
+    // If profile has company_id, fetch data
     if (profile?.company_id) {
       fetchData();
+    } else if (profile === null) {
+      setLoading(false);
     }
-  }, [selectedProject, dateRange, profile?.company_id]);
+  }, [selectedProject, dateRange, profile?.company_id, profile, authLoading]);
 
   const fetchData = async () => {
     if (!profile?.company_id) return;

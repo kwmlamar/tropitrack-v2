@@ -27,10 +27,20 @@ export function useCalendarEvents({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const supabase = createClient();
-  const { profile } = useAuth();
+  const { profile, loading: authLoading } = useAuth();
 
   const fetchEvents = useCallback(async () => {
-    if (!profile?.company_id) return;
+    // Wait for auth to finish loading
+    if (authLoading) {
+      return;
+    }
+    
+    // If user doesn't have a company_id, stop loading and return empty events
+    if (!profile?.company_id) {
+      setEvents([]);
+      setLoading(false);
+      return;
+    }
     
     setLoading(true);
     setError(null);
@@ -210,11 +220,14 @@ export function useCalendarEvents({
     } finally {
       setLoading(false);
     }
-  }, [currentDate, filters, supabase, profile?.company_id]);
+  }, [currentDate, filters, supabase, profile?.company_id, profile, authLoading]);
 
   useEffect(() => {
-    fetchEvents();
-  }, [fetchEvents]);
+    // Wait for auth to finish loading before fetching
+    if (!authLoading) {
+      fetchEvents();
+    }
+  }, [fetchEvents, authLoading]);
 
   return {
     events,

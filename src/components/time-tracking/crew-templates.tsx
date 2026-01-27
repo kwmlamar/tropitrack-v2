@@ -420,12 +420,15 @@ export function CrewTemplates({
 
             <div className="space-y-2">
               <Label>Default Project (optional)</Label>
-              <Select value={templateProject} onValueChange={setTemplateProject}>
+              <Select 
+                value={templateProject || undefined} 
+                onValueChange={(value) => setTemplateProject(value === "__none__" ? "" : value)}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="No default project" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No default</SelectItem>
+                  <SelectItem value="__none__">No default</SelectItem>
                   {projects.map((project) => (
                     <SelectItem key={project.id} value={project.id}>
                       {project.name}
@@ -536,12 +539,15 @@ export function CrewTemplates({
 
             <div className="space-y-2">
               <Label>Default Project</Label>
-              <Select value={templateProject} onValueChange={setTemplateProject}>
+              <Select 
+                value={templateProject || undefined} 
+                onValueChange={(value) => setTemplateProject(value === "__none__" ? "" : value)}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="No default project" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No default</SelectItem>
+                  <SelectItem value="__none__">No default</SelectItem>
                   {projects.map((project) => (
                     <SelectItem key={project.id} value={project.id}>
                       {project.name}

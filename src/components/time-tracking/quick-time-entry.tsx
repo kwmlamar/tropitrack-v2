@@ -702,12 +702,15 @@ export function QuickTimeEntry() {
 
             <div className="space-y-2 flex-1 min-w-[200px]">
               <Label>Project (applies to all)</Label>
-              <Select value={globalProject} onValueChange={setGlobalProject}>
+              <Select 
+                value={globalProject || undefined} 
+                onValueChange={(value) => setGlobalProject(value === "__none__" ? "" : value)}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select project or set per worker" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Per worker</SelectItem>
+                  <SelectItem value="__none__">Per worker</SelectItem>
                   {projects.map((project) => (
                     <SelectItem key={project.id} value={project.id}>
                       {project.name}

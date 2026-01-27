@@ -21,6 +21,8 @@ import {
   ArrowRight,
   Plus,
   Zap,
+  Building2,
+  AlertCircle,
 } from "lucide-react";
 import Link from "next/link";
 import type { Project, Worker, Material } from "@/types";
@@ -45,13 +47,26 @@ export default function DashboardPage() {
   const [lowStockItems, setLowStockItems] = useState<Material[]>([]);
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
-  const { profile } = useAuth();
+  const { profile, loading: authLoading } = useAuth();
 
   useEffect(() => {
+    // Wait for auth to finish loading
+    if (authLoading) return;
+    
+    // If profile exists but no company_id, stop loading and show message
+    if (profile && !profile.company_id) {
+      setLoading(false);
+      return;
+    }
+    
+    // If profile has company_id, fetch data
     if (profile?.company_id) {
       fetchDashboardData();
+    } else if (profile === null) {
+      // Profile loaded but is null (user not authenticated)
+      setLoading(false);
     }
-  }, [profile?.company_id]);
+  }, [profile?.company_id, profile, authLoading]);
 
   const fetchDashboardData = async () => {
     if (!profile?.company_id) return;
@@ -193,6 +208,38 @@ export default function DashboardPage() {
       </Header>
 
       <div className="flex-1 p-6 space-y-6">
+        {/* Show message if user doesn't have a company */}
+        {!loading && profile && !profile.company_id && (
+          <Card className="border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/20">
+            <CardContent className="pt-6">
+              <div className="flex items-start gap-4">
+                <div className="p-3 rounded-full bg-orange-100 dark:bg-orange-900/50">
+                  <AlertCircle className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold mb-2">Company Setup Required</h3>
+                  <p className="text-muted-foreground mb-4">
+                    You need to join or create a company to use TropiTrack. You can either join an existing company with a join code or create a new company.
+                  </p>
+                  <div className="flex gap-3">
+                    <Link href="/settings">
+                      <Button>
+                        <Building2 className="h-4 w-4 mr-2" />
+                        Go to Settings
+                      </Button>
+                    </Link>
+                    <Link href="/login?code=">
+                      <Button variant="outline">
+                        Join with Code
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Mobile Quick Time Entry - Only on mobile */}
         <div className="md:hidden">
           <MobileTimeEntry />

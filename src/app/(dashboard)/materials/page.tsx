@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -54,11 +55,14 @@ import {
   ArrowDownToLine,
   Loader2,
   Filter,
+  Eye,
+  History,
 } from "lucide-react";
 import type { Material, Project, Vendor } from "@/types";
 
 export default function MaterialsPage() {
-  const { user, profile } = useAuth();
+  const router = useRouter();
+  const { user, profile, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [materials, setMaterials] = useState<Material[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -93,10 +97,22 @@ export default function MaterialsPage() {
   });
 
   useEffect(() => {
+    // Wait for auth to finish loading
+    if (authLoading) return;
+    
+    // If profile exists but no company_id, stop loading
+    if (profile && !profile.company_id) {
+      setLoading(false);
+      return;
+    }
+    
+    // If profile has company_id, fetch data
     if (profile?.company_id) {
       fetchData();
+    } else if (profile === null) {
+      setLoading(false);
     }
-  }, [categoryFilter, profile?.company_id]);
+  }, [categoryFilter, profile?.company_id, profile, authLoading]);
 
   const fetchData = async () => {
     if (!profile?.company_id) return;
@@ -556,6 +572,19 @@ export default function MaterialsPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() => router.push(`/materials/${material.id}`)}
+                              >
+                                <Eye className="h-4 w-4 mr-2" />
+                                View Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => router.push(`/materials/${material.id}?tab=history`)}
+                              >
+                                <History className="h-4 w-4 mr-2" />
+                                Price History
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
                               <DropdownMenuItem
                                 onClick={() => {
                                   setSelectedMaterial(material);

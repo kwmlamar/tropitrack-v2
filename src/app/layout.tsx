@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme-provider";
+import { ThemeColorMeta } from "@/components/theme-color-meta";
 import { InstallPrompt } from "@/components/mobile/install-prompt";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -55,7 +56,10 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#3B82F6",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#0D9488" }, // Primary teal for light mode
+    { media: "(prefers-color-scheme: dark)", color: "#000000" }, // Black for dark mode
+  ],
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -72,6 +76,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <ThemeProvider defaultTheme="system" storageKey="tropitrack-theme">
+          <ThemeColorMeta />
           {children}
           <Toaster />
           <InstallPrompt />

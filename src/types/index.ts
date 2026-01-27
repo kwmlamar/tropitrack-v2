@@ -277,8 +277,27 @@ export interface Material {
   minimum_stock_level: number;
   supplier_id?: string;
   sku?: string;
+  // Enhanced fields for price tracking
+  vendor_product_code?: string; // Vendor's SKU/product code
+  last_purchase_price?: number;
+  last_purchase_date?: string;
+  average_price?: number;
+  company_id?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface MaterialPriceHistory {
+  id: string;
+  material_id: string;
+  vendor_id?: string;
+  product_code?: string;
+  purchase_date: string;
+  quantity: number;
+  unit_price: number;
+  purchase_order_id?: string;
+  company_id?: string;
+  created_at: string;
 }
 
 export interface MaterialAllocation {
@@ -305,8 +324,22 @@ export interface Vendor {
   payment_terms?: string;
   status: VendorStatus;
   notes?: string;
+  // Enhanced fields for receipt scanning
+  tin?: string; // Tax Identification Number
+  account_number?: string; // Customer account number with this vendor
+  default_payment_terms?: string;
+  company_id?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface VendorDirectory {
+  id: string;
+  name: string;
+  address?: string;
+  phone?: string;
+  tin?: string;
+  created_at: string;
 }
 
 // Purchase Order Types
@@ -332,6 +365,11 @@ export interface PurchaseOrder {
   tax_amount: number;
   shipping_cost: number;
   total_amount: number;
+  // Discount fields
+  discount_amount?: number;
+  discount_label?: string;
+  subtotal_before_discount?: number;
+  subtotal_after_discount?: number;
   notes?: string;
   created_by: string;
   approved_by?: string;
@@ -349,6 +387,9 @@ export interface PurchaseOrderItem {
   unit_price: number;
   total_price: number;
   quantity_received: number;
+  // Enhanced fields
+  product_code?: string; // Vendor's product code
+  unit?: string; // Unit of measure
   created_at: string;
 }
 
@@ -923,10 +964,66 @@ export interface ParsedReceiptLineItem {
   total?: number;
 }
 
+// Enhanced receipt types for AI-powered parsing
+export interface EnhancedParsedVendor {
+  name: string;
+  address?: string;
+  phone?: string;
+  tin?: string;
+}
+
+export interface EnhancedParsedCustomer {
+  name?: string;
+  location?: string;
+  account_number?: string;
+}
+
+export interface EnhancedParsedInvoice {
+  number?: string;
+  date: string;
+  time?: string;
+  cashier?: string;
+}
+
+export interface EnhancedParsedLineItem {
+  product_code?: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  total: number;
+}
+
+export interface EnhancedParsedTotals {
+  subtotal: number;
+  discount?: number;
+  discount_label?: string;
+  subtotal_after_discount?: number;
+  vat_rate: number;
+  vat_amount: number;
+  total: number;
+}
+
+export interface EnhancedParsedReceipt {
+  vendor: EnhancedParsedVendor;
+  customer?: EnhancedParsedCustomer;
+  invoice: EnhancedParsedInvoice;
+  line_items: EnhancedParsedLineItem[];
+  totals: EnhancedParsedTotals;
+  account_balance?: {
+    previous_outstanding?: number;
+    payment_amount?: number;
+    new_outstanding?: number;
+  };
+  raw_text: string;
+  confidence: number;
+  parsing_method: "ai" | "regex" | "fallback";
+}
+
 // Extend PurchaseOrder to include receipt fields
 export interface PurchaseOrderWithReceipt extends PurchaseOrder {
   receipt_image_path?: string;
   ocr_raw_text?: string;
+  vendor_invoice_number?: string;
 }
 
 // ============================================

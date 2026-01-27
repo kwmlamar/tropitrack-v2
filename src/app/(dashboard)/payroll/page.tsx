@@ -84,7 +84,7 @@ interface PayPeriodWithEntries extends PayPeriod {
 }
 
 export default function PayrollPage() {
-  const { user, profile } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [payPeriods, setPayPeriods] = useState<PayPeriodWithEntries[]>([]);
   const [workers, setWorkers] = useState<Worker[]>([]);
@@ -101,10 +101,22 @@ export default function PayrollPage() {
   });
 
   useEffect(() => {
+    // Wait for auth to finish loading
+    if (authLoading) return;
+    
+    // If profile exists but no company_id, stop loading
+    if (profile && !profile.company_id) {
+      setLoading(false);
+      return;
+    }
+    
+    // If profile has company_id, fetch data
     if (profile?.company_id) {
       fetchData();
+    } else if (profile === null) {
+      setLoading(false);
     }
-  }, [profile?.company_id]);
+  }, [profile?.company_id, profile, authLoading]);
 
   const fetchData = async () => {
     if (!profile?.company_id) return;

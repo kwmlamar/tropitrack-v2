@@ -63,7 +63,7 @@ export default function ClientsPage() {
   const [saving, setSaving] = useState(false);
   const supabase = createClient();
   const { toast } = useToast();
-  const { profile } = useAuth();
+  const { profile, loading: authLoading } = useAuth();
 
   // Form state
   const [formData, setFormData] = useState({
@@ -77,10 +77,22 @@ export default function ClientsPage() {
   });
 
   useEffect(() => {
+    // Wait for auth to finish loading
+    if (authLoading) return;
+    
+    // If profile exists but no company_id, stop loading
+    if (profile && !profile.company_id) {
+      setLoading(false);
+      return;
+    }
+    
+    // If profile has company_id, fetch data
     if (profile?.company_id) {
       fetchClients();
+    } else if (profile === null) {
+      setLoading(false);
     }
-  }, [profile?.company_id]);
+  }, [profile?.company_id, profile, authLoading]);
 
   const fetchClients = async () => {
     setLoading(true);

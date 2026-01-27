@@ -62,7 +62,7 @@ interface TimeEntryWithRelations extends TimeEntry {
 }
 
 export default function TimeTrackingPage() {
-  const { user, profile } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [entries, setEntries] = useState<TimeEntryWithRelations[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -86,10 +86,22 @@ export default function TimeTrackingPage() {
   });
 
   useEffect(() => {
+    // Wait for auth to finish loading
+    if (authLoading) return;
+    
+    // If profile exists but no company_id, stop loading
+    if (profile && !profile.company_id) {
+      setLoading(false);
+      return;
+    }
+    
+    // If profile has company_id, fetch data
     if (profile?.company_id) {
       fetchData();
+    } else if (profile === null) {
+      setLoading(false);
     }
-  }, [selectedDate, selectedProject, profile?.company_id]);
+  }, [selectedDate, selectedProject, profile?.company_id, profile, authLoading]);
 
   const fetchData = async () => {
     if (!profile?.company_id) return;

@@ -52,13 +52,25 @@ export default function WorkersPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const supabase = createClient();
   const { toast } = useToast();
-  const { profile } = useAuth();
+  const { profile, loading: authLoading } = useAuth();
 
   useEffect(() => {
+    // Wait for auth to finish loading
+    if (authLoading) return;
+    
+    // If profile exists but no company_id, stop loading
+    if (profile && !profile.company_id) {
+      setLoading(false);
+      return;
+    }
+    
+    // If profile has company_id, fetch data
     if (profile?.company_id) {
       fetchWorkers();
+    } else if (profile === null) {
+      setLoading(false);
     }
-  }, [statusFilter, profile?.company_id]);
+  }, [statusFilter, profile?.company_id, profile, authLoading]);
 
   const fetchWorkers = async () => {
     if (!profile?.company_id) return;
