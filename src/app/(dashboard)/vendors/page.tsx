@@ -168,6 +168,7 @@ export default function VendorsPage() {
     // Pre-fill PO form from scanned data
     setPoForm({
       vendor_id: "",
+      project_id: "",
       order_date: data.date || new Date().toISOString().split("T")[0],
       description: data.line_items.map((item) => item.description).join(", ") || "Scanned receipt",
       total_amount: data.total || 0,

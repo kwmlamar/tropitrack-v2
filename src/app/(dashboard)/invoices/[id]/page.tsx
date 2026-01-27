@@ -528,7 +528,7 @@ export default function InvoiceDetailPage() {
                     <TableCell>{item.description}</TableCell>
                     <TableCell className="text-right">{item.quantity}</TableCell>
                     <TableCell>{item.unit || "-"}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(item.unit_rate)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(item.unit_rate || 0)}</TableCell>
                     <TableCell className="text-right font-medium">
                       {formatCurrency(item.amount)}
                     </TableCell>

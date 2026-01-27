@@ -623,6 +623,7 @@ export interface Estimate {
   total_amount: number;
   notes?: string;
   terms_and_conditions?: string;
+  template_id?: string;
   sent_at?: string;
   approved_at?: string;
   rejected_at?: string;
@@ -720,6 +721,7 @@ export interface Invoice {
   balance_due: number;
   notes?: string;
   terms?: string;
+  template_id?: string;
   sent_at?: string;
   viewed_at?: string;
   paid_at?: string;

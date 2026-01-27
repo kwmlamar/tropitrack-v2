@@ -435,7 +435,7 @@ export function EstimatePDFTemplate({
                   <Text style={styles.col3}>{hasQuantity && item.unit ? item.unit : "-"}</Text>
                 )}
                 {showRates && (
-                  <Text style={styles.col4}>{hasRate ? formatCurrency(item.unit_rate) : "-"}</Text>
+                  <Text style={styles.col4}>{hasRate && item.unit_rate !== undefined ? formatCurrency(item.unit_rate) : "-"}</Text>
                 )}
                 <Text style={styles.col5}>{formatCurrency(item.amount)}</Text>
               </View>

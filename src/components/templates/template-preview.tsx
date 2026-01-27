@@ -7,7 +7,7 @@
 
 import { formatCurrency } from "@/lib/utils";
 import type { DocumentTemplateFormData } from "@/types";
-import { Separator } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 
 // Sample data for preview
 const SAMPLE_LINE_ITEMS = {

@@ -21,10 +21,10 @@ import {
 import { Plus, GripVertical, Trash2, FolderPlus } from "lucide-react";
 import type { EstimateLineItem, InvoiceLineItem, TemplateGroupBy } from "@/types";
 
-interface LineItemWithGroup extends (EstimateLineItem | InvoiceLineItem) {
+type LineItemWithGroup = (EstimateLineItem | InvoiceLineItem) & {
   group_name?: string;
   group_order?: number;
-}
+};
 
 interface LineItemGroupingProps {
   items: LineItemWithGroup[];

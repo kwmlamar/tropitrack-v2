@@ -21,14 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { X, Calculator, Briefcase, Package, Wrench } from "lucide-react";
-import type { LineItemEntryMode, EstimateLineCategory, InvoiceLineCategory } from "@/types";
-
-interface Worker {
-  id: string;
-  first_name: string;
-  last_name: string;
-  hourly_rate: number;
-}
+import type { LineItemEntryMode, EstimateLineCategory, InvoiceLineCategory, Worker } from "@/types";
 
 interface FlexibleLineItemFormProps {
   type: "estimate" | "invoice";
@@ -98,7 +91,10 @@ export function FlexibleLineItemForm({
     if (entryMode === "detailed" && formData.worker_id) {
       const worker = workers.find((w) => w.id === formData.worker_id);
       if (worker && !formData.unit_rate) {
-        setFormData((prev) => ({ ...prev, unit_rate: worker.hourly_rate.toString() }));
+        const hourlyRate = worker.hourly_rate;
+        if (hourlyRate !== undefined) {
+          setFormData((prev) => ({ ...prev, unit_rate: hourlyRate.toString() }));
+        }
       }
     }
   }, [formData.worker_id, entryMode, workers]);
@@ -279,7 +275,7 @@ export function FlexibleLineItemForm({
                   <SelectContent>
                     {workers.map((worker) => (
                       <SelectItem key={worker.id} value={worker.id}>
-                        {worker.first_name} {worker.last_name} (${worker.hourly_rate}/hr)
+                        {worker.first_name} {worker.last_name} {worker.hourly_rate ? `($${worker.hourly_rate}/hr)` : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
