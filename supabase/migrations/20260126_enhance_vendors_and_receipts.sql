@@ -176,3 +176,21 @@ ADD COLUMN IF NOT EXISTS vendor_invoice_number TEXT; -- Vendor's invoice number 
 CREATE INDEX IF NOT EXISTS idx_purchase_orders_vendor_invoice
 ON public.purchase_orders(vendor_id, vendor_invoice_number)
 WHERE vendor_invoice_number IS NOT NULL;
+
+-- ============================================
+-- ADD DISCOUNT FIELDS TO PURCHASE ORDERS
+-- ============================================
+
+-- Add discount tracking to purchase orders
+ALTER TABLE public.purchase_orders
+ADD COLUMN IF NOT EXISTS discount_amount DECIMAL(10, 2) DEFAULT 0, -- Discount amount
+ADD COLUMN IF NOT EXISTS discount_label TEXT, -- Discount label (e.g., "Extra Discount", "Account Discount")
+ADD COLUMN IF NOT EXISTS subtotal_before_discount DECIMAL(10, 2), -- Subtotal before discounts applied
+ADD COLUMN IF NOT EXISTS subtotal_after_discount DECIMAL(10, 2); -- Subtotal after discount, before VAT/tax
+
+-- Comment for clarity
+COMMENT ON COLUMN public.purchase_orders.discount_amount IS 'Discount amount applied (e.g., Extra Discount, Account Discount)';
+COMMENT ON COLUMN public.purchase_orders.discount_label IS 'Label describing the discount (e.g., "Extra Discount", "Account Discount")';
+COMMENT ON COLUMN public.purchase_orders.subtotal_before_discount IS 'Sum of line items before any discounts';
+COMMENT ON COLUMN public.purchase_orders.subtotal_after_discount IS 'Subtotal minus discount, before VAT/tax applied';
+

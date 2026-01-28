@@ -692,6 +692,100 @@ export interface EstimateWithLineItems extends Estimate {
 }
 
 // ============================================
+// ESTIMATE BUILDER TYPES (Buildertrend-style)
+// ============================================
+
+export type CostType = "material" | "labor" | "equipment" | "subcontractor" | "other";
+export type MarkupStrategy = "item" | "category" | "global";
+export type CostItemUnit = "EACH" | "sqft" | "lnft" | "CU YD" | "hour" | "day" | "sheet" | "bag" | "ton" | "gallon";
+
+export interface CostCode {
+  id: string;
+  company_id?: string;
+  code: string;
+  name: string;
+  description?: string;
+  parent_code_id?: string;
+  is_template: boolean;
+  display_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CostCatalogItem {
+  id: string;
+  company_id?: string;
+  cost_code_id?: string;
+  cost_code?: CostCode;
+  title: string;
+  description?: string;
+  cost_type: CostType;
+  unit_cost: number;
+  unit: string;
+  default_markup_percent: number;
+  is_template: boolean;
+  times_used: number;
+  last_used_date?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EstimateCategory {
+  id: string;
+  estimate_id: string;
+  cost_code_id?: string;
+  cost_code?: CostCode;
+  name: string;
+  description?: string;
+  display_order: number;
+  builder_cost: number;
+  client_price: number;
+  profit: number;
+  is_expanded: boolean;
+  show_to_client: boolean;
+  items?: EstimateBuilderItem[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EstimateBuilderItem {
+  id: string;
+  estimate_id: string;
+  category_id?: string;
+  cost_catalog_id?: string;
+  cost_code?: string;
+  title: string;
+  description: string;
+  cost_type: CostType;
+  unit_cost: number;
+  quantity: number;
+  unit: string;
+  builder_cost: number;
+  markup_percent: number;
+  markup_amount: number;
+  client_price: number;
+  profit: number;
+  display_order: number;
+  show_to_client: boolean;
+  save_to_catalog: boolean;
+  category?: EstimateLineCategory;
+  notes?: string;
+}
+
+export interface EstimateBuilderData extends Estimate {
+  builder_cost: number;
+  client_price: number;
+  estimated_profit: number;
+  markup_strategy: MarkupStrategy;
+  global_markup_percent: number;
+  is_locked: boolean;
+  sent_to_client: boolean;
+  client_approved: boolean;
+  client_approved_at?: string;
+  categories: EstimateCategory[];
+}
+
+// ============================================
 // INVOICE TYPES
 // ============================================
 

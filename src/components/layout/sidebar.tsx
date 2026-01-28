@@ -29,7 +29,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { getInitials } from "@/lib/utils";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -51,10 +51,33 @@ const navigation = [
 export function Sidebar() {
   const pathname = usePathname();
   const { profile, signOut } = useAuth();
-  const [collapsed, setCollapsed] = useState(false);
+  // "Pinned" = the user intentionally set open/closed (Ctrl toggles this)
+  const [pinnedOpen, setPinnedOpen] = useState(true);
+  // "Hover open" = temporary open while cursor is over the sidebar when pinned closed
+  const [hoverOpen, setHoverOpen] = useState(false);
+
+  const isOpen = pinnedOpen || hoverOpen;
+  const collapsed = !isOpen;
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      // User-requested: pressing Control toggles the pinned state.
+      if (e.key === "Control" && !e.repeat) {
+        setPinnedOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   return (
     <div
+      onMouseEnter={() => {
+        if (!pinnedOpen) setHoverOpen(true);
+      }}
+      onMouseLeave={() => {
+        setHoverOpen(false);
+      }}
       className={cn(
         "hidden md:flex flex-col border-r bg-card transition-all duration-300",
         collapsed ? "w-[70px]" : "w-[250px]"
@@ -88,9 +111,15 @@ export function Sidebar() {
             variant="ghost"
             size="icon"
             className="h-8 w-8 mr-2"
-            onClick={() => setCollapsed(!collapsed)}
+            onClick={() => setPinnedOpen((v) => !v)}
+            title={pinnedOpen ? "Collapse sidebar (Ctrl)" : "Pin sidebar open (Ctrl)"}
+            aria-label={pinnedOpen ? "Collapse sidebar" : "Pin sidebar open"}
           >
-            <ChevronLeft className="h-4 w-4" />
+            {pinnedOpen ? (
+              <ChevronLeft className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
           </Button>
         )}
       </div>

@@ -48,6 +48,7 @@ import {
   Building2,
   Calendar,
   DollarSign,
+  Calculator,
 } from "lucide-react";
 import type { Estimate, EstimateLineItem, EstimateStatus } from "@/types";
 
@@ -329,6 +330,12 @@ export default function EstimateDetailPage() {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
+          <Link href={`/estimates/${estimateId}/builder`}>
+            <Button variant="outline">
+              <Pencil className="h-4 w-4 mr-2" />
+              Edit
+            </Button>
+          </Link>
           <Link href={`/estimates/${estimateId}/preview`}>
             <Button variant="outline">
               <FileText className="h-4 w-4 mr-2" />
@@ -337,12 +344,6 @@ export default function EstimateDetailPage() {
           </Link>
           {estimate.status === "draft" && (
             <>
-              <Link href={`/estimates/${estimateId}/edit`}>
-                <Button variant="outline">
-                  <Pencil className="h-4 w-4 mr-2" />
-                  Edit
-                </Button>
-              </Link>
               <Button
                 onClick={() => {
                   setEmailForm({

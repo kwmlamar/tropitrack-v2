@@ -7,7 +7,7 @@ import {
   View,
   StyleSheet,
 } from "@react-pdf/renderer";
-import type { Estimate, EstimateLineItem, DocumentTemplate } from "@/types";
+import type { Estimate, EstimateLineItem, EstimateCategory, DocumentTemplate } from "@/types";
 
 const styles = StyleSheet.create({
   page: {
@@ -261,6 +261,7 @@ const styles = StyleSheet.create({
 interface EstimatePDFProps {
   estimate: Estimate;
   lineItems: EstimateLineItem[];
+  categories?: EstimateCategory[];
   template?: DocumentTemplate;
   companyInfo?: {
     name: string;
@@ -313,6 +314,7 @@ const getStatusColor = (status: string) => {
 export function EstimatePDFTemplate({
   estimate,
   lineItems,
+  categories,
   template,
   companyInfo = {
     name: "TropiTech Solutions",
@@ -323,6 +325,7 @@ export function EstimatePDFTemplate({
   },
   paymentInstructions,
 }: EstimatePDFProps) {
+  const hasBuilderData = categories && categories.length > 0;
   // Use template settings or defaults
   const showQuantities = template?.show_quantities ?? true;
   const showRates = template?.show_rates ?? true;
@@ -413,80 +416,155 @@ export function EstimatePDFTemplate({
             {showRates && <Text style={[styles.tableHeaderText, styles.col4]}>Rate</Text>}
             <Text style={[styles.tableHeaderText, styles.col5]}>Amount</Text>
           </View>
-          {lineItems.map((item, index) => {
-            const isLumpSum = item.entry_mode === "lump_sum";
-            const hasQuantity = item.quantity !== null && item.quantity !== undefined;
-            const hasRate = item.unit_rate !== null && item.unit_rate !== undefined;
 
-            return (
-              <View
-                key={item.id}
-                style={[styles.tableRow, ...(index % 2 === 1 ? [styles.tableRowAlt] : [])]}
-              >
-                <View style={styles.col1}>
-                  <Text style={styles.categoryBadge}>{item.category}</Text>
-                  {showLineItemDescriptions && <Text>{item.description}</Text>}
-                  {!showLineItemDescriptions && <Text>{item.category}</Text>}
-                </View>
-                {showQuantities && (
-                  <Text style={styles.col2}>{hasQuantity ? item.quantity : "-"}</Text>
-                )}
-                {showQuantities && (
-                  <Text style={styles.col3}>{hasQuantity && item.unit ? item.unit : "-"}</Text>
-                )}
-                {showRates && (
-                  <Text style={styles.col4}>{hasRate && item.unit_rate !== undefined ? formatCurrency(item.unit_rate) : "-"}</Text>
-                )}
-                <Text style={styles.col5}>{formatCurrency(item.amount)}</Text>
-              </View>
-            );
-          })}
+          {hasBuilderData ? (
+            /* Category-grouped rendering for builder estimates */
+            <>
+              {categories!.filter(c => c.show_to_client !== false).map((category) => {
+                const items = ((category.items || []) as any[]).filter(
+                  (i: any) => i.show_to_client !== false
+                );
+                return (
+                  <View key={category.id}>
+                    {/* Category header */}
+                    <View style={[styles.tableRow, { backgroundColor: "#edf2f7" }]}>
+                      <Text style={[styles.col1, { fontWeight: "bold", fontSize: 10 }]}>
+                        {category.name}
+                      </Text>
+                      <Text style={styles.col2} />
+                      <Text style={styles.col3} />
+                      <Text style={styles.col4} />
+                      <Text style={[styles.col5, { fontWeight: "bold" }]}>
+                        {formatCurrency(category.client_price || 0)}
+                      </Text>
+                    </View>
+                    {/* Category items */}
+                    {items.map((item: any, idx: number) => (
+                      <View
+                        key={item.id}
+                        style={[styles.tableRow, ...(idx % 2 === 1 ? [styles.tableRowAlt] : [])]}
+                      >
+                        <View style={[styles.col1, { paddingLeft: 12 }]}>
+                          <Text>{item.title || item.description}</Text>
+                          {item.description && item.title && item.description !== item.title && showLineItemDescriptions && (
+                            <Text style={{ fontSize: 8, color: "#718096" }}>
+                              {item.description}
+                            </Text>
+                          )}
+                        </View>
+                        {showQuantities && (
+                          <Text style={styles.col2}>
+                            {item.quantity ? Number(item.quantity).toFixed(item.quantity % 1 === 0 ? 0 : 2) : "-"}
+                          </Text>
+                        )}
+                        {showQuantities && (
+                          <Text style={styles.col3}>{item.unit || "-"}</Text>
+                        )}
+                        {showRates && (
+                          <Text style={styles.col4}>
+                            {item.unit_cost ? formatCurrency(item.unit_cost) : item.unit_rate ? formatCurrency(item.unit_rate) : "-"}
+                          </Text>
+                        )}
+                        <Text style={styles.col5}>
+                          {formatCurrency(item.client_price || item.amount || 0)}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                );
+              })}
+            </>
+          ) : (
+            /* Legacy flat line items rendering */
+            <>
+              {lineItems.map((item, index) => {
+                const hasQuantity = item.quantity !== null && item.quantity !== undefined;
+                const hasRate = item.unit_rate !== null && item.unit_rate !== undefined;
+
+                return (
+                  <View
+                    key={item.id}
+                    style={[styles.tableRow, ...(index % 2 === 1 ? [styles.tableRowAlt] : [])]}
+                  >
+                    <View style={styles.col1}>
+                      <Text style={styles.categoryBadge}>{item.category}</Text>
+                      {showLineItemDescriptions && <Text>{item.description}</Text>}
+                      {!showLineItemDescriptions && <Text>{item.category}</Text>}
+                    </View>
+                    {showQuantities && (
+                      <Text style={styles.col2}>{hasQuantity ? item.quantity : "-"}</Text>
+                    )}
+                    {showQuantities && (
+                      <Text style={styles.col3}>{hasQuantity && item.unit ? item.unit : "-"}</Text>
+                    )}
+                    {showRates && (
+                      <Text style={styles.col4}>{hasRate && item.unit_rate !== undefined ? formatCurrency(item.unit_rate) : "-"}</Text>
+                    )}
+                    <Text style={styles.col5}>{formatCurrency(item.amount)}</Text>
+                  </View>
+                );
+              })}
+            </>
+          )}
         </View>
 
         {/* Totals */}
         <View style={styles.totalsSection}>
-          {showSubtotals && (
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Subtotal</Text>
-              <Text style={styles.totalValue}>
-                {formatCurrency(estimate.subtotal)}
-              </Text>
-            </View>
+          {hasBuilderData ? (
+            <>
+              <View style={styles.grandTotalRow}>
+                <Text style={styles.grandTotalLabel}>Total Price</Text>
+                <Text style={styles.grandTotalValue}>
+                  {formatCurrency((estimate as any).client_price || estimate.total_amount)}
+                </Text>
+              </View>
+            </>
+          ) : (
+            <>
+              {showSubtotals && (
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalLabel}>Subtotal</Text>
+                  <Text style={styles.totalValue}>
+                    {formatCurrency(estimate.subtotal)}
+                  </Text>
+                </View>
+              )}
+              {showMarkupPercentage && estimate.overhead_markup_percent > 0 && (
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalLabel}>
+                    Overhead ({estimate.overhead_markup_percent}%)
+                  </Text>
+                  <Text style={styles.totalValue}>
+                    {formatCurrency(overheadAmount)}
+                  </Text>
+                </View>
+              )}
+              {showProfitMargin && estimate.profit_margin_percent > 0 && (
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalLabel}>
+                    Profit Margin ({estimate.profit_margin_percent}%)
+                  </Text>
+                  <Text style={styles.totalValue}>
+                    {formatCurrency(profitAmount)}
+                  </Text>
+                </View>
+              )}
+              {estimate.tax_rate > 0 && (
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalLabel}>
+                    VAT ({estimate.tax_rate}%)
+                  </Text>
+                  <Text style={styles.totalValue}>{formatCurrency(taxAmount)}</Text>
+                </View>
+              )}
+              <View style={styles.grandTotalRow}>
+                <Text style={styles.grandTotalLabel}>Total</Text>
+                <Text style={styles.grandTotalValue}>
+                  {formatCurrency(estimate.total_amount)}
+                </Text>
+              </View>
+            </>
           )}
-          {showMarkupPercentage && estimate.overhead_markup_percent > 0 && (
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>
-                Overhead ({estimate.overhead_markup_percent}%)
-              </Text>
-              <Text style={styles.totalValue}>
-                {formatCurrency(overheadAmount)}
-              </Text>
-            </View>
-          )}
-          {showProfitMargin && estimate.profit_margin_percent > 0 && (
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>
-                Profit Margin ({estimate.profit_margin_percent}%)
-              </Text>
-              <Text style={styles.totalValue}>
-                {formatCurrency(profitAmount)}
-              </Text>
-            </View>
-          )}
-          {estimate.tax_rate > 0 && (
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>
-                VAT ({estimate.tax_rate}%)
-              </Text>
-              <Text style={styles.totalValue}>{formatCurrency(taxAmount)}</Text>
-            </View>
-          )}
-          <View style={styles.grandTotalRow}>
-            <Text style={styles.grandTotalLabel}>Total</Text>
-            <Text style={styles.grandTotalValue}>
-              {formatCurrency(estimate.total_amount)}
-            </Text>
-          </View>
         </View>
 
         {/* Notes */}
@@ -541,6 +619,27 @@ export function EstimatePDFTemplate({
             </Text>
           </View>
         )}
+
+        {/* Signature Section */}
+        <View style={{ marginTop: 40, flexDirection: "row", gap: 40 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 9, color: "#718096", marginBottom: 30 }}>
+              Client Signature
+            </Text>
+            <View style={{ borderBottom: "1 solid #4a5568", marginBottom: 6 }} />
+            <Text style={{ fontSize: 9, color: "#718096" }}>
+              Signature
+            </Text>
+            <View style={{ borderBottom: "1 solid #4a5568", marginBottom: 6, marginTop: 16 }} />
+            <Text style={{ fontSize: 9, color: "#718096" }}>
+              Printed Name
+            </Text>
+            <View style={{ borderBottom: "1 solid #4a5568", marginBottom: 6, marginTop: 16 }} />
+            <Text style={{ fontSize: 9, color: "#718096" }}>
+              Date
+            </Text>
+          </View>
+        </View>
 
         {/* Footer */}
         <View style={styles.footer}>

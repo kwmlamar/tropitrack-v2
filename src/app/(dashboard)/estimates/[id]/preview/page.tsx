@@ -10,7 +10,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Download, Loader2 } from "lucide-react";
-import type { Estimate, EstimateLineItem } from "@/types";
+import type { Estimate, EstimateLineItem, EstimateCategory } from "@/types";
 
 const PDFDownloadLink = dynamic(
   () => import("@react-pdf/renderer").then((mod) => mod.PDFDownloadLink),
@@ -35,6 +35,7 @@ export default function EstimatePreviewPage() {
   const [loading, setLoading] = useState(true);
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   const [lineItems, setLineItems] = useState<EstimateLineItem[]>([]);
+  const [categories, setCategories] = useState<EstimateCategory[]>([]);
   const [pdfReady, setPdfReady] = useState(false);
   const [companyInfo, setCompanyInfo] = useState<{
     name: string;
@@ -57,13 +58,18 @@ export default function EstimatePreviewPage() {
   const fetchEstimateData = async () => {
     setLoading(true);
     try {
-      const [estimateRes, itemsRes, companyRes] = await Promise.all([
+      const [estimateRes, itemsRes, categoriesRes, companyRes] = await Promise.all([
         supabase.from("estimates").select("*").eq("id", estimateId).single(),
         supabase
           .from("estimate_line_items")
           .select("*")
           .eq("estimate_id", estimateId)
           .order("order_index"),
+        supabase
+          .from("estimate_categories")
+          .select("*")
+          .eq("estimate_id", estimateId)
+          .order("display_order"),
         profile?.company_id
           ? supabase
               .from("companies")
@@ -75,10 +81,16 @@ export default function EstimatePreviewPage() {
 
       if (estimateRes.error) throw estimateRes.error;
 
-      console.log("Estimate data:", estimateRes.data);
-      console.log("Line items:", itemsRes.data);
       setEstimate(estimateRes.data);
-      setLineItems(itemsRes.data || []);
+      const allItems = itemsRes.data || [];
+      setLineItems(allItems);
+
+      // Group items into categories
+      const cats = (categoriesRes.data || []).map((cat: any) => ({
+        ...cat,
+        items: allItems.filter((item: any) => item.category_id === cat.id),
+      }));
+      setCategories(cats);
 
       // Set company info from database
       if (companyRes.data) {
@@ -140,6 +152,7 @@ export default function EstimatePreviewPage() {
                 <EstimatePDFTemplate
                   estimate={estimate}
                   lineItems={lineItems}
+                  categories={categories.length > 0 ? categories : undefined}
                   companyInfo={companyInfo || undefined}
                 />
               }
