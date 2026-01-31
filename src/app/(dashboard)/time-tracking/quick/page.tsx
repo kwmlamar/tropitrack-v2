@@ -552,6 +552,27 @@ export default function QuickTimeEntryPage() {
       return;
     }
 
+    // Prevent same worker twice in this batch (same project + date)
+    const projectKey = (row: TimeEntryRow) => `${row.worker_id}:${row.project_id || globalProject}`;
+    const seen = new Set<string>();
+    const inBatchDuplicates: string[] = [];
+    for (const row of validRows) {
+      const key = projectKey(row);
+      if (seen.has(key)) {
+        inBatchDuplicates.push(row.worker_name);
+      }
+      seen.add(key);
+    }
+    if (inBatchDuplicates.length > 0) {
+      const names = [...new Set(inBatchDuplicates)].join(", ");
+      toast({
+        title: "Duplicate worker",
+        description: `${names} appear(s) more than once for the same project on this date. Remove the duplicate row or assign a different project.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     await performSave(validRows);
   };
 

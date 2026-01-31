@@ -165,6 +165,25 @@ export default function TimeTrackingPage() {
 
     setSubmitting(true);
     try {
+      // Prevent duplicate: same worker + project + date
+      const { data: existing } = await supabase
+        .from("time_entries")
+        .select("id")
+        .eq("company_id", profile.company_id)
+        .eq("worker_id", formData.worker_id)
+        .eq("project_id", formData.project_id)
+        .eq("date", formData.date)
+        .limit(1);
+      if (existing?.length) {
+        toast({
+          title: "Duplicate time entry",
+          description: "This worker already has a time entry for this project on this date. Edit or delete the existing entry instead.",
+          variant: "destructive",
+        });
+        setSubmitting(false);
+        return;
+      }
+
       const totalHours = calculateHours(
         formData.start_time,
         formData.end_time,
@@ -215,8 +234,20 @@ export default function TimeTrackingPage() {
     if (!confirm("Are you sure you want to delete this time entry?")) return;
 
     try {
-      const { error } = await supabase.from("time_entries").delete().eq("id", id);
+      const { data, error } = await supabase
+        .from("time_entries")
+        .delete()
+        .eq("id", id)
+        .select("id");
       if (error) throw error;
+      if (!data?.length) {
+        toast({
+          title: "Could not delete entry",
+          description: "The time entry could not be deleted. You may not have permission, or it may have already been removed.",
+          variant: "destructive",
+        });
+        return;
+      }
       setEntries(entries.filter((e) => e.id !== id));
       toast({
         title: "Entry deleted",
@@ -224,6 +255,11 @@ export default function TimeTrackingPage() {
       });
     } catch (error) {
       console.error("Error deleting entry:", error);
+      toast({
+        title: "Error deleting entry",
+        description: error instanceof Error ? error.message : "The time entry could not be deleted.",
+        variant: "destructive",
+      });
     }
   };
 

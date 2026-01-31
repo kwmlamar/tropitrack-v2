@@ -66,7 +66,6 @@ import {
   X,
   ChevronUp,
   Settings2,
-  Save,
 } from "lucide-react";
 import type {
   Client,
@@ -671,9 +670,7 @@ export default function CreateEstimateBuilderPage() {
               <Button size="sm" onClick={handleSaveEstimate} disabled={saving}>
                 {saving ? (
                   <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                ) : (
-                  <Save className="h-3.5 w-3.5 mr-1.5" />
-                )}
+                ) : null}
                 Save Estimate
               </Button>
             </div>
