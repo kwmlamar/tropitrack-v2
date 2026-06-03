@@ -235,6 +235,14 @@ export interface PayPeriod {
   processed_by?: string;
   notes?: string;
   created_at: string;
+  // Void fields
+  voided_at?: string;
+  voided_by?: string;
+  void_reason?: string;
+  // Reopen fields
+  reopened_at?: string;
+  reopened_by?: string;
+  reopen_reason?: string;
 }
 
 export interface PayrollEntry {
@@ -250,6 +258,33 @@ export interface PayrollEntry {
   net_pay: number;
   deduction_details?: Record<string, number>;
   created_at: string;
+  // Payment tracking fields
+  is_paid?: boolean;
+  paid_at?: string;
+  total_paid?: number;
+  payment_status?: "unpaid" | "partial" | "paid";
+}
+
+// Payroll Adjustment Types
+export type PayrollAdjustmentType = "correction" | "bonus" | "deduction" | "reversal" | "hours_correction";
+
+export interface PayrollAdjustment {
+  id: string;
+  original_entry_id?: string;
+  pay_period_id: string;
+  worker_id: string;
+  adjustment_type: PayrollAdjustmentType;
+  hours_adjustment: number;
+  amount_adjustment: number;
+  reason: string;
+  applied_in_period_id?: string;
+  created_by?: string;
+  created_at: string;
+  // Joined fields
+  worker?: {
+    first_name: string;
+    last_name: string;
+  };
 }
 
 // Materials and Inventory Types

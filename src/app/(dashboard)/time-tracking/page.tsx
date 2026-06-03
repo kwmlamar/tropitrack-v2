@@ -1,13 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Header } from "@/components/layout/header";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { DatePicker } from "@/components/ui/date-picker";
+import { useEffect, useState, useCallback } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/lib/auth-context";
+import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
+import { formatCurrency, calculateHours, calculateOvertimeHours } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -15,70 +20,66 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { createClient } from "@/lib/supabase/client";
-import { useAuth } from "@/lib/auth-context";
-import { useToast } from "@/hooks/use-toast";
-import { formatDate, formatTime, formatCurrency, calculateHours, calculateOvertimeHours } from "@/lib/utils";
-import {
-  Plus,
-  Clock,
-  Calendar,
-  Users,
-  Loader2,
-  Trash2,
-  Zap,
-} from "lucide-react";
+import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import type { Project, Worker, TimeEntry } from "@/types";
 
 interface TimeEntryWithRelations extends TimeEntry {
-  workers: {
-    first_name: string;
-    last_name: string;
-    hourly_rate: number;
-  };
-  projects: {
-    name: string;
-  };
+  workers: { first_name: string; last_name: string; hourly_rate: number };
+  projects: { name: string };
+}
+
+const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+function getWeekDays(anchor: string): string[] {
+  const d = new Date(anchor + "T12:00:00");
+  const dow = d.getDay();
+  const monday = new Date(d);
+  monday.setDate(d.getDate() - ((dow + 6) % 7));
+  return Array.from({ length: 7 }, (_, i) => {
+    const date = new Date(monday);
+    date.setDate(monday.getDate() + i);
+    return date.toISOString().split("T")[0];
+  });
+}
+
+function formatShortDate(iso: string): string {
+  const [, , d] = iso.split("-");
+  return String(parseInt(d));
+}
+
+function formatTime(t: string | null | undefined): string {
+  if (!t) return "—";
+  const [h, m] = t.split(":");
+  const hr = parseInt(h);
+  return `${hr % 12 || 12}:${m}${hr < 12 ? "am" : "pm"}`;
 }
 
 export default function TimeTrackingPage() {
   const { user, profile, loading: authLoading } = useAuth();
   const { toast } = useToast();
+  const supabase = createClient();
+
   const [entries, setEntries] = useState<TimeEntryWithRelations[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
-  const [selectedProject, setSelectedProject] = useState<string>("all");
-  const supabase = createClient();
 
-  // Form state
+  const today = new Date().toISOString().split("T")[0];
+  const [selectedDate, setSelectedDate] = useState(today);
+  const [selectedProject, setSelectedProject] = useState("all");
+  const [weekCounts, setWeekCounts] = useState<Record<string, number>>({});
+
+  const weekDays = getWeekDays(selectedDate);
+  const weekStart = weekDays[0];
+  const weekEnd = weekDays[6];
+
   const [formData, setFormData] = useState({
     worker_id: "",
     project_id: "",
-    date: new Date().toISOString().split("T")[0],
+    date: today,
     start_time: "07:00",
     end_time: "16:00",
     break_duration_minutes: 60,
@@ -86,111 +87,70 @@ export default function TimeTrackingPage() {
   });
 
   useEffect(() => {
-    // Wait for auth to finish loading
     if (authLoading) return;
-    
-    // If profile exists but no company_id, stop loading
-    if (profile && !profile.company_id) {
-      setLoading(false);
-      return;
-    }
-    
-    // If profile has company_id, fetch data
-    if (profile?.company_id) {
-      fetchData();
-    } else if (profile === null) {
-      setLoading(false);
-    }
+    if (profile && !profile.company_id) { setLoading(false); return; }
+    if (profile?.company_id) fetchData();
+    else if (profile === null) setLoading(false);
   }, [selectedDate, selectedProject, profile?.company_id, profile, authLoading]);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!profile?.company_id) return;
-    
     setLoading(true);
     try {
-      // Fetch projects (filtered by company_id)
-      const { data: projectsData } = await supabase
-        .from("projects")
-        .select("*")
-        .eq("company_id", profile.company_id)
-        .in("status", ["active", "planning"])
-        .order("name");
-      
+      const [{ data: projectsData }, { data: workersData }] = await Promise.all([
+        supabase.from("projects").select("*").eq("company_id", profile.company_id).in("status", ["active", "planning"]).order("name"),
+        supabase.from("workers").select("*").eq("company_id", profile.company_id).eq("status", "active").order("last_name"),
+      ]);
       setProjects(projectsData || []);
-
-      // Fetch active workers (filtered by company_id)
-      const { data: workersData } = await supabase
-        .from("workers")
-        .select("*")
-        .eq("company_id", profile.company_id)
-        .eq("status", "active")
-        .order("last_name");
-      
       setWorkers(workersData || []);
 
-      // Fetch time entries (filtered by company_id)
       let query = supabase
         .from("time_entries")
-        .select(`
-          *,
-          workers(first_name, last_name, hourly_rate),
-          projects(name)
-        `)
+        .select("*, workers(first_name, last_name, hourly_rate), projects(name)")
         .eq("company_id", profile.company_id)
         .eq("date", selectedDate);
-
-      if (selectedProject && selectedProject !== "all") {
-        query = query.eq("project_id", selectedProject);
-      }
-
+      if (selectedProject !== "all") query = query.eq("project_id", selectedProject);
       const { data: entriesData } = await query.order("created_at", { ascending: false });
       setEntries((entriesData || []) as TimeEntryWithRelations[]);
+
+      // Fetch week entry counts for the strip
+      const days = getWeekDays(selectedDate);
+      const { data: weekData } = await supabase
+        .from("time_entries")
+        .select("date")
+        .eq("company_id", profile.company_id)
+        .gte("date", days[0])
+        .lte("date", days[6]);
+      const counts: Record<string, number> = {};
+      days.forEach(d => counts[d] = 0);
+      weekData?.forEach((e: any) => { if (counts[e.date] !== undefined) counts[e.date]++; });
+      setWeekCounts(counts);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [profile?.company_id, selectedDate, selectedProject]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !profile?.company_id) {
-      toast({
-        title: "Error",
-        description: "Unable to create time entry. Please ensure you're logged in and associated with a company.",
-        variant: "destructive",
-      });
-      return;
-    }
-
+    if (!user || !profile?.company_id) return;
     setSubmitting(true);
     try {
-      // Prevent duplicate: same worker + project + date
       const { data: existing } = await supabase
-        .from("time_entries")
-        .select("id")
+        .from("time_entries").select("id")
         .eq("company_id", profile.company_id)
         .eq("worker_id", formData.worker_id)
         .eq("project_id", formData.project_id)
         .eq("date", formData.date)
         .limit(1);
       if (existing?.length) {
-        toast({
-          title: "Duplicate time entry",
-          description: "This worker already has a time entry for this project on this date. Edit or delete the existing entry instead.",
-          variant: "destructive",
-        });
+        toast({ title: "Duplicate entry", description: "This worker already has an entry for this project on this date.", variant: "destructive" });
         setSubmitting(false);
         return;
       }
-
-      const totalHours = calculateHours(
-        formData.start_time,
-        formData.end_time,
-        formData.break_duration_minutes
-      );
+      const totalHours = calculateHours(formData.start_time, formData.end_time, formData.break_duration_minutes);
       const { regular, overtime } = calculateOvertimeHours(totalHours);
-
       const { error } = await supabase.from("time_entries").insert({
         ...formData,
         company_id: profile.company_id,
@@ -198,430 +158,371 @@ export default function TimeTrackingPage() {
         overtime_hours: overtime,
         created_by: user.id,
       });
-
       if (error) throw error;
-
-      toast({
-        title: "Time entry added",
-        description: "The time entry has been successfully recorded.",
-        variant: "success",
-      });
-
+      toast({ title: "Entry logged" });
       setDialogOpen(false);
-      setFormData({
-        worker_id: "",
-        project_id: formData.project_id,
-        date: formData.date,
-        start_time: "07:00",
-        end_time: "16:00",
-        break_duration_minutes: 60,
-        notes: "",
-      });
+      setFormData(f => ({ ...f, worker_id: "", notes: "" }));
       fetchData();
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "An error occurred";
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this time entry?")) return;
-
-    try {
-      const { data, error } = await supabase
-        .from("time_entries")
-        .delete()
-        .eq("id", id)
-        .select("id");
-      if (error) throw error;
-      if (!data?.length) {
-        toast({
-          title: "Could not delete entry",
-          description: "The time entry could not be deleted. You may not have permission, or it may have already been removed.",
-          variant: "destructive",
-        });
-        return;
-      }
-      setEntries(entries.filter((e) => e.id !== id));
-      toast({
-        title: "Entry deleted",
-        description: "The time entry has been removed.",
-      });
-    } catch (error) {
-      console.error("Error deleting entry:", error);
-      toast({
-        title: "Error deleting entry",
-        description: error instanceof Error ? error.message : "The time entry could not be deleted.",
-        variant: "destructive",
-      });
+    if (!confirm("Delete this time entry?")) return;
+    const { data, error } = await supabase.from("time_entries").delete().eq("id", id).select("id");
+    if (error || !data?.length) {
+      toast({ title: "Could not delete", variant: "destructive" });
+      return;
     }
+    setEntries(entries.filter(e => e.id !== id));
+    toast({ title: "Deleted" });
   };
 
-  const totalRegularHours = entries.reduce((sum, e) => sum + e.regular_hours, 0);
-  const totalOvertimeHours = entries.reduce((sum, e) => sum + e.overtime_hours, 0);
-  const totalLabor = entries.reduce((sum, e) => {
-    const rate = e.workers?.hourly_rate || 0;
-    return sum + (e.regular_hours * rate) + (e.overtime_hours * rate * 1.5);
+  const shiftWeek = (dir: number) => {
+    const d = new Date(selectedDate + "T12:00:00");
+    d.setDate(d.getDate() + dir * 7);
+    setSelectedDate(d.toISOString().split("T")[0]);
+  };
+
+  const totalReg = entries.reduce((s, e) => s + e.regular_hours, 0);
+  const totalOT = entries.reduce((s, e) => s + e.overtime_hours, 0);
+  const totalLabor = entries.reduce((s, e) => {
+    const r = e.workers?.hourly_rate || 0;
+    return s + e.regular_hours * r + e.overtime_hours * r * 1.5;
   }, 0);
 
+  const calcHours = () => {
+    if (!formData.start_time || !formData.end_time) return null;
+    return calculateHours(formData.start_time, formData.end_time, formData.break_duration_minutes);
+  };
+  const previewHours = calcHours();
+
+  const isToday = (iso: string) => iso === today;
+  const selectedDayLabel = new Date(selectedDate + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+
   return (
-    <div className="flex flex-col min-h-screen">
-      <Header title="Time Tracking" description="Log and manage worker hours">
-        <div className="flex items-center gap-2">
-          <Link href="/time-tracking/quick">
-            <Button variant="default">
-              <Zap className="h-4 w-4 mr-2" />
-              Quick Entry
-            </Button>
-          </Link>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline">
-                <Plus className="h-4 w-4 mr-2" />
-                Single Entry
-              </Button>
-            </DialogTrigger>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Log Time Entry</DialogTitle>
-              <DialogDescription>
-                Record worker hours for a project
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleSubmit}>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="project_id">Project *</Label>
-                  <Select
-                    value={formData.project_id}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, project_id: value })
-                    }
-                  >
-                    {/* #region agent log */}
-                    {(()=>{fetch('http://127.0.0.1:7242/ingest/219dfdb1-3353-46ca-9c1b-4d9e8cfab01b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'time-tracking/page.tsx:227',message:'Form Select render',data:{formDataProjectId:formData.project_id,formDataProjectIdType:typeof formData.project_id,formDataProjectIdLength:formData.project_id?.length,projectsCount:projects.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});return null})()}
-                    {/* #endregion */}
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select project" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {projects.map((project) => {
-                        // #region agent log
-                        fetch('http://127.0.0.1:7242/ingest/219dfdb1-3353-46ca-9c1b-4d9e8cfab01b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'time-tracking/page.tsx:238',message:'Form SelectItem render',data:{projectId:project.id,isEmpty:!project.id||project.id===''},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-                        // #endregion
-                        return (
-                          <SelectItem key={project.id} value={project.id}>
-                            {project.name}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="worker_id">Worker *</Label>
-                  <Select
-                    value={formData.worker_id}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, worker_id: value })
-                    }
-                  >
-                    {/* #region agent log */}
-                    {(()=>{fetch('http://127.0.0.1:7242/ingest/219dfdb1-3353-46ca-9c1b-4d9e8cfab01b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'time-tracking/page.tsx:248',message:'Worker Select render',data:{formDataWorkerId:formData.worker_id,formDataWorkerIdType:typeof formData.worker_id,workersCount:workers.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});return null})()}
-                    {/* #endregion */}
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select worker" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {workers.map((worker) => {
-                        // #region agent log
-                        fetch('http://127.0.0.1:7242/ingest/219dfdb1-3353-46ca-9c1b-4d9e8cfab01b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'time-tracking/page.tsx:259',message:'Worker SelectItem render',data:{workerId:worker.id,isEmpty:!worker.id||worker.id===''},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-                        // #endregion
-                        return (
-                          <SelectItem key={worker.id} value={worker.id}>
-                            {worker.first_name} {worker.last_name}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="date">Date *</Label>
-                  <DatePicker
-                    id="date"
-                    value={formData.date}
-                    onChange={(value) =>
-                      setFormData({ ...formData, date: value })
-                    }
-                    required
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="start_time">Start Time *</Label>
-                    <Input
-                      id="start_time"
-                      type="time"
-                      value={formData.start_time}
-                      onChange={(e) =>
-                        setFormData({ ...formData, start_time: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="end_time">End Time *</Label>
-                    <Input
-                      id="end_time"
-                      type="time"
-                      value={formData.end_time}
-                      onChange={(e) =>
-                        setFormData({ ...formData, end_time: e.target.value })
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="break_duration">Break Duration (minutes)</Label>
-                  <Input
-                    id="break_duration"
-                    type="number"
-                    min="0"
-                    value={formData.break_duration_minutes}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        break_duration_minutes: parseInt(e.target.value) || 0,
-                      })
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="notes">Notes</Label>
-                  <Textarea
-                    id="notes"
-                    placeholder="Any additional notes..."
-                    rows={2}
-                    value={formData.notes}
-                    onChange={(e) =>
-                      setFormData({ ...formData, notes: e.target.value })
-                    }
-                  />
-                </div>
-
-                {formData.start_time && formData.end_time && (
-                  <div className="p-3 bg-muted rounded-lg">
-                    <p className="text-sm font-medium">Calculated Hours:</p>
-                    <p className="text-lg font-bold">
-                      {calculateHours(
-                        formData.start_time,
-                        formData.end_time,
-                        formData.break_duration_minutes
-                      ).toFixed(2)}{" "}
-                      hours
-                    </p>
-                  </div>
-                )}
-              </div>
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={submitting || !formData.worker_id || !formData.project_id}>
-                  {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  Save Entry
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+    <div className="flex flex-col h-full overflow-auto bg-[#18191b]">
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-[#34373c] flex-shrink-0">
+        <div>
+          <p className="text-[11px] font-mono text-[#666] uppercase tracking-widest">Time Tracking</p>
+          <h1 className="text-[16px] font-semibold text-[#d0d0d0] mt-0.5">Hours</h1>
         </div>
-      </Header>
+        <div className="flex items-center gap-4">
+          <Link href="/time-tracking/quick" className="text-[12px] text-[#666] hover:text-[#aaa] transition-colors">
+            Quick entry
+          </Link>
+          <button
+            onClick={() => { setFormData(f => ({ ...f, date: selectedDate })); setDialogOpen(true); }}
+            className="text-[12px] font-medium text-[#F5A623] hover:opacity-80 transition-opacity"
+          >
+            + Log Time
+          </button>
+        </div>
+      </div>
 
-      <div className="flex-1 p-6 space-y-6">
-        {/* Filters */}
-        <Card>
-          <CardContent className="py-4">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="space-y-2 sm:space-y-0">
-                <Label htmlFor="filter-date" className="sm:sr-only">Date</Label>
-                <DatePicker
-                  id="filter-date"
-                  value={selectedDate}
-                  onChange={(value) => setSelectedDate(value || new Date().toISOString().split("T")[0])}
-                  clearable={false}
-                  className="w-auto min-w-[200px]"
-                />
-              </div>
-              <div className="flex-1">
-                {/* #region agent log */}
-                {(()=>{fetch('http://127.0.0.1:7242/ingest/219dfdb1-3353-46ca-9c1b-4d9e8cfab01b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'time-tracking/page.tsx:384',message:'Select render',data:{selectedProject,selectedProjectType:typeof selectedProject,selectedProjectLength:selectedProject?.length,projectsCount:projects.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});return null})()}
-                {/* #endregion */}
-                <Select value={selectedProject} onValueChange={setSelectedProject}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Projects" />
+      {/* Week strip */}
+      <div className="border-b border-[#34373c] bg-[#202224] flex-shrink-0">
+        <div className="flex items-center px-4 py-2 gap-2">
+          {/* Week navigation */}
+          <button onClick={() => shiftWeek(-1)} className="text-[#555] hover:text-[#999] transition-colors px-1 text-[13px]">←</button>
+          <div className="flex-1 flex items-center gap-1">
+            {weekDays.map((day, i) => {
+              const isSelected = day === selectedDate;
+              const count = weekCounts[day] ?? 0;
+              return (
+                <button
+                  key={day}
+                  onClick={() => setSelectedDate(day)}
+                  className={cn(
+                    "flex-1 flex flex-col items-center py-2 rounded transition-colors",
+                    isSelected ? "bg-[#2d3035] border border-[#333]" : "hover:bg-[#272a2c]"
+                  )}
+                >
+                  <span className={cn("text-[10px] font-mono uppercase tracking-wide", isSelected ? "text-[#F5A623]" : "text-[#555]")}>
+                    {DAY_LABELS[i]}
+                  </span>
+                  <span className={cn("text-[14px] font-mono mt-0.5", isSelected ? "text-[#d0d0d0]" : isToday(day) ? "text-[#aaa]" : "text-[#666]")}>
+                    {formatShortDate(day)}
+                  </span>
+                  <div className="h-1 mt-1 flex items-center justify-center">
+                    {count > 0 ? (
+                      <span className={cn("text-[9px] font-mono", isSelected ? "text-[#F5A623]" : "text-[#444]")}>
+                        {count}
+                      </span>
+                    ) : (
+                      <span className="h-1 w-1 rounded-full bg-[#2d3035]" />
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          <button onClick={() => shiftWeek(1)} className="text-[#555] hover:text-[#999] transition-colors px-1 text-[13px]">→</button>
+        </div>
+      </div>
+
+      <div className="flex-1 p-6 space-y-5">
+        {/* Day stats */}
+        <div className="grid grid-cols-4 gap-3">
+          {[
+            { label: "Entries",   value: entries.length,              mono: false },
+            { label: "Reg Hours", value: `${totalReg.toFixed(1)}h`,   mono: true },
+            { label: "OT Hours",  value: `${totalOT.toFixed(1)}h`,    mono: true, accent: totalOT > 0 },
+            { label: "Labor Cost",value: formatCurrency(totalLabor),  mono: true, amber: true },
+          ].map(s => (
+            <div key={s.label} className="rounded border border-[#34373c] bg-[#202224] px-4 py-3.5">
+              <p className="text-[11px] font-mono text-[#666] uppercase tracking-wider">{s.label}</p>
+              <p className={cn(
+                "text-[20px] font-semibold font-mono mt-1 leading-none",
+                s.amber ? "text-[#F5A623]" : s.accent ? "text-[#F5A623]" : "text-[#d0d0d0]"
+              )}>
+                {s.value}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {/* Project filter */}
+        <div className="flex items-center gap-3">
+          <p className="text-[11px] font-mono text-[#555] uppercase tracking-widest flex-shrink-0">{selectedDayLabel}</p>
+          <div className="flex-1" />
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setSelectedProject("all")}
+              className={cn("px-2.5 py-1.5 rounded text-[10px] font-mono uppercase tracking-wide transition-colors",
+                selectedProject === "all" ? "bg-[#2d3035] text-[#F5A623] border border-[#333]" : "text-[#555] hover:text-[#999]")}
+            >
+              All Projects
+            </button>
+            {projects.slice(0, 4).map(p => (
+              <button
+                key={p.id}
+                onClick={() => setSelectedProject(selectedProject === p.id ? "all" : p.id)}
+                className={cn("px-2.5 py-1.5 rounded text-[10px] font-mono transition-colors max-w-[100px] truncate",
+                  selectedProject === p.id ? "bg-[#2d3035] text-[#F5A623] border border-[#333]" : "text-[#555] hover:text-[#999]")}
+              >
+                {p.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Entries table */}
+        <div className="rounded border border-[#34373c] bg-[#202224] overflow-hidden">
+          {loading ? (
+            <div className="divide-y divide-[#292c31]">
+              {Array(4).fill(0).map((_, i) => <div key={i} className="h-[52px] animate-pulse" />)}
+            </div>
+          ) : entries.length === 0 ? (
+            <div className="py-16 text-center">
+              <p className="text-[13px] text-[#555]">No entries for {selectedDayLabel}</p>
+              <button
+                onClick={() => { setFormData(f => ({ ...f, date: selectedDate })); setDialogOpen(true); }}
+                className="inline-block mt-3 text-[12px] text-[#F5A623] hover:opacity-80"
+              >
+                + Log hours →
+              </button>
+            </div>
+          ) : (
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-[#2d3035]">
+                  <th className="px-5 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555]">Worker</th>
+                  <th className="px-5 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555]">Project</th>
+                  <th className="px-5 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555]">Time</th>
+                  <th className="px-5 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Reg</th>
+                  <th className="px-5 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">OT</th>
+                  <th className="px-5 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Cost</th>
+                  <th className="w-16 px-5 py-2.5" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#292c31]">
+                {entries.map(entry => {
+                  const rate = entry.workers?.hourly_rate || 0;
+                  const cost = entry.regular_hours * rate + entry.overtime_hours * rate * 1.5;
+                  return (
+                    <tr key={entry.id} className="group hover:bg-[#23252a] transition-colors">
+                      <td className="px-5 py-3 text-[13px] text-[#aaa]">
+                        {entry.workers?.first_name} {entry.workers?.last_name}
+                      </td>
+                      <td className="px-5 py-3 text-[13px] text-[#777]">{entry.projects?.name}</td>
+                      <td className="px-5 py-3 text-[12px] font-mono text-[#666]">
+                        {formatTime(entry.start_time)} – {formatTime(entry.end_time)}
+                        {entry.break_duration_minutes > 0 && (
+                          <span className="text-[#444] ml-1">({entry.break_duration_minutes}m brk)</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-3 text-right text-[12px] font-mono text-[#666]">
+                        {entry.regular_hours.toFixed(1)}h
+                      </td>
+                      <td className="px-5 py-3 text-right text-[12px] font-mono">
+                        {entry.overtime_hours > 0
+                          ? <span className="text-[#F5A623]">{entry.overtime_hours.toFixed(1)}h</span>
+                          : <span className="text-[#333]">—</span>
+                        }
+                      </td>
+                      <td className="px-5 py-3 text-right text-[12px] font-mono text-[#aaa]">
+                        {formatCurrency(cost)}
+                      </td>
+                      <td className="px-5 py-3 text-right">
+                        <button
+                          onClick={() => handleDelete(entry.id)}
+                          className="text-[11px] text-[#444] hover:text-[#EF4444] transition-colors opacity-0 group-hover:opacity-100"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              {/* Day total footer */}
+              <tfoot>
+                <tr className="border-t border-[#34373c] bg-[#202224]">
+                  <td colSpan={3} className="px-5 py-2.5">
+                    <span className="text-[10px] font-mono text-[#444] uppercase tracking-widest">Day total</span>
+                  </td>
+                  <td className="px-5 py-2.5 text-right text-[12px] font-mono text-[#666]">{totalReg.toFixed(1)}h</td>
+                  <td className="px-5 py-2.5 text-right text-[12px] font-mono text-[#F5A623]">
+                    {totalOT > 0 ? `${totalOT.toFixed(1)}h` : "—"}
+                  </td>
+                  <td className="px-5 py-2.5 text-right text-[13px] font-mono font-semibold text-[#F5A623]">
+                    {formatCurrency(totalLabor)}
+                  </td>
+                  <td />
+                </tr>
+              </tfoot>
+            </table>
+          )}
+        </div>
+      </div>
+
+      {/* Log Time Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-md bg-[#202224] border-[#34373c] text-[#d0d0d0]">
+          <DialogHeader>
+            <DialogTitle className="text-[#d0d0d0] text-[15px]">Log Time Entry</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit}>
+            <div className="space-y-3 py-2">
+              <div className="space-y-1">
+                <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Project *</p>
+                <Select value={formData.project_id} onValueChange={v => setFormData(f => ({ ...f, project_id: v }))}>
+                  <SelectTrigger className="h-8 bg-[#292c31] border-[#3a3d42] text-[#aaa] text-[13px] focus:ring-0 focus:border-[#333]">
+                    <SelectValue placeholder="Select project" />
                   </SelectTrigger>
-                  <SelectContent>
-                    {/* #region agent log */}
-                    {(()=>{fetch('http://127.0.0.1:7242/ingest/219dfdb1-3353-46ca-9c1b-4d9e8cfab01b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'time-tracking/page.tsx:389',message:'SelectItem with all value rendered',data:{value:'all',hasEmptyValue:false},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'A'})}).catch(()=>{});return null})()}
-                    {/* #endregion */}
-                    <SelectItem value="all">All Projects</SelectItem>
-                    {projects.map((project) => {
-                      // #region agent log
-                      fetch('http://127.0.0.1:7242/ingest/219dfdb1-3353-46ca-9c1b-4d9e8cfab01b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'time-tracking/page.tsx:391',message:'SelectItem render',data:{projectId:project.id,projectIdType:typeof project.id,projectIdLength:project.id?.length,isEmpty:!project.id||project.id===''},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-                      // #endregion
-                      return (
-                        <SelectItem key={project.id} value={project.id}>
-                          {project.name}
-                        </SelectItem>
-                      );
-                    })}
+                  <SelectContent className="bg-[#202224] border-[#3a3d42]">
+                    {projects.map(p => (
+                      <SelectItem key={p.id} value={p.id} className="text-[#aaa] focus:bg-[#292c31] focus:text-[#d0d0d0]">{p.name}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="space-y-1">
+                <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Worker *</p>
+                <Select value={formData.worker_id} onValueChange={v => setFormData(f => ({ ...f, worker_id: v }))}>
+                  <SelectTrigger className="h-8 bg-[#292c31] border-[#3a3d42] text-[#aaa] text-[13px] focus:ring-0 focus:border-[#333]">
+                    <SelectValue placeholder="Select worker" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#202224] border-[#3a3d42]">
+                    {workers.map(w => (
+                      <SelectItem key={w.id} value={w.id} className="text-[#aaa] focus:bg-[#292c31] focus:text-[#d0d0d0]">
+                        {w.first_name} {w.last_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Date *</p>
+                <input
+                  type="date"
+                  value={formData.date}
+                  onChange={e => setFormData(f => ({ ...f, date: e.target.value }))}
+                  className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Start</p>
+                  <input
+                    type="time"
+                    value={formData.start_time}
+                    onChange={e => setFormData(f => ({ ...f, start_time: e.target.value }))}
+                    className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">End</p>
+                  <input
+                    type="time"
+                    value={formData.end_time}
+                    onChange={e => setFormData(f => ({ ...f, end_time: e.target.value }))}
+                    className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Break (minutes)</p>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.break_duration_minutes}
+                  onChange={e => setFormData(f => ({ ...f, break_duration_minutes: parseInt(e.target.value) || 0 }))}
+                  className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Notes</p>
+                <textarea
+                  rows={2}
+                  value={formData.notes}
+                  onChange={e => setFormData(f => ({ ...f, notes: e.target.value }))}
+                  placeholder="Optional notes..."
+                  className="w-full px-2.5 py-2 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#333] transition-colors resize-none"
+                />
+              </div>
+
+              {previewHours !== null && previewHours > 0 && (
+                <div className="px-3 py-2.5 rounded border border-[#34373c] bg-[#18191b] flex items-center justify-between">
+                  <span className="text-[11px] font-mono text-[#555]">Calculated hours</span>
+                  <div className="text-right">
+                    <span className="text-[15px] font-mono font-semibold text-[#d0d0d0]">{previewHours.toFixed(2)}h</span>
+                    {previewHours > 8 && (
+                      <span className="text-[10px] font-mono text-[#F5A623] ml-2">
+                        {(previewHours - 8).toFixed(2)}h OT
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
-          </CardContent>
-        </Card>
 
-        {/* Summary Cards */}
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-4">
-                <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-950/50">
-                  <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Regular Hours</p>
-                  <p className="text-2xl font-bold">{totalRegularHours.toFixed(1)}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-4">
-                <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-950/50">
-                  <Clock className="h-5 w-5 text-orange-600 dark:text-orange-400" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Overtime Hours</p>
-                  <p className="text-2xl font-bold">{totalOvertimeHours.toFixed(1)}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-4">
-                <div className="p-2 rounded-lg bg-green-100 dark:bg-green-950/50">
-                  <Users className="h-5 w-5 text-green-600 dark:text-green-400" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Labor Cost</p>
-                  <p className="text-2xl font-bold">{formatCurrency(totalLabor)}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Time Entries Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Time Entries for {formatDate(selectedDate)}</CardTitle>
-            <CardDescription>
-              {entries.length} {entries.length === 1 ? "entry" : "entries"} recorded
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-0">
-            {loading ? (
-              <div className="p-8 text-center">
-                <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto"></div>
-                <p className="mt-4 text-muted-foreground">Loading entries...</p>
-              </div>
-            ) : entries.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Worker</TableHead>
-                    <TableHead>Project</TableHead>
-                    <TableHead>Time</TableHead>
-                    <TableHead>Break</TableHead>
-                    <TableHead>Regular</TableHead>
-                    <TableHead>OT</TableHead>
-                    <TableHead>Cost</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {entries.map((entry) => {
-                    const rate = entry.workers?.hourly_rate || 0;
-                    const cost = (entry.regular_hours * rate) + (entry.overtime_hours * rate * 1.5);
-                    return (
-                      <TableRow key={entry.id}>
-                        <TableCell className="font-medium">
-                          {entry.workers?.first_name} {entry.workers?.last_name}
-                        </TableCell>
-                        <TableCell>{entry.projects?.name}</TableCell>
-                        <TableCell>
-                          {formatTime(entry.start_time)} - {formatTime(entry.end_time)}
-                        </TableCell>
-                        <TableCell>{entry.break_duration_minutes} min</TableCell>
-                        <TableCell>{entry.regular_hours.toFixed(1)}h</TableCell>
-                        <TableCell>
-                          {entry.overtime_hours > 0 ? (
-                            <Badge variant="warning">{entry.overtime_hours.toFixed(1)}h</Badge>
-                          ) : (
-                            "-"
-                          )}
-                        </TableCell>
-                        <TableCell>{formatCurrency(cost)}</TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(entry.id)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            ) : (
-              <div className="p-12 text-center">
-                <Clock className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No time entries</h3>
-                <p className="text-muted-foreground mb-4">
-                  No hours logged for {formatDate(selectedDate)}
-                </p>
-                <Button onClick={() => setDialogOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Log Time
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+            <DialogFooter className="pt-2">
+              <button type="button" onClick={() => setDialogOpen(false)} className="px-4 py-2 text-[12px] text-[#555] hover:text-[#aaa] transition-colors">
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={submitting || !formData.worker_id || !formData.project_id}
+                className="flex items-center gap-1.5 px-4 py-2 rounded bg-[#2d3035] border border-[#333] text-[12px] text-[#F5A623] hover:bg-[#353840] transition-colors disabled:opacity-40"
+              >
+                {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                Save Entry
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

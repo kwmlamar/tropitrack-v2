@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
@@ -9,206 +8,181 @@ import {
   LayoutDashboard,
   FolderKanban,
   Users,
-  Users2,
   Clock,
   Package,
-  Truck,
   DollarSign,
-  BarChart3,
   Settings,
   LogOut,
+  ScanLine,
+  Target,
+  GanttChartSquare,
   ChevronLeft,
   ChevronRight,
   FileText,
-  Receipt,
-  CalendarDays,
-  Sparkles,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ClaudeIcon } from "@/components/icons/claude-icon";
 import { getInitials } from "@/lib/utils";
 import { useEffect, useState } from "react";
 
-const navigation = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "AI Assistant", href: "/assistant", icon: Sparkles, highlight: true },
-  { name: "Schedule", href: "/schedule", icon: CalendarDays },
-  { name: "Projects", href: "/projects", icon: FolderKanban },
-  { name: "Estimates", href: "/estimates", icon: FileText },
-  { name: "Invoices", href: "/invoices", icon: Receipt },
-  { name: "Clients", href: "/clients", icon: Users2 },
-  { name: "Workers", href: "/workers", icon: Users },
-  { name: "Time Tracking", href: "/time-tracking", icon: Clock },
-  { name: "Materials", href: "/materials", icon: Package },
-  { name: "Vendors", href: "/vendors", icon: Truck },
-  { name: "Payroll", href: "/payroll", icon: DollarSign },
-  { name: "Reports", href: "/reports", icon: BarChart3 },
+const NAV_MAIN = [
+  { name: "Dashboard",    href: "/dashboard",     icon: LayoutDashboard },
+  { name: "Claude",        href: "/assistant",     icon: ClaudeIcon },
+  { name: "Jobs",         href: "/projects",      icon: FolderKanban },
+  { name: "Estimates",   href: "/estimates",     icon: FileText },
+  { name: "Gantt",        href: "/gantt",         icon: GanttChartSquare },
+  { name: "Crew",         href: "/workers",       icon: Users },
+  { name: "Time",         href: "/time-tracking", icon: Clock },
+  { name: "Materials",    href: "/materials",     icon: Package },
+  { name: "Receipts",     href: "/receipts",      icon: ScanLine },
+  { name: "Payroll",      href: "/payroll",       icon: DollarSign },
+  { name: "Goals",        href: "/goals",         icon: Target },
+];
+
+const NAV_BOTTOM = [
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
   const { profile, signOut } = useAuth();
-  // "Pinned" = the user intentionally set open/closed (Ctrl toggles this)
-  const [pinnedOpen, setPinnedOpen] = useState(true);
-  // "Hover open" = temporary open while cursor is over the sidebar when pinned closed
-  const [hoverOpen, setHoverOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
-  const isOpen = pinnedOpen || hoverOpen;
-  const collapsed = !isOpen;
+  const isOpen = !collapsed;
 
   useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      // User-requested: pressing Control toggles the pinned state.
-      if (e.key === "Control" && !e.repeat) {
-        setPinnedOpen((v) => !v);
-      }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Control" && !e.repeat) setCollapsed((v) => !v);
     };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  const isActive = (href: string) =>
+    pathname === href || pathname.startsWith(`${href}/`);
+
   return (
-    <div
-      onMouseEnter={() => {
-        if (!pinnedOpen) setHoverOpen(true);
-      }}
-      onMouseLeave={() => {
-        setHoverOpen(false);
-      }}
+    <aside
       className={cn(
-        "hidden md:flex flex-col border-r bg-card transition-all duration-300",
-        collapsed ? "w-[70px]" : "w-[250px]"
+        "hidden md:flex flex-col h-screen bg-[#18191b] border-r border-[#34373c] transition-all duration-200 flex-shrink-0",
+        isOpen ? "w-[200px]" : "w-[52px]"
       )}
     >
-      {/* Logo */}
+      {/* Wordmark */}
       <div className={cn(
-        "flex h-16 items-center border-b",
-        collapsed ? "justify-center" : "justify-between"
+        "flex items-center h-12 border-b border-[#34373c] px-3 flex-shrink-0",
+        !isOpen && "justify-center px-0"
       )}>
-        <Link href="/dashboard" className={cn(
-          "flex items-center",
-          collapsed ? "justify-center" : "gap-2 px-2"
-        )}>
-          <div className="h-16 w-16 flex items-center justify-center flex-shrink-0 relative">
-            <Image
-              src="/logo.png"
-              alt="TropiTrack Logo"
-              width={64}
-              height={64}
-              className="object-contain"
-              priority
-            />
-          </div>
-          {!collapsed && (
-            <span className="font-bold text-lg">TropiTrack</span>
-          )}
-        </Link>
-        {!collapsed && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 mr-2"
-            onClick={() => setPinnedOpen((v) => !v)}
-            title={pinnedOpen ? "Collapse sidebar (Ctrl)" : "Pin sidebar open (Ctrl)"}
-            aria-label={pinnedOpen ? "Collapse sidebar" : "Pin sidebar open"}
-          >
-            {pinnedOpen ? (
-              <ChevronLeft className="h-4 w-4" />
-            ) : (
-              <ChevronRight className="h-4 w-4" />
-            )}
-          </Button>
-        )}
-      </div>
-
-      {/* Navigation */}
-      <ScrollArea className="flex-1 py-4">
-        <nav className="space-y-1 px-2">
-          {navigation.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
-            const isHighlight = "highlight" in item && item.highlight;
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                  isActive
-                    ? "bg-primary text-primary-foreground"
-                    : isHighlight
-                    ? "text-primary hover:bg-primary/10"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                )}
-                title={collapsed ? item.name : undefined}
-              >
-                <item.icon className={cn("h-5 w-5 flex-shrink-0", isHighlight && !isActive && "text-primary")} />
-                {!collapsed && (
-                  <span className="flex items-center gap-2">
-                    {item.name}
-                    {isHighlight && !isActive && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold">
-                        NEW
-                      </span>
-                    )}
-                  </span>
-                )}
-              </Link>
-            );
-          })}
-        </nav>
-      </ScrollArea>
-
-      {/* User Profile */}
-      <div className="border-t p-4">
-        {!collapsed ? (
-          <div className="flex items-center gap-3">
-            <Avatar className="h-9 w-9">
-              <AvatarImage src={profile?.avatar_url || ""} />
-              <AvatarFallback>
-                {profile?.full_name ? getInitials(profile.full_name) : "U"}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">
-                {profile?.full_name || "User"}
-              </p>
-              <p className="text-xs text-muted-foreground capitalize">
-                {profile?.role?.replace("_", " ") || "User"}
-              </p>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 flex-shrink-0"
-              onClick={() => signOut()}
-              title="Sign out"
+        {isOpen ? (
+          <div className="flex items-center justify-between w-full">
+            <span className="font-mono text-[11px] font-semibold tracking-[0.22em] text-[#d0d0d0] uppercase select-none">
+              Bedrock
+            </span>
+            <button
+              onClick={() => setCollapsed((v) => !v)}
+              className="text-[#555] hover:text-[#999] transition-colors p-1 rounded"
+              title="Collapse sidebar"
             >
-              <LogOut className="h-4 w-4" />
-            </Button>
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </button>
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-2">
-            <Avatar className="h-9 w-9">
-              <AvatarImage src={profile?.avatar_url || ""} />
-              <AvatarFallback>
-                {profile?.full_name ? getInitials(profile.full_name) : "U"}
-              </AvatarFallback>
-            </Avatar>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => signOut()}
-              title="Sign out"
-            >
-              <LogOut className="h-4 w-4" />
-            </Button>
-          </div>
+          <button
+            onClick={() => setCollapsed(false)}
+            className="text-[#555] hover:text-[#999] transition-colors"
+            title="Expand sidebar"
+          >
+            <ChevronRight className="h-3.5 w-3.5" />
+          </button>
         )}
       </div>
-    </div>
+
+      {/* Main nav */}
+      <nav className="flex-1 py-2 overflow-hidden">
+        <ul className="space-y-px px-1.5">
+          {NAV_MAIN.map((item) => {
+            const active = isActive(item.href);
+            return (
+              <li key={item.href}>
+                <Link
+                  href={item.href}
+                  title={!isOpen ? item.name : undefined}
+                  className={cn(
+                    "flex items-center gap-2.5 rounded px-2 py-[7px] text-[13px] transition-colors duration-100 group",
+                    active
+                      ? "bg-[#2d3035] text-[#d8d8d8] border-l-2 border-[#F5A623] pl-[6px]"
+                      : "text-[#888] hover:text-[#bcbcbc] hover:bg-[#252729] border-l-2 border-transparent pl-[6px]"
+                  )}
+                >
+                  <item.icon
+                    className={cn(
+                      "h-4 w-4 flex-shrink-0 transition-colors",
+                      active ? "text-[#F5A623]" : "text-[#666] group-hover:text-[#999]"
+                    )}
+                  />
+                  {isOpen && (
+                    <span className="truncate font-medium">{item.name}</span>
+                  )}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+
+      {/* Bottom nav */}
+      <div className="border-t border-[#34373c] py-2 px-1.5">
+        <ul className="space-y-px mb-2">
+          {NAV_BOTTOM.map((item) => {
+            const active = isActive(item.href);
+            return (
+              <li key={item.href}>
+                <Link
+                  href={item.href}
+                  title={!isOpen ? item.name : undefined}
+                  className={cn(
+                    "flex items-center gap-2.5 rounded px-2 py-[7px] text-[13px] transition-colors duration-100 group",
+                    active
+                      ? "bg-[#2d3035] text-[#d8d8d8] border-l-2 border-[#F5A623] pl-[6px]"
+                      : "text-[#888] hover:text-[#bcbcbc] hover:bg-[#252729] border-l-2 border-transparent pl-[6px]"
+                  )}
+                >
+                  <item.icon className={cn(
+                    "h-4 w-4 flex-shrink-0",
+                    active ? "text-[#F5A623]" : "text-[#666] group-hover:text-[#999]"
+                  )} />
+                  {isOpen && <span className="truncate font-medium">{item.name}</span>}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+
+        {/* User row */}
+        <div className={cn(
+          "flex items-center gap-2 rounded px-2 py-1.5",
+          !isOpen && "justify-center px-0"
+        )}>
+          <div className="flex-shrink-0 h-6 w-6 rounded-full bg-[#3a3d42] flex items-center justify-center text-[10px] font-mono font-semibold text-[#aaa]">
+            {profile?.full_name ? getInitials(profile.full_name) : "—"}
+          </div>
+          {isOpen && (
+            <>
+              <div className="flex-1 min-w-0">
+                <p className="text-[12px] font-medium text-[#888] truncate">
+                  {profile?.full_name || profile?.email || "User"}
+                </p>
+              </div>
+              <button
+                onClick={() => signOut()}
+                className="text-[#555] hover:text-[#999] transition-colors"
+                title="Sign out"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </aside>
   );
 }

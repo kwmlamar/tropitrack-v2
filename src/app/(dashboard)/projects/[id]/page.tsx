@@ -3,40 +3,36 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Header } from "@/components/layout/header";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 import {
   formatCurrency,
   formatDate,
-  getProjectStatusColor,
   calculatePercentage,
 } from "@/lib/utils";
-import {
-  Pencil,
-  Trash2,
-  Calendar,
-  MapPin,
-  User,
-  Mail,
-  Phone,
-  DollarSign,
-  Clock,
-  Package,
-  FileText,
-  CheckCircle2,
-  Circle,
-  Plus,
-  Truck,
-  Receipt,
-} from "lucide-react";
 import type { Project, ProjectMilestone, TimeEntry, MaterialAllocation, PurchaseOrder } from "@/types";
+
+const STATUS_DOT: Record<string, string> = {
+  active:      "bg-[#22C55E]",
+  in_progress: "bg-[#22C55E]",
+  planning:    "bg-[#3B82F6]",
+  not_started: "bg-[#3B82F6]",
+  completed:   "bg-[#404040]",
+  paused:      "bg-[#F5A623]",
+  on_hold:     "bg-[#F5A623]",
+  cancelled:   "bg-[#EF4444]",
+};
+
+type Tab = "overview" | "milestones" | "costs" | "purchases" | "time" | "materials";
+const TABS: { id: Tab; label: string }[] = [
+  { id: "overview",   label: "Overview"   },
+  { id: "milestones", label: "Milestones" },
+  { id: "costs",      label: "Costs"      },
+  { id: "purchases",  label: "Purchases"  },
+  { id: "time",       label: "Time"       },
+  { id: "materials",  label: "Materials"  },
+];
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -48,88 +44,40 @@ export default function ProjectDetailPage() {
   const [allocations, setAllocations] = useState<MaterialAllocation[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [costSummary, setCostSummary] = useState({
-    labor: 0,
-    materials: 0,
-    equipment: 0,
-    overhead: 0,
-    total: 0,
-  });
+  const [activeTab, setActiveTab] = useState<Tab>("overview");
+  const [costSummary, setCostSummary] = useState({ labor: 0, materials: 0, equipment: 0, overhead: 0, total: 0 });
   const supabase = createClient();
 
   useEffect(() => {
-    if (params.id) {
-      fetchProjectData();
-    }
+    if (params.id) fetchProjectData();
   }, [params.id]);
 
   const fetchProjectData = async () => {
     try {
-      // Fetch project
       const { data: projectData, error: projectError } = await supabase
-        .from("projects")
-        .select("*")
-        .eq("id", params.id)
-        .single();
-
+        .from("projects").select("*").eq("id", params.id).single();
       if (projectError) throw projectError;
       setProject(projectData);
 
-      // Fetch milestones
-      const { data: milestonesData } = await supabase
-        .from("project_milestones")
-        .select("*")
-        .eq("project_id", params.id)
-        .order("order_index");
+      const [milestonesRes, timeRes, allocRes, poRes, costRes] = await Promise.all([
+        supabase.from("project_milestones").select("*").eq("project_id", params.id).order("order_index"),
+        supabase.from("time_entries").select("*, workers(first_name, last_name)").eq("project_id", params.id).order("date", { ascending: false }).limit(10),
+        supabase.from("material_allocations").select("*, materials(name, unit, unit_cost)").eq("project_id", params.id).order("allocated_date", { ascending: false }),
+        supabase.from("purchase_orders").select("*, vendors(name)").eq("project_id", params.id).order("order_date", { ascending: false }),
+        supabase.from("project_cost_summary").select("*").eq("project_id", params.id).single(),
+      ]);
 
-      setMilestones(milestonesData || []);
-
-      // Fetch recent time entries (filtered by company_id)
-      let timeQuery = supabase
-        .from("time_entries")
-        .select("*, workers(first_name, last_name)")
-        .eq("project_id", params.id);
-      
-      // Note: We get profile from useAuth, but need to check if it's available
-      // For now, RLS policies will handle company filtering
-      const { data: timeData } = await timeQuery
-        .order("date", { ascending: false })
-        .limit(10);
-
-      setTimeEntries(timeData || []);
-
-      // Fetch material allocations
-      const { data: allocData } = await supabase
-        .from("material_allocations")
-        .select("*, materials(name, unit, unit_cost)")
-        .eq("project_id", params.id)
-        .order("allocated_date", { ascending: false });
-
-      setAllocations(allocData || []);
-
-      // Fetch purchase orders linked to this project
-      const { data: poData } = await supabase
-        .from("purchase_orders")
-        .select("*, vendors(name)")
-        .eq("project_id", params.id)
-        .order("order_date", { ascending: false });
-
-      setPurchaseOrders(poData || []);
-
-      // Fetch cost summary from view
-      const { data: costData } = await supabase
-        .from("project_cost_summary")
-        .select("*")
-        .eq("project_id", params.id)
-        .single();
-
-      if (costData) {
+      setMilestones(milestonesRes.data || []);
+      setTimeEntries(timeRes.data || []);
+      setAllocations(allocRes.data || []);
+      setPurchaseOrders(poRes.data || []);
+      if (costRes.data) {
         setCostSummary({
-          labor: costData.labor_cost || 0,
-          materials: costData.material_cost || 0,
-          equipment: costData.equipment_cost || 0,
-          overhead: costData.overhead_cost || 0,
-          total: costData.total_cost || 0,
+          labor:     costRes.data.labor_cost    || 0,
+          materials: costRes.data.material_cost || 0,
+          equipment: costRes.data.equipment_cost|| 0,
+          overhead:  costRes.data.overhead_cost || 0,
+          total:     costRes.data.total_cost    || 0,
         });
       }
     } catch (error) {
@@ -140,676 +88,444 @@ export default function ProjectDetailPage() {
   };
 
   const handleDelete = async () => {
-    if (!confirm("Are you sure you want to delete this project? This action cannot be undone.")) {
+    if (!confirm("Delete this project?")) return;
+    const { data, error } = await supabase.from("projects").delete().eq("id", params.id).select();
+    if (error || !data?.length) {
+      toast({ title: "Could not delete", variant: "destructive" });
       return;
     }
-
-    try {
-      const { data, error } = await supabase
-        .from("projects")
-        .delete()
-        .eq("id", params.id)
-        .select();
-      
-      if (error) {
-        console.error("Error deleting project:", error);
-        toast({
-          title: "Error deleting project",
-          description: error.message || "An error occurred while deleting the project.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Check if anything was actually deleted
-      if (!data || data.length === 0) {
-        toast({
-          title: "Cannot delete project",
-          description: "The project could not be deleted. This may be due to database permissions.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      toast({
-        title: "Project deleted",
-        description: "The project has been successfully deleted.",
-        variant: "success",
-      });
-
-      router.push("/projects");
-    } catch (error) {
-      console.error("Error deleting project:", error);
-      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred";
-      toast({
-        title: "Error deleting project",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    }
+    toast({ title: "Deleted" });
+    router.push("/projects");
   };
-
-  const completedMilestones = milestones.filter((m) => m.is_completed).length;
-  const milestoneProgress = milestones.length > 0
-    ? calculatePercentage(completedMilestones, milestones.length)
-    : 0;
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+      <div className="flex items-center justify-center h-full bg-[#18191b]">
+        <div className="h-5 w-5 rounded-full border border-[#333] border-t-[#F5A623] animate-spin" />
       </div>
     );
   }
 
   if (!project) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen">
-        <h2 className="text-xl font-semibold mb-2">Project not found</h2>
-        <Link href="/projects">
-          <Button>Back to Projects</Button>
-        </Link>
+      <div className="flex flex-col items-center justify-center h-full bg-[#18191b]">
+        <p className="text-[13px] text-[#555]">Project not found</p>
+        <Link href="/projects" className="mt-3 text-[12px] text-[#F5A623] hover:opacity-80">← Back to jobs</Link>
       </div>
     );
   }
 
+  const completedMilestones = milestones.filter((m) => m.is_completed).length;
+  const milestoneProgress = milestones.length > 0 ? calculatePercentage(completedMilestones, milestones.length) : 0;
   const budgetUsed = calculatePercentage(costSummary.total, project.budget);
+  const poTotal = purchaseOrders.reduce((s, po) => s + (po.total_amount || 0), 0);
+  const grandTotal = costSummary.total + poTotal;
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <Header title={project.name} description={project.location}>
-        <div className="flex gap-2">
-          <Link href={`/projects/${project.id}/edit`}>
-            <Button variant="outline">
-              <Pencil className="h-4 w-4 mr-2" />
-              Edit
-            </Button>
+    <div className="flex flex-col h-full overflow-auto bg-[#18191b]">
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-[#34373c] flex-shrink-0">
+        <div className="flex items-center gap-4 min-w-0">
+          <Link href="/projects" className="text-[11px] font-mono text-[#555] hover:text-[#999] transition-colors flex-shrink-0">
+            ← Jobs
           </Link>
-          <Button variant="destructive" onClick={handleDelete}>
-            <Trash2 className="h-4 w-4 mr-2" />
+          <div className="h-3 w-px bg-[#3a3d42] flex-shrink-0" />
+          <div className="min-w-0">
+            <p className="text-[11px] font-mono text-[#666] uppercase tracking-widest truncate">{project.location}</p>
+            <h1 className="text-[16px] font-semibold text-[#d0d0d0] mt-0.5 truncate">{project.name}</h1>
+          </div>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <span className={cn("h-1.5 w-1.5 rounded-full", STATUS_DOT[project.status] ?? "bg-[#404040]")} />
+            <span className="text-[11px] font-mono text-[#666] capitalize">{project.status.replace("_", " ")}</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <Link href={`/projects/${project.id}/edit`} className="text-[12px] text-[#666] hover:text-[#aaa] transition-colors">
+            Edit
+          </Link>
+          <button onClick={handleDelete} className="text-[12px] text-[#666] hover:text-[#EF4444] transition-colors">
             Delete
-          </Button>
+          </button>
         </div>
-      </Header>
+      </div>
 
-      <div className="flex-1 p-6 space-y-6">
-        {/* Overview Cards */}
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Status
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Badge className={`${getProjectStatusColor(project.status)} text-sm`}>
-                {project.status.replace("_", " ")}
-              </Badge>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Budget
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">{formatCurrency(project.budget)}</p>
-              <Progress value={budgetUsed} className="mt-2 h-2" />
-              <p className="text-xs text-muted-foreground mt-1">
-                {budgetUsed.toFixed(1)}% used
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Contract Value
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">{formatCurrency(project.contract_value)}</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Est. Profit: {formatCurrency(project.contract_value - costSummary.total)}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Milestones
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">
-                {completedMilestones}/{milestones.length}
-              </p>
-              <Progress value={milestoneProgress} className="mt-2 h-2" />
-              <p className="text-xs text-muted-foreground mt-1">
-                {milestoneProgress.toFixed(0)}% complete
-              </p>
-            </CardContent>
-          </Card>
+      {/* Stats row */}
+      <div className="px-6 py-4 border-b border-[#34373c] grid grid-cols-4 gap-3 flex-shrink-0">
+        <div className="rounded border border-[#34373c] bg-[#202224] px-4 py-3.5">
+          <p className="text-[11px] font-mono text-[#666] uppercase tracking-wider">Budget</p>
+          <p className="text-[20px] font-semibold font-mono text-[#d0d0d0] mt-1 leading-none">
+            {formatCurrency(project.budget)}
+          </p>
+          <div className="mt-2 h-[2px] bg-[#222] rounded-full overflow-hidden">
+            <div
+              className={cn("h-full rounded-full transition-all", budgetUsed > 90 ? "bg-[#EF4444]" : "bg-[#F5A623]")}
+              style={{ width: `${Math.min(budgetUsed, 100)}%` }}
+            />
+          </div>
+          <p className="text-[10px] font-mono text-[#555] mt-1">{budgetUsed.toFixed(1)}% used</p>
         </div>
 
-        {/* Main Content Tabs */}
-        <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="milestones">Milestones</TabsTrigger>
-            <TabsTrigger value="costs">Costs</TabsTrigger>
-            <TabsTrigger value="purchases">Purchases</TabsTrigger>
-            <TabsTrigger value="time">Time Entries</TabsTrigger>
-            <TabsTrigger value="materials">Materials</TabsTrigger>
-          </TabsList>
+        <div className="rounded border border-[#34373c] bg-[#202224] px-4 py-3.5">
+          <p className="text-[11px] font-mono text-[#666] uppercase tracking-wider">Contract</p>
+          <p className="text-[20px] font-semibold font-mono text-[#d0d0d0] mt-1 leading-none">
+            {formatCurrency(project.contract_value)}
+          </p>
+          <p className={cn(
+            "text-[10px] font-mono mt-1",
+            project.contract_value - grandTotal < 0 ? "text-[#EF4444]" : "text-[#22C55E]"
+          )}>
+            {project.contract_value - grandTotal >= 0 ? "+" : ""}{formatCurrency(project.contract_value - grandTotal)} profit
+          </p>
+        </div>
 
-          <TabsContent value="overview" className="space-y-4">
-            <div className="grid gap-6 lg:grid-cols-2">
-              {/* Project Info */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Project Information</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {project.description && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Description</p>
-                      <p className="mt-1">{project.description}</p>
-                    </div>
-                  )}
-                  <Separator />
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Location</p>
-                        <p className="font-medium">{project.location}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Start Date</p>
-                        <p className="font-medium">{formatDate(project.start_date)}</p>
-                      </div>
-                    </div>
-                    {project.estimated_end_date && (
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm text-muted-foreground">Est. End Date</p>
-                          <p className="font-medium">{formatDate(project.estimated_end_date)}</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+        <div className="rounded border border-[#34373c] bg-[#202224] px-4 py-3.5">
+          <p className="text-[11px] font-mono text-[#666] uppercase tracking-wider">Milestones</p>
+          <p className="text-[20px] font-semibold font-mono text-[#d0d0d0] mt-1 leading-none">
+            {completedMilestones}<span className="text-[#555]">/{milestones.length}</span>
+          </p>
+          <div className="mt-2 h-[2px] bg-[#222] rounded-full overflow-hidden">
+            <div className="h-full bg-[#22C55E] rounded-full" style={{ width: `${milestoneProgress}%` }} />
+          </div>
+          <p className="text-[10px] font-mono text-[#555] mt-1">{milestoneProgress.toFixed(0)}% complete</p>
+        </div>
 
-              {/* Client Info */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Client Information</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <User className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-sm text-muted-foreground">Client Name</p>
-                      <p className="font-medium">{project.client_name}</p>
-                    </div>
-                  </div>
-                  {project.client_email && (
-                    <div className="flex items-center gap-2">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Email</p>
-                        <a href={`mailto:${project.client_email}`} className="font-medium text-primary hover:underline">
-                          {project.client_email}
-                        </a>
-                      </div>
-                    </div>
-                  )}
-                  {project.client_phone && (
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Phone</p>
-                        <a href={`tel:${project.client_phone}`} className="font-medium text-primary hover:underline">
-                          {project.client_phone}
-                        </a>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
+        <div className="rounded border border-[#34373c] bg-[#202224] px-4 py-3.5">
+          <p className="text-[11px] font-mono text-[#666] uppercase tracking-wider">Started</p>
+          <p className="text-[15px] font-semibold font-mono text-[#d0d0d0] mt-1">{formatDate(project.start_date)}</p>
+          {project.estimated_end_date && (
+            <p className="text-[11px] font-mono text-[#555] mt-1">ends {formatDate(project.estimated_end_date)}</p>
+          )}
+        </div>
+      </div>
 
-          <TabsContent value="milestones" className="space-y-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Project Milestones</CardTitle>
-                  <CardDescription>Track key project phases and deadlines</CardDescription>
-                </div>
-                <Button size="sm">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Milestone
-                </Button>
-              </CardHeader>
-              <CardContent>
-                {milestones.length > 0 ? (
-                  <div className="space-y-4">
-                    {milestones.map((milestone) => (
-                      <div
-                        key={milestone.id}
-                        className="flex items-center gap-4 p-4 rounded-lg border"
-                      >
-                        {milestone.is_completed ? (
-                          <CheckCircle2 className="h-6 w-6 text-green-500" />
-                        ) : (
-                          <Circle className="h-6 w-6 text-muted-foreground" />
-                        )}
-                        <div className="flex-1">
-                          <p className="font-medium">{milestone.name}</p>
-                          {milestone.description && (
-                            <p className="text-sm text-muted-foreground">{milestone.description}</p>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm text-muted-foreground">Due Date</p>
-                          <p className="font-medium">{formatDate(milestone.due_date)}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">No milestones defined yet</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="costs" className="space-y-4">
-            {(() => {
-              const poTotal = purchaseOrders.reduce((sum, po) => sum + (po.total_amount || 0), 0);
-              const grandTotal = costSummary.total + poTotal;
-              return (
-                <>
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">
-                          Labor Costs
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-2xl font-bold">{formatCurrency(costSummary.labor)}</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">
-                          Material Costs
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-2xl font-bold">{formatCurrency(costSummary.materials)}</p>
-                      </CardContent>
-                    </Card>
-                    <Card className="border-primary/50 bg-primary/5">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-                          <Receipt className="h-3 w-3" />
-                          Purchase Orders
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-2xl font-bold">{formatCurrency(poTotal)}</p>
-                        <p className="text-xs text-muted-foreground">{purchaseOrders.length} POs</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">
-                          Equipment Costs
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-2xl font-bold">{formatCurrency(costSummary.equipment)}</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">
-                          Overhead
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-2xl font-bold">{formatCurrency(costSummary.overhead)}</p>
-                      </CardContent>
-                    </Card>
-                  </div>
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Total Project Cost</CardTitle>
-                      <CardDescription>
-                        Including labor, materials, purchase orders, equipment, and overhead
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-3xl font-bold">{formatCurrency(grandTotal)}</p>
-                      <div className="mt-4 space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span>Labor</span>
-                          <span>{calculatePercentage(costSummary.labor, grandTotal || 1).toFixed(1)}%</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span>Materials (allocated)</span>
-                          <span>{calculatePercentage(costSummary.materials, grandTotal || 1).toFixed(1)}%</span>
-                        </div>
-                        <div className="flex justify-between text-sm font-medium text-primary">
-                          <span className="flex items-center gap-1">
-                            <Receipt className="h-3 w-3" />
-                            Purchase Orders
-                          </span>
-                          <span>{calculatePercentage(poTotal, grandTotal || 1).toFixed(1)}%</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span>Equipment</span>
-                          <span>{calculatePercentage(costSummary.equipment, grandTotal || 1).toFixed(1)}%</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span>Overhead</span>
-                          <span>{calculatePercentage(costSummary.overhead, grandTotal || 1).toFixed(1)}%</span>
-                        </div>
-                      </div>
-                      <Separator className="my-4" />
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <p className="text-muted-foreground">Budget</p>
-                          <p className="font-medium">{formatCurrency(project.budget)}</p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground">Remaining</p>
-                          <p className={`font-medium ${project.budget - grandTotal < 0 ? "text-red-600" : "text-green-600"}`}>
-                            {formatCurrency(project.budget - grandTotal)}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground">Contract Value</p>
-                          <p className="font-medium">{formatCurrency(project.contract_value)}</p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground">Est. Profit</p>
-                          <p className={`font-medium ${project.contract_value - grandTotal < 0 ? "text-red-600" : "text-green-600"}`}>
-                            {formatCurrency(project.contract_value - grandTotal)}
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </>
-              );
-            })()}
-          </TabsContent>
-
-          <TabsContent value="purchases" className="space-y-4">
-            {/* PO Summary */}
-            <div className="grid gap-4 md:grid-cols-3">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">
-                    Total PO Spend
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold">
-                    {formatCurrency(purchaseOrders.reduce((sum, po) => sum + (po.total_amount || 0), 0))}
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">
-                    Purchase Orders
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold">{purchaseOrders.length}</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">
-                    Vendors Used
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold">
-                    {new Set(purchaseOrders.map((po) => po.vendor_id)).size}
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Vendor Spending Breakdown */}
-            {purchaseOrders.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Spending by Vendor</CardTitle>
-                  <CardDescription>Material purchases for this project</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {(() => {
-                      const vendorTotals = new Map<string, { name: string; total: number; count: number }>();
-                      purchaseOrders.forEach((po) => {
-                        const vendorId = po.vendor_id || "unknown";
-                        const existing = vendorTotals.get(vendorId) || { name: po.vendors?.name || "Unknown", total: 0, count: 0 };
-                        existing.total += po.total_amount || 0;
-                        existing.count += 1;
-                        vendorTotals.set(vendorId, existing);
-                      });
-                      const sorted = Array.from(vendorTotals.values()).sort((a, b) => b.total - a.total);
-                      const maxTotal = sorted[0]?.total || 1;
-                      return sorted.map((vendor, idx) => (
-                        <div key={idx} className="space-y-1">
-                          <div className="flex justify-between text-sm">
-                            <span className="font-medium flex items-center gap-2">
-                              <Truck className="h-3 w-3" />
-                              {vendor.name}
-                            </span>
-                            <span className="text-muted-foreground">
-                              {vendor.count} PO{vendor.count !== 1 ? "s" : ""} • {formatCurrency(vendor.total)}
-                            </span>
-                          </div>
-                          <div className="h-2 bg-muted rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-primary rounded-full"
-                              style={{ width: `${(vendor.total / maxTotal) * 100}%` }}
-                            />
-                          </div>
-                        </div>
-                      ));
-                    })()}
-                  </div>
-                </CardContent>
-              </Card>
+      {/* Tabs */}
+      <div className="px-6 flex items-center gap-0 border-b border-[#34373c] flex-shrink-0">
+        {TABS.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={cn(
+              "px-4 py-3 text-[12px] font-mono transition-colors border-b-2 -mb-px",
+              activeTab === tab.id
+                ? "text-[#d0d0d0] border-[#F5A623]"
+                : "text-[#555] border-transparent hover:text-[#999]"
             )}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-            {/* Purchase Orders List */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Purchase Orders</CardTitle>
-                  <CardDescription>All vendor purchases for this project</CardDescription>
-                </div>
-                <Link href="/vendors?tab=purchase-orders">
-                  <Button size="sm">
-                    <Plus className="h-4 w-4 mr-2" />
-                    New PO
-                  </Button>
-                </Link>
-              </CardHeader>
-              <CardContent>
-                {purchaseOrders.length > 0 ? (
-                  <div className="space-y-3">
-                    {purchaseOrders.map((po) => (
-                      <div
-                        key={po.id}
-                        className="flex items-center justify-between p-4 rounded-lg border"
-                      >
-                        <div className="flex items-center gap-3">
-                          {po.receipt_image_path ? (
-                            <Receipt className="h-5 w-5 text-green-500" />
-                          ) : (
-                            <FileText className="h-5 w-5 text-muted-foreground" />
-                          )}
-                          <div>
-                            <p className="font-medium">{po.po_number}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {po.vendors?.name} • {po.order_date ? formatDate(po.order_date) : "No date"}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-bold">{formatCurrency(po.total_amount)}</p>
-                          <Badge
-                            variant="outline"
-                            className={
-                              po.status === "approved" || po.status === "received"
-                                ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
-                                : po.status === "draft"
-                                ? "bg-neutral-100 text-neutral-600"
-                                : "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
-                            }
-                          >
-                            {po.status}
-                          </Badge>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground">No purchase orders linked to this project</p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Create a PO and assign it to this project to track material costs
-                    </p>
+      {/* Tab content */}
+      <div className="flex-1 p-6 overflow-auto">
+
+        {/* OVERVIEW */}
+        {activeTab === "overview" && (
+          <div className="grid grid-cols-2 gap-4">
+            <div className="rounded border border-[#34373c] bg-[#202224]">
+              <div className="px-4 py-3 border-b border-[#2d3035]">
+                <span className="text-[11px] font-mono text-[#666] uppercase tracking-widest">Job Info</span>
+              </div>
+              <div className="px-4 py-4 space-y-3">
+                {project.description && (
+                  <div>
+                    <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest mb-1">Description</p>
+                    <p className="text-[13px] text-[#777]">{project.description}</p>
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="time" className="space-y-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Time Entries</CardTitle>
-                  <CardDescription>Recent worker hours logged</CardDescription>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest mb-1">Location</p>
+                    <p className="text-[13px] text-[#aaa]">{project.location}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest mb-1">Start</p>
+                    <p className="text-[13px] text-[#aaa]">{formatDate(project.start_date)}</p>
+                  </div>
                 </div>
-                <Link href={`/time-tracking?project=${project.id}`}>
-                  <Button size="sm">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Log Time
-                  </Button>
+              </div>
+            </div>
+
+            <div className="rounded border border-[#34373c] bg-[#202224]">
+              <div className="px-4 py-3 border-b border-[#2d3035]">
+                <span className="text-[11px] font-mono text-[#666] uppercase tracking-widest">Client</span>
+              </div>
+              <div className="px-4 py-4 space-y-2.5">
+                <p className="text-[14px] font-semibold text-[#c4c4c4]">{project.client_name}</p>
+                {project.client_email && (
+                  <a href={`mailto:${project.client_email}`} className="block text-[13px] text-[#777] hover:text-[#aaa] transition-colors">
+                    {project.client_email}
+                  </a>
+                )}
+                {project.client_phone && (
+                  <a href={`tel:${project.client_phone}`} className="block text-[13px] text-[#777] hover:text-[#aaa] transition-colors">
+                    {project.client_phone}
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MILESTONES */}
+        {activeTab === "milestones" && (
+          <div className="rounded border border-[#34373c] bg-[#202224] overflow-hidden">
+            <div className="px-4 py-3 border-b border-[#2d3035] flex items-center justify-between">
+              <span className="text-[11px] font-mono text-[#666] uppercase tracking-widest">Milestones</span>
+              <span className="text-[11px] font-mono text-[#555]">{completedMilestones}/{milestones.length} done</span>
+            </div>
+            {milestones.length === 0 ? (
+              <div className="py-12 text-center">
+                <p className="text-[13px] text-[#555]">No milestones defined</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-[#292c31]">
+                {milestones.map((m) => (
+                  <div key={m.id} className="flex items-center gap-4 px-4 py-3.5">
+                    <div className={cn(
+                      "h-2 w-2 rounded-full flex-shrink-0",
+                      m.is_completed ? "bg-[#22C55E]" : "bg-[#3a3d42] border border-[#444]"
+                    )} />
+                    <div className="flex-1 min-w-0">
+                      <p className={cn("text-[13px]", m.is_completed ? "text-[#555] line-through" : "text-[#aaa]")}>
+                        {m.name}
+                      </p>
+                      {m.description && (
+                        <p className="text-[11px] text-[#555] mt-0.5 truncate">{m.description}</p>
+                      )}
+                    </div>
+                    <p className="text-[11px] font-mono text-[#555] flex-shrink-0">{formatDate(m.due_date)}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* COSTS */}
+        {activeTab === "costs" && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-5 gap-3">
+              {[
+                { label: "Labor",     value: costSummary.labor },
+                { label: "Materials", value: costSummary.materials },
+                { label: "POs",       value: poTotal },
+                { label: "Equipment", value: costSummary.equipment },
+                { label: "Overhead",  value: costSummary.overhead },
+              ].map((c) => (
+                <div key={c.label} className="rounded border border-[#34373c] bg-[#202224] px-4 py-3.5">
+                  <p className="text-[11px] font-mono text-[#666] uppercase tracking-wider">{c.label}</p>
+                  <p className="text-[18px] font-semibold font-mono text-[#d0d0d0] mt-1 leading-none">
+                    {formatCurrency(c.value)}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="rounded border border-[#34373c] bg-[#202224]">
+              <div className="px-4 py-3 border-b border-[#2d3035]">
+                <span className="text-[11px] font-mono text-[#666] uppercase tracking-widest">Total Cost Breakdown</span>
+              </div>
+              <div className="px-4 py-4 space-y-3">
+                <p className="text-[28px] font-semibold font-mono text-[#F5A623]">{formatCurrency(grandTotal)}</p>
+                <div className="space-y-1.5">
+                  {[
+                    { label: "Labor",              value: costSummary.labor },
+                    { label: "Materials (alloc.)", value: costSummary.materials },
+                    { label: "Purchase Orders",    value: poTotal },
+                    { label: "Equipment",          value: costSummary.equipment },
+                    { label: "Overhead",           value: costSummary.overhead },
+                  ].map((r) => (
+                    <div key={r.label} className="flex items-center gap-3">
+                      <div className="flex items-center justify-between flex-1">
+                        <span className="text-[12px] text-[#666]">{r.label}</span>
+                        <span className="text-[12px] font-mono text-[#555]">
+                          {calculatePercentage(r.value, grandTotal || 1).toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="w-32 h-[2px] bg-[#2d3035] rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-[#333] rounded-full"
+                          style={{ width: `${calculatePercentage(r.value, grandTotal || 1)}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="pt-3 border-t border-[#2d3035] grid grid-cols-4 gap-3">
+                  {[
+                    { label: "Budget",     value: formatCurrency(project.budget) },
+                    { label: "Remaining",  value: formatCurrency(project.budget - grandTotal), colored: true, val: project.budget - grandTotal },
+                    { label: "Contract",   value: formatCurrency(project.contract_value) },
+                    { label: "Est. Profit",value: formatCurrency(project.contract_value - grandTotal), colored: true, val: project.contract_value - grandTotal },
+                  ].map((r) => (
+                    <div key={r.label}>
+                      <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest mb-1">{r.label}</p>
+                      <p className={cn(
+                        "text-[13px] font-mono font-semibold",
+                        r.colored ? (r.val! < 0 ? "text-[#EF4444]" : "text-[#22C55E]") : "text-[#aaa]"
+                      )}>
+                        {r.value}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* PURCHASES */}
+        {activeTab === "purchases" && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { label: "PO Spend",  value: formatCurrency(poTotal) },
+                { label: "Orders",    value: purchaseOrders.length },
+                { label: "Vendors",   value: new Set(purchaseOrders.map((po) => po.vendor_id)).size },
+              ].map((s) => (
+                <div key={s.label} className="rounded border border-[#34373c] bg-[#202224] px-4 py-3.5">
+                  <p className="text-[11px] font-mono text-[#666] uppercase tracking-wider">{s.label}</p>
+                  <p className="text-[22px] font-semibold font-mono text-[#d0d0d0] mt-1 leading-none">{s.value}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="rounded border border-[#34373c] bg-[#202224] overflow-hidden">
+              <div className="px-4 py-3 border-b border-[#2d3035] flex items-center justify-between">
+                <span className="text-[11px] font-mono text-[#666] uppercase tracking-widest">Purchase Orders</span>
+                <Link href="/vendors?tab=purchase-orders" className="text-[11px] text-[#F5A623] hover:opacity-80">
+                  + New PO
                 </Link>
-              </CardHeader>
-              <CardContent>
-                {timeEntries.length > 0 ? (
-                  <div className="space-y-4">
-                    {timeEntries.map((entry: any) => (
-                      <div
-                        key={entry.id}
-                        className="flex items-center justify-between p-3 rounded-lg border"
-                      >
-                        <div>
-                          <p className="font-medium">
-                            {entry.workers?.first_name} {entry.workers?.last_name}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {formatDate(entry.date)}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-medium">{entry.regular_hours + entry.overtime_hours} hrs</p>
-                          {entry.overtime_hours > 0 && (
-                            <p className="text-xs text-orange-600">
-                              +{entry.overtime_hours} OT
-                            </p>
-                          )}
+              </div>
+              {purchaseOrders.length === 0 ? (
+                <div className="py-12 text-center">
+                  <p className="text-[13px] text-[#555]">No purchase orders linked</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-[#292c31]">
+                  {purchaseOrders.map((po) => (
+                    <div key={po.id} className="flex items-center justify-between px-4 py-3.5 hover:bg-[#23252a] transition-colors">
+                      <div>
+                        <p className="text-[13px] text-[#aaa] font-mono">{po.po_number}</p>
+                        <p className="text-[11px] text-[#555] mt-0.5">
+                          {po.vendors?.name} · {po.order_date ? formatDate(po.order_date) : "No date"}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[13px] font-mono font-semibold text-[#d0d0d0]">
+                          {formatCurrency(po.total_amount)}
+                        </p>
+                        <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                          <span className={cn(
+                            "h-1.5 w-1.5 rounded-full",
+                            po.status === "approved" || po.status === "received" ? "bg-[#22C55E]"
+                              : po.status === "draft" ? "bg-[#555]"
+                              : "bg-[#3B82F6]"
+                          )} />
+                          <span className="text-[10px] font-mono text-[#555] capitalize">{po.status}</span>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <Clock className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground">No time entries yet</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="materials" className="space-y-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Material Allocations</CardTitle>
-                  <CardDescription>Materials used on this project</CardDescription>
+                    </div>
+                  ))}
                 </div>
-                <Link href={`/materials?project=${project.id}`}>
-                  <Button size="sm">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Allocate Materials
-                  </Button>
-                </Link>
-              </CardHeader>
-              <CardContent>
-                {allocations.length > 0 ? (
-                  <div className="space-y-4">
-                    {allocations.map((alloc: any) => (
-                      <div
-                        key={alloc.id}
-                        className="flex items-center justify-between p-3 rounded-lg border"
-                      >
-                        <div>
-                          <p className="font-medium">{alloc.materials?.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {formatDate(alloc.allocated_date)}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-medium">
-                            {alloc.quantity} {alloc.materials?.unit}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {formatCurrency(alloc.quantity * (alloc.materials?.unit_cost || 0))}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground">No materials allocated yet</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* TIME */}
+        {activeTab === "time" && (
+          <div className="rounded border border-[#34373c] bg-[#202224] overflow-hidden">
+            <div className="px-4 py-3 border-b border-[#2d3035] flex items-center justify-between">
+              <span className="text-[11px] font-mono text-[#666] uppercase tracking-widest">Time Entries</span>
+              <Link
+                href={`/time-tracking?project=${project.id}`}
+                className="text-[11px] text-[#F5A623] hover:opacity-80"
+              >
+                + Log Time
+              </Link>
+            </div>
+            {timeEntries.length === 0 ? (
+              <div className="py-12 text-center">
+                <p className="text-[13px] text-[#555]">No time entries yet</p>
+              </div>
+            ) : (
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-[#292c31]">
+                    <th className="px-4 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555]">Worker</th>
+                    <th className="px-4 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555]">Date</th>
+                    <th className="px-4 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Reg</th>
+                    <th className="px-4 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">OT</th>
+                    <th className="px-4 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#292c31]">
+                  {timeEntries.map((entry: any) => (
+                    <tr key={entry.id} className="hover:bg-[#23252a] transition-colors">
+                      <td className="px-4 py-3 text-[13px] text-[#aaa]">
+                        {entry.workers?.first_name} {entry.workers?.last_name}
+                      </td>
+                      <td className="px-4 py-3 text-[12px] font-mono text-[#555]">{formatDate(entry.date)}</td>
+                      <td className="px-4 py-3 text-right text-[12px] font-mono text-[#666]">{entry.regular_hours}h</td>
+                      <td className="px-4 py-3 text-right text-[12px] font-mono text-[#666]">
+                        {entry.overtime_hours > 0 ? (
+                          <span className="text-[#F5A623]">{entry.overtime_hours}h</span>
+                        ) : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-right text-[12px] font-mono text-[#aaa]">
+                        {entry.regular_hours + entry.overtime_hours}h
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+
+        {/* MATERIALS */}
+        {activeTab === "materials" && (
+          <div className="rounded border border-[#34373c] bg-[#202224] overflow-hidden">
+            <div className="px-4 py-3 border-b border-[#2d3035] flex items-center justify-between">
+              <span className="text-[11px] font-mono text-[#666] uppercase tracking-widest">Material Allocations</span>
+              <Link href={`/materials?project=${project.id}`} className="text-[11px] text-[#F5A623] hover:opacity-80">
+                + Allocate
+              </Link>
+            </div>
+            {allocations.length === 0 ? (
+              <div className="py-12 text-center">
+                <p className="text-[13px] text-[#555]">No materials allocated yet</p>
+              </div>
+            ) : (
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-[#292c31]">
+                    <th className="px-4 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555]">Material</th>
+                    <th className="px-4 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555]">Date</th>
+                    <th className="px-4 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Qty</th>
+                    <th className="px-4 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Cost</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#292c31]">
+                  {allocations.map((alloc: any) => (
+                    <tr key={alloc.id} className="hover:bg-[#23252a] transition-colors">
+                      <td className="px-4 py-3 text-[13px] text-[#aaa]">{alloc.materials?.name}</td>
+                      <td className="px-4 py-3 text-[12px] font-mono text-[#555]">{formatDate(alloc.allocated_date)}</td>
+                      <td className="px-4 py-3 text-right text-[12px] font-mono text-[#666]">
+                        {alloc.quantity} {alloc.materials?.unit}
+                      </td>
+                      <td className="px-4 py-3 text-right text-[12px] font-mono text-[#aaa]">
+                        {formatCurrency(alloc.quantity * (alloc.materials?.unit_cost || 0))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

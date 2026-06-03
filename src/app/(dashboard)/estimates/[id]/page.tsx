@@ -3,19 +3,11 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Header } from "@/components/layout/header";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { createClient } from "@/lib/supabase/client";
+import { formatCurrency, formatDate } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/lib/auth-context";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -27,30 +19,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { createClient } from "@/lib/supabase/client";
-import { formatCurrency, formatDate } from "@/lib/utils";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/lib/auth-context";
-import {
-  ArrowLeft,
-  Pencil,
-  Trash2,
-  Send,
-  CheckCircle,
-  XCircle,
-  ArrowRightCircle,
-  Mail,
-  Phone,
-  MapPin,
-  FileText,
-  Download,
-  Loader2,
-  Building2,
-  Calendar,
-  DollarSign,
-  Calculator,
-} from "lucide-react";
+import { Loader2 } from "lucide-react";
 import type { Estimate, EstimateLineItem, EstimateStatus } from "@/types";
+
+const STATUS_DOT: Record<string, string> = {
+  draft:     "bg-[#555]",
+  sent:      "bg-[#3B82F6]",
+  approved:  "bg-[#22C55E]",
+  rejected:  "bg-[#EF4444]",
+  converted: "bg-[#A855F7]",
+  expired:   "bg-[#F5A623]",
+};
 
 export default function EstimateDetailPage() {
   const params = useParams();
@@ -70,19 +49,11 @@ export default function EstimateDetailPage() {
   const [projectLocation, setProjectLocation] = useState("");
   const [showEmailDialog, setShowEmailDialog] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
-  const [emailForm, setEmailForm] = useState({
-    to_email: "",
-    subject: "",
-    message: "",
-  });
+  const [emailForm, setEmailForm] = useState({ to_email: "", subject: "", message: "" });
 
   useEffect(() => {
     fetchEstimateData();
-
-    // Open convert dialog if query param present
-    if (searchParams.get("convert") === "true") {
-      setShowConvertDialog(true);
-    }
+    if (searchParams.get("convert") === "true") setShowConvertDialog(true);
   }, [estimateId]);
 
   const fetchEstimateData = async () => {
@@ -90,97 +61,43 @@ export default function EstimateDetailPage() {
     try {
       const [estimateRes, itemsRes] = await Promise.all([
         supabase.from("estimates").select("*").eq("id", estimateId).single(),
-        supabase
-          .from("estimate_line_items")
-          .select("*")
-          .eq("estimate_id", estimateId)
-          .order("order_index"),
+        supabase.from("estimate_line_items").select("*").eq("estimate_id", estimateId).order("order_index"),
       ]);
-
       if (estimateRes.error) throw estimateRes.error;
-
       setEstimate(estimateRes.data);
       setLineItems(itemsRes.data || []);
       setProjectName(estimateRes.data.title);
     } catch (error) {
-      console.error("Error fetching estimate:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load estimate data",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to load estimate", variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
   const handleStatusChange = async (newStatus: EstimateStatus) => {
-    try {
-      const updateData: Partial<Estimate> = { status: newStatus };
-
-      if (newStatus === "sent") updateData.sent_at = new Date().toISOString();
-      if (newStatus === "approved") updateData.approved_at = new Date().toISOString();
-      if (newStatus === "rejected") updateData.rejected_at = new Date().toISOString();
-
-      const { error } = await supabase
-        .from("estimates")
-        .update(updateData)
-        .eq("id", estimateId);
-
-      if (error) throw error;
-
-      setEstimate({ ...estimate!, ...updateData });
-      toast({
-        title: "Status updated",
-        description: `Estimate marked as ${newStatus}.`,
-      });
-    } catch (error: any) {
-      console.error("Error updating status:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update status",
-        variant: "destructive",
-      });
-    }
+    const updateData: Partial<Estimate> = { status: newStatus };
+    if (newStatus === "sent") updateData.sent_at = new Date().toISOString();
+    if (newStatus === "approved") updateData.approved_at = new Date().toISOString();
+    if (newStatus === "rejected") updateData.rejected_at = new Date().toISOString();
+    const { error } = await supabase.from("estimates").update(updateData).eq("id", estimateId);
+    if (error) { toast({ title: "Error", variant: "destructive" }); return; }
+    setEstimate({ ...estimate!, ...updateData });
+    toast({ title: `Marked as ${newStatus}` });
   };
 
   const handleSendEmail = async () => {
-    if (!emailForm.to_email) {
-      toast({
-        title: "Error",
-        description: "Email address is required",
-        variant: "destructive",
-      });
-      return;
-    }
-
+    if (!emailForm.to_email) { toast({ title: "Email required", variant: "destructive" }); return; }
     setSendingEmail(true);
     try {
-      const { data, error } = await supabase.functions.invoke("send-estimate", {
-        body: {
-          estimate_id: estimateId,
-          to_email: emailForm.to_email,
-          subject: emailForm.subject || undefined,
-          message: emailForm.message || undefined,
-        },
+      const { error } = await supabase.functions.invoke("send-estimate", {
+        body: { estimate_id: estimateId, ...emailForm },
       });
-
       if (error) throw error;
-
-      toast({
-        title: "Email sent",
-        description: `Estimate sent to ${emailForm.to_email}`,
-      });
-
+      toast({ title: "Email sent", description: `Sent to ${emailForm.to_email}` });
       setShowEmailDialog(false);
       setEstimate({ ...estimate!, status: "sent", sent_at: new Date().toISOString() });
     } catch (error: any) {
-      console.error("Error sending email:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to send email",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       setSendingEmail(false);
     }
@@ -188,17 +105,11 @@ export default function EstimateDetailPage() {
 
   const handleConvertToProject = async () => {
     if (!projectName || !projectLocation) {
-      toast({
-        title: "Error",
-        description: "Project name and location are required",
-        variant: "destructive",
-      });
+      toast({ title: "Name and location required", variant: "destructive" });
       return;
     }
-
     setConverting(true);
     try {
-      // Create project
       const { data: project, error: projectError } = await supabase
         .from("projects")
         .insert({
@@ -216,473 +127,423 @@ export default function EstimateDetailPage() {
         })
         .select()
         .single();
-
       if (projectError) throw projectError;
-
-      // Update estimate with project reference
-      const { error: updateError } = await supabase
-        .from("estimates")
-        .update({
-          project_id: project.id,
-          status: "converted",
-          converted_at: new Date().toISOString(),
-        })
-        .eq("id", estimateId);
-
-      if (updateError) throw updateError;
-
-      toast({
-        title: "Project created",
-        description: `Estimate converted to project "${project.name}".`,
-      });
-
+      await supabase.from("estimates").update({
+        project_id: project.id,
+        status: "converted",
+        converted_at: new Date().toISOString(),
+      }).eq("id", estimateId);
+      toast({ title: "Project created", description: `Converted to "${project.name}"` });
       router.push(`/projects/${project.id}`);
     } catch (error: any) {
-      console.error("Error converting to project:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create project",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       setConverting(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!confirm("Are you sure you want to delete this estimate?")) return;
-
-    try {
-      const { error } = await supabase.from("estimates").delete().eq("id", estimateId);
-      if (error) throw error;
-
-      toast({
-        title: "Estimate deleted",
-        description: "The estimate has been removed.",
-      });
-      router.push("/estimates");
-    } catch (error: any) {
-      console.error("Error deleting estimate:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete estimate",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "draft":
-        return "bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-300";
-      case "sent":
-        return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300";
-      case "approved":
-        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300";
-      case "rejected":
-        return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300";
-      case "converted":
-        return "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300";
-      case "expired":
-        return "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300";
-      default:
-        return "bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-300";
-    }
+    if (!confirm("Delete this estimate?")) return;
+    const { error } = await supabase.from("estimates").delete().eq("id", estimateId);
+    if (error) { toast({ title: "Error", variant: "destructive" }); return; }
+    toast({ title: "Deleted" });
+    router.push("/estimates");
   };
 
   if (loading) {
     return (
-      <div className="flex flex-col min-h-screen">
-        <Header title="Estimate Details" description="Loading...">
-          <Button variant="outline" onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
-        </Header>
-        <div className="flex-1 p-6 flex items-center justify-center">
-          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
-        </div>
+      <div className="flex items-center justify-center h-full bg-[#18191b]">
+        <div className="h-5 w-5 rounded-full border border-[#333] border-t-[#F5A623] animate-spin" />
       </div>
     );
   }
 
   if (!estimate) {
     return (
-      <div className="flex flex-col min-h-screen">
-        <Header title="Estimate Not Found" description="The requested estimate could not be found">
-          <Button variant="outline" onClick={() => router.push("/estimates")}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Estimates
-          </Button>
-        </Header>
+      <div className="flex flex-col items-center justify-center h-full bg-[#18191b]">
+        <p className="text-[13px] text-[#555]">Estimate not found</p>
+        <Link href="/estimates" className="mt-3 text-[12px] text-[#F5A623] hover:opacity-80">
+          ← Back to estimates
+        </Link>
       </div>
     );
   }
 
+  // Group line items by category
+  const grouped = lineItems.reduce<Record<string, EstimateLineItem[]>>((acc, item) => {
+    const key = item.category || "other";
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(item);
+    return acc;
+  }, {});
+
   return (
-    <div className="flex flex-col min-h-screen">
-      <Header
-        title={`Estimate ${estimate.estimate_number}`}
-        description={estimate.title}
-      >
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => router.push("/estimates")}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
-          <Link href={`/estimates/${estimateId}/builder`}>
-            <Button variant="outline">
-              <Pencil className="h-4 w-4 mr-2" />
-              Edit
-            </Button>
+    <div className="flex flex-col h-full overflow-auto bg-[#18191b]">
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-[#34373c] flex-shrink-0">
+        <div className="flex items-center gap-4 min-w-0">
+          <Link
+            href="/estimates"
+            className="text-[11px] font-mono text-[#555] hover:text-[#999] transition-colors flex-shrink-0"
+          >
+            ← Estimates
           </Link>
-          <Link href={`/estimates/${estimateId}/preview`}>
-            <Button variant="outline">
-              <FileText className="h-4 w-4 mr-2" />
-              Preview PDF
-            </Button>
+          <div className="h-3 w-px bg-[#3a3d42] flex-shrink-0" />
+          <div className="min-w-0">
+            <p className="text-[11px] font-mono text-[#666] uppercase tracking-widest">{estimate.estimate_number}</p>
+            <h1 className="text-[16px] font-semibold text-[#d0d0d0] mt-0.5 truncate">{estimate.title}</h1>
+          </div>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <span className={cn("h-1.5 w-1.5 rounded-full", STATUS_DOT[estimate.status] ?? "bg-[#404040]")} />
+            <span className="text-[11px] font-mono text-[#666] capitalize">{estimate.status}</span>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <Link
+            href={`/estimates/${estimateId}/builder`}
+            className="text-[12px] text-[#666] hover:text-[#aaa] transition-colors"
+          >
+            Edit
+          </Link>
+          <Link
+            href={`/estimates/${estimateId}/preview`}
+            className="text-[12px] text-[#666] hover:text-[#aaa] transition-colors"
+          >
+            Preview PDF
           </Link>
           {estimate.status === "draft" && (
-            <>
-              <Button
-                onClick={() => {
-                  setEmailForm({
-                    to_email: estimate.client_email || "",
-                    subject: `Estimate ${estimate.estimate_number} from TropiTech Solutions`,
-                    message: "",
-                  });
-                  setShowEmailDialog(true);
-                }}
-              >
-                <Mail className="h-4 w-4 mr-2" />
-                Send Email
-              </Button>
-            </>
+            <button
+              onClick={() => {
+                setEmailForm({
+                  to_email: estimate.client_email || "",
+                  subject: `Estimate ${estimate.estimate_number}`,
+                  message: "",
+                });
+                setShowEmailDialog(true);
+              }}
+              className="text-[12px] text-[#3B82F6] hover:opacity-80 transition-opacity"
+            >
+              Send email
+            </button>
           )}
           {estimate.status === "sent" && (
             <>
-              <Button
-                variant="outline"
-                className="text-green-600"
+              <button
                 onClick={() => handleStatusChange("approved")}
+                className="text-[12px] text-[#22C55E] hover:opacity-80 transition-opacity"
               >
                 Approve
-              </Button>
-              <Button
-                variant="outline"
-                className="text-red-600"
+              </button>
+              <button
                 onClick={() => handleStatusChange("rejected")}
+                className="text-[12px] text-[#EF4444] hover:opacity-80 transition-opacity"
               >
-                <XCircle className="h-4 w-4 mr-2" />
                 Reject
-              </Button>
+              </button>
             </>
           )}
           {estimate.status === "approved" && !estimate.project_id && (
-            <Button onClick={() => setShowConvertDialog(true)}>
-              <ArrowRightCircle className="h-4 w-4 mr-2" />
-              Convert to Project
-            </Button>
+            <button
+              onClick={() => setShowConvertDialog(true)}
+              className="text-[12px] text-[#F5A623] hover:opacity-80 transition-opacity"
+            >
+              Convert to job
+            </button>
+          )}
+          {estimate.project_id && (
+            <Link
+              href={`/projects/${estimate.project_id}`}
+              className="text-[12px] text-[#A855F7] hover:opacity-80 transition-opacity"
+            >
+              View job →
+            </Link>
           )}
         </div>
-      </Header>
+      </div>
 
       <div className="flex-1 p-6 space-y-6">
-        {/* Status Banner */}
-        <Card
-          className={
-            estimate.status === "approved"
-              ? "border-green-200 bg-green-50"
-              : estimate.status === "rejected"
-              ? "border-red-200 bg-red-50"
-              : estimate.status === "converted"
-              ? "border-purple-200 bg-purple-50"
-              : ""
-          }
-        >
-          <CardContent className="py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <Badge className={`${getStatusColor(estimate.status)} text-sm px-3 py-1`}>
-                  {estimate.status.toUpperCase()}
-                </Badge>
-                <span className="text-sm text-muted-foreground">
-                  Created on {formatDate(estimate.created_at)}
-                </span>
-              </div>
-              {estimate.project_id && (
-                <Link href={`/projects/${estimate.project_id}`}>
-                  <Button variant="link" className="text-purple-600">
-                    <Building2 className="h-4 w-4 mr-2" />
-                    View Project
-                  </Button>
-                </Link>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Client & Estimate Info */}
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Client Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="font-medium text-lg">{estimate.client_name}</div>
-              {estimate.client_email && (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Mail className="h-4 w-4" />
-                  <a href={`mailto:${estimate.client_email}`} className="hover:text-primary">
-                    {estimate.client_email}
-                  </a>
-                </div>
-              )}
-              {estimate.client_phone && (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Phone className="h-4 w-4" />
-                  <a href={`tel:${estimate.client_phone}`} className="hover:text-primary">
-                    {estimate.client_phone}
-                  </a>
-                </div>
-              )}
-              {estimate.client_address && (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <MapPin className="h-4 w-4" />
-                  {estimate.client_address}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Estimate Summary</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Subtotal</span>
-                <span>{formatCurrency(estimate.subtotal)}</span>
-              </div>
-              {estimate.overhead_amount > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">
-                    Overhead ({estimate.overhead_markup_percent}%)
-                  </span>
-                  <span>{formatCurrency(estimate.overhead_amount)}</span>
-                </div>
-              )}
-              {estimate.profit_amount > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">
-                    Profit ({estimate.profit_margin_percent}%)
-                  </span>
-                  <span>{formatCurrency(estimate.profit_amount)}</span>
-                </div>
-              )}
-              {estimate.tax_amount > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Tax ({estimate.tax_rate}%)</span>
-                  <span>{formatCurrency(estimate.tax_amount)}</span>
-                </div>
-              )}
-              <Separator />
-              <div className="flex justify-between text-lg font-bold">
-                <span>Total</span>
-                <span>{formatCurrency(estimate.total_amount)}</span>
-              </div>
-            </CardContent>
-          </Card>
+        {/* Summary bar */}
+        <div className="grid grid-cols-3 gap-3">
+          <div className="rounded border border-[#34373c] bg-[#202224] px-4 py-3.5">
+            <p className="text-[11px] font-mono text-[#666] uppercase tracking-wider">Subtotal</p>
+            <p className="text-[22px] font-semibold font-mono text-[#d0d0d0] mt-1 leading-none">
+              {formatCurrency(estimate.subtotal || 0)}
+            </p>
+          </div>
+          <div className="rounded border border-[#34373c] bg-[#202224] px-4 py-3.5">
+            <p className="text-[11px] font-mono text-[#666] uppercase tracking-wider">Total</p>
+            <p className="text-[22px] font-semibold font-mono text-[#F5A623] mt-1 leading-none">
+              {formatCurrency(estimate.total_amount)}
+            </p>
+          </div>
+          <div className="rounded border border-[#34373c] bg-[#202224] px-4 py-3.5">
+            <p className="text-[11px] font-mono text-[#666] uppercase tracking-wider">Issued</p>
+            <p className="text-[22px] font-semibold font-mono text-[#d0d0d0] mt-1 leading-none">
+              {formatDate(estimate.issue_date)}
+            </p>
+          </div>
         </div>
 
-        {/* Line Items */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Line Items</CardTitle>
-            <CardDescription>{lineItems.length} items</CardDescription>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Category</TableHead>
-                  <TableHead className="w-[40%]">Description</TableHead>
-                  <TableHead className="text-right">Qty</TableHead>
-                  <TableHead>Unit</TableHead>
-                  <TableHead className="text-right">Rate</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {lineItems.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell>
-                      <Badge variant="outline" className="capitalize">
-                        {item.category}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{item.description}</TableCell>
-                    <TableCell className="text-right">{item.quantity}</TableCell>
-                    <TableCell>{item.unit || "-"}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(item.unit_rate || 0)}</TableCell>
-                    <TableCell className="text-right font-medium">
-                      {formatCurrency(item.amount)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        {/* Client + Estimate details */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="rounded border border-[#34373c] bg-[#202224]">
+            <div className="px-4 py-3 border-b border-[#2d3035]">
+              <span className="text-[11px] font-mono text-[#666] uppercase tracking-widest">Client</span>
+            </div>
+            <div className="px-4 py-4 space-y-2.5">
+              <p className="text-[14px] font-semibold text-[#c4c4c4]">{estimate.client_name}</p>
+              {estimate.client_email && (
+                <a
+                  href={`mailto:${estimate.client_email}`}
+                  className="block text-[13px] text-[#777] hover:text-[#aaa] transition-colors"
+                >
+                  {estimate.client_email}
+                </a>
+              )}
+              {estimate.client_phone && (
+                <a
+                  href={`tel:${estimate.client_phone}`}
+                  className="block text-[13px] text-[#777] hover:text-[#aaa] transition-colors"
+                >
+                  {estimate.client_phone}
+                </a>
+              )}
+              {estimate.client_address && (
+                <p className="text-[13px] text-[#666]">{estimate.client_address}</p>
+              )}
+            </div>
+          </div>
 
-        {/* Terms & Notes */}
+          <div className="rounded border border-[#34373c] bg-[#202224]">
+            <div className="px-4 py-3 border-b border-[#2d3035]">
+              <span className="text-[11px] font-mono text-[#666] uppercase tracking-widest">Summary</span>
+            </div>
+            <div className="px-4 py-4 space-y-2">
+              {[
+                { label: "Subtotal", value: formatCurrency(estimate.subtotal || 0) },
+                estimate.overhead_amount > 0 && {
+                  label: `Overhead (${estimate.overhead_markup_percent}%)`,
+                  value: formatCurrency(estimate.overhead_amount),
+                },
+                estimate.profit_amount > 0 && {
+                  label: `Profit (${estimate.profit_margin_percent}%)`,
+                  value: formatCurrency(estimate.profit_amount),
+                },
+                estimate.tax_amount > 0 && {
+                  label: `VAT (${estimate.tax_rate}%)`,
+                  value: formatCurrency(estimate.tax_amount),
+                },
+              ]
+                .filter(Boolean)
+                .map((row: any) => (
+                  <div key={row.label} className="flex items-center justify-between">
+                    <span className="text-[12px] text-[#666]">{row.label}</span>
+                    <span className="text-[12px] font-mono text-[#aaa]">{row.value}</span>
+                  </div>
+                ))}
+              <div className="pt-2 border-t border-[#2d3035] flex items-center justify-between">
+                <span className="text-[12px] font-semibold text-[#d0d0d0]">Total</span>
+                <span className="text-[15px] font-semibold font-mono text-[#F5A623]">
+                  {formatCurrency(estimate.total_amount)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Line items */}
+        <div className="rounded border border-[#34373c] bg-[#202224] overflow-hidden">
+          <div className="px-4 py-3 border-b border-[#2d3035] flex items-center justify-between">
+            <span className="text-[11px] font-mono text-[#666] uppercase tracking-widest">Line Items</span>
+            <span className="text-[11px] font-mono text-[#555]">{lineItems.length} items</span>
+          </div>
+          {lineItems.length === 0 ? (
+            <div className="py-10 text-center">
+              <p className="text-[13px] text-[#555]">No line items</p>
+            </div>
+          ) : (
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-[#292c31]">
+                  <th className="px-4 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555]">Type</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555] w-[40%]">Description</th>
+                  <th className="px-4 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Qty</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555]">Unit</th>
+                  <th className="px-4 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Rate</th>
+                  <th className="px-4 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Amount</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#292c31]">
+                {lineItems.map((item) => (
+                  <tr key={item.id} className="hover:bg-[#23252a] transition-colors">
+                    <td className="px-4 py-3">
+                      <span className="text-[10px] font-mono text-[#555] capitalize">{item.category}</span>
+                    </td>
+                    <td className="px-4 py-3 text-[13px] text-[#888]">{item.description}</td>
+                    <td className="px-4 py-3 text-right text-[12px] font-mono text-[#666]">{item.quantity}</td>
+                    <td className="px-4 py-3 text-[12px] font-mono text-[#555]">{item.unit || "—"}</td>
+                    <td className="px-4 py-3 text-right text-[12px] font-mono text-[#666]">
+                      {formatCurrency(item.unit_rate || 0)}
+                    </td>
+                    <td className="px-4 py-3 text-right text-[13px] font-mono text-[#aaa] font-semibold">
+                      {formatCurrency(item.amount)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {/* Terms */}
         {(estimate.terms_and_conditions || estimate.description) && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Terms & Conditions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+          <div className="rounded border border-[#34373c] bg-[#202224]">
+            <div className="px-4 py-3 border-b border-[#2d3035]">
+              <span className="text-[11px] font-mono text-[#666] uppercase tracking-widest">Terms & Notes</span>
+            </div>
+            <div className="px-4 py-4 space-y-4">
               {estimate.description && (
                 <div>
-                  <h4 className="font-medium mb-2">Project Description</h4>
-                  <p className="text-muted-foreground">{estimate.description}</p>
+                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest mb-1.5">Description</p>
+                  <p className="text-[13px] text-[#777]">{estimate.description}</p>
                 </div>
               )}
               {estimate.terms_and_conditions && (
                 <div>
-                  <h4 className="font-medium mb-2">Terms</h4>
-                  <p className="text-muted-foreground whitespace-pre-wrap">
-                    {estimate.terms_and_conditions}
-                  </p>
+                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest mb-1.5">Terms</p>
+                  <p className="text-[13px] text-[#777] whitespace-pre-wrap">{estimate.terms_and_conditions}</p>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
 
-        {/* Actions */}
-        <div className="flex items-center justify-end gap-4">
-          <Button variant="destructive" onClick={handleDelete}>
-            <Trash2 className="h-4 w-4 mr-2" />
-            Delete Estimate
-          </Button>
+        {/* Footer actions */}
+        <div className="flex items-center justify-end pt-2">
+          <button
+            onClick={handleDelete}
+            className="text-[12px] text-[#555] hover:text-[#EF4444] transition-colors"
+          >
+            Delete estimate
+          </button>
         </div>
       </div>
 
       {/* Convert to Project Dialog */}
       <Dialog open={showConvertDialog} onOpenChange={setShowConvertDialog}>
-        <DialogContent>
+        <DialogContent className="bg-[#202224] border-[#34373c] text-[#d0d0d0]">
           <DialogHeader>
-            <DialogTitle>Convert to Project</DialogTitle>
-            <DialogDescription>
-              Create a new project from this estimate. The estimate will be linked to the project.
+            <DialogTitle className="text-[#d0d0d0]">Convert to Job</DialogTitle>
+            <DialogDescription className="text-[#666]">
+              Creates a new job from this estimate and links them together.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label htmlFor="project_name">Project Name *</Label>
+              <Label className="text-[11px] font-mono text-[#666] uppercase tracking-wider">Job Name *</Label>
               <Input
-                id="project_name"
                 value={projectName}
                 onChange={(e) => setProjectName(e.target.value)}
-                placeholder="Enter project name"
+                placeholder="Enter job name"
+                className="bg-[#292c31] border-[#3a3d42] text-[#d0d0d0] placeholder:text-[#444]"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="project_location">Project Location *</Label>
+              <Label className="text-[11px] font-mono text-[#666] uppercase tracking-wider">Location *</Label>
               <Input
-                id="project_location"
                 value={projectLocation}
                 onChange={(e) => setProjectLocation(e.target.value)}
-                placeholder="Enter project location"
+                placeholder="e.g. Governor's Harbour, Eleuthera"
+                className="bg-[#292c31] border-[#3a3d42] text-[#d0d0d0] placeholder:text-[#444]"
               />
             </div>
-            <div className="p-4 bg-muted rounded-lg">
-              <div className="text-sm text-muted-foreground mb-2">Project Details</div>
-              <div className="space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span>Client:</span>
-                  <span className="font-medium">{estimate?.client_name}</span>
+            <div className="rounded border border-[#2d3035] bg-[#1b1c1e] px-4 py-3 space-y-1.5">
+              {[
+                { label: "Client", value: estimate?.client_name },
+                { label: "Budget", value: formatCurrency(estimate?.total_amount || 0) },
+              ].map((r) => (
+                <div key={r.label} className="flex items-center justify-between">
+                  <span className="text-[11px] font-mono text-[#555]">{r.label}</span>
+                  <span className="text-[12px] text-[#888]">{r.value}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Budget:</span>
-                  <span className="font-medium">{formatCurrency(estimate?.total_amount || 0)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Contract Value:</span>
-                  <span className="font-medium">{formatCurrency(estimate?.total_amount || 0)}</span>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowConvertDialog(false)}>
+            <button
+              onClick={() => setShowConvertDialog(false)}
+              className="px-4 py-2 text-[12px] text-[#666] hover:text-[#aaa] transition-colors"
+            >
               Cancel
-            </Button>
-            <Button onClick={handleConvertToProject} disabled={converting}>
-              {converting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              <ArrowRightCircle className="h-4 w-4 mr-2" />
-              Create Project
-            </Button>
+            </button>
+            <button
+              onClick={handleConvertToProject}
+              disabled={converting}
+              className="flex items-center gap-2 px-4 py-2 rounded bg-[#2d3035] border border-[#333] text-[12px] text-[#F5A623] hover:bg-[#353840] transition-colors disabled:opacity-40"
+            >
+              {converting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Create Job
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Send Email Dialog */}
       <Dialog open={showEmailDialog} onOpenChange={setShowEmailDialog}>
-        <DialogContent>
+        <DialogContent className="bg-[#202224] border-[#34373c] text-[#d0d0d0]">
           <DialogHeader>
-            <DialogTitle>Send Estimate via Email</DialogTitle>
-            <DialogDescription>
-              Send this estimate to {estimate?.client_name}
+            <DialogTitle className="text-[#d0d0d0]">Send Estimate</DialogTitle>
+            <DialogDescription className="text-[#666]">
+              Email this estimate to {estimate?.client_name}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label htmlFor="to_email">Recipient Email *</Label>
+              <Label className="text-[11px] font-mono text-[#666] uppercase tracking-wider">To *</Label>
               <Input
-                id="to_email"
                 type="email"
                 value={emailForm.to_email}
                 onChange={(e) => setEmailForm({ ...emailForm, to_email: e.target.value })}
                 placeholder="client@example.com"
+                className="bg-[#292c31] border-[#3a3d42] text-[#d0d0d0] placeholder:text-[#444]"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email_subject">Subject</Label>
+              <Label className="text-[11px] font-mono text-[#666] uppercase tracking-wider">Subject</Label>
               <Input
-                id="email_subject"
                 value={emailForm.subject}
                 onChange={(e) => setEmailForm({ ...emailForm, subject: e.target.value })}
-                placeholder="Estimate from TropiTech Solutions"
+                className="bg-[#292c31] border-[#3a3d42] text-[#d0d0d0] placeholder:text-[#444]"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email_message">Message (optional)</Label>
+              <Label className="text-[11px] font-mono text-[#666] uppercase tracking-wider">Message</Label>
               <Textarea
-                id="email_message"
                 value={emailForm.message}
                 onChange={(e) => setEmailForm({ ...emailForm, message: e.target.value })}
-                placeholder="Add a personal message..."
+                placeholder="Optional message..."
                 rows={3}
+                className="bg-[#292c31] border-[#3a3d42] text-[#d0d0d0] placeholder:text-[#444] resize-none"
               />
-            </div>
-            <div className="p-3 bg-muted rounded-lg flex items-center gap-2">
-              <FileText className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm">
-                PDF estimate will be attached to the email
-              </span>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowEmailDialog(false)}>
+            <button
+              onClick={() => setShowEmailDialog(false)}
+              className="px-4 py-2 text-[12px] text-[#666] hover:text-[#aaa] transition-colors"
+            >
               Cancel
-            </Button>
-            <Button onClick={handleSendEmail} disabled={sendingEmail}>
-              {sendingEmail && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              <Send className="h-4 w-4 mr-2" />
-              Send Email
-            </Button>
+            </button>
+            <button
+              onClick={handleSendEmail}
+              disabled={sendingEmail}
+              className="flex items-center gap-2 px-4 py-2 rounded bg-[#2d3035] border border-[#333] text-[12px] text-[#3B82F6] hover:bg-[#353840] transition-colors disabled:opacity-40"
+            >
+              {sendingEmail && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Send
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

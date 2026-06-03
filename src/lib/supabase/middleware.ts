@@ -54,10 +54,15 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // Refresh session if expired
+  // Refresh session if expired (with timeout to avoid middleware invocation timeout when Supabase is slow)
+  const GET_USER_TIMEOUT_MS = 3000;
+  const getUserPromise = supabase.auth.getUser();
+  const timeoutPromise = new Promise<{ data: { user: null } }>((resolve) =>
+    setTimeout(() => resolve({ data: { user: null } }), GET_USER_TIMEOUT_MS)
+  );
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await Promise.race([getUserPromise, timeoutPromise]);
 
   // Protected routes
   const protectedPaths = ["/dashboard", "/projects", "/workers", "/materials", "/payroll", "/reports", "/settings"];

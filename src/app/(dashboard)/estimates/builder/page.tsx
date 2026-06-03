@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -66,7 +67,9 @@ import {
   X,
   ChevronUp,
   Settings2,
+  Wand2,
 } from "lucide-react";
+import { ClaudeIcon } from "@/components/icons/claude-icon";
 import type {
   Client,
   CostCode,
@@ -132,6 +135,11 @@ export default function CreateEstimateBuilderPage() {
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [catalogSearch, setCatalogSearch] = useState("");
   const [catalogFilter, setCatalogFilter] = useState<string>("all");
+
+  // AI generation state
+  const [aiPanelOpen, setAiPanelOpen] = useState(false);
+  const [aiDescription, setAiDescription] = useState("");
+  const [aiGenerating, setAiGenerating] = useState(false);
 
   // Item form state
   const [itemForm, setItemForm] = useState({
@@ -380,6 +388,140 @@ export default function CreateEstimateBuilderPage() {
     setCatalogOpen(true);
   };
 
+  // ─── AI Generate ────────────────────────────────────────
+
+  const handleAIGenerate = async () => {
+    if (!aiDescription.trim() || aiGenerating) return;
+    setAiGenerating(true);
+
+    try {
+      // 1. Fetch materials DB
+      const { data: materials, error: matError } = await supabase
+        .from("materials")
+        .select("id, name, unit, unit_cost, division_name, category")
+        .order("name");
+      if (matError) throw matError;
+
+      // 2. Call generate API
+      const res = await fetch("/api/estimates/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description: aiDescription, materials: materials || [] }),
+      });
+      if (!res.ok) throw new Error("Generation failed — check ANTHROPIC_API_KEY");
+
+      const generated = await res.json();
+      if (generated.error) throw new Error(generated.error);
+      if (!generated.sections?.length) throw new Error("No sections returned");
+
+      // 3. Convert sections → EstimateCategory[]
+      const newCategories = (generated.sections as any[]).map((section, sIdx) => {
+        const catId = crypto.randomUUID();
+
+        const items: EstimateBuilderItem[] = (section.items as any[]).map((item, iIdx) => {
+          const totalCost =
+            (item.labor_cost || 0) + (item.material_cost || 0) + (item.equipment_cost || 0);
+          const qty = Math.max(item.quantity || 1, 0.01);
+          const unitCost = Math.round((totalCost / qty) * 100) / 100;
+          const builderCost = Math.round(unitCost * qty * 100) / 100;
+          const markupAmt = Math.round(builderCost * 0.15 * 100) / 100;
+          const clientPrice = Math.round((builderCost + markupAmt) * 100) / 100;
+
+          const dominant: CostType =
+            (item.labor_cost || 0) >= (item.material_cost || 0) &&
+            (item.labor_cost || 0) >= (item.equipment_cost || 0)
+              ? "labor"
+              : (item.material_cost || 0) >= (item.equipment_cost || 0)
+              ? "material"
+              : "equipment";
+
+          const breakdown = [
+            item.labor_cost > 0 && `Labor $${(item.labor_cost as number).toFixed(0)}`,
+            item.material_cost > 0 && `Mat $${(item.material_cost as number).toFixed(0)}`,
+            item.equipment_cost > 0 && `Equip $${(item.equipment_cost as number).toFixed(0)}`,
+          ]
+            .filter(Boolean)
+            .join(" · ");
+
+          return {
+            id: crypto.randomUUID(),
+            estimate_id: "",
+            category_id: catId,
+            title: item.description,
+            description: [item.notes, breakdown].filter(Boolean).join(" — "),
+            category: dominant,
+            cost_type: dominant,
+            cost_code: "",
+            unit_cost: unitCost,
+            quantity: qty,
+            unit: item.unit || "LS",
+            unit_rate: unitCost,
+            amount: clientPrice,
+            builder_cost: builderCost,
+            markup_percent: 15,
+            markup_amount: markupAmt,
+            client_price: clientPrice,
+            profit: markupAmt,
+            show_to_client: true,
+            save_to_catalog: false,
+            entry_mode: "detailed",
+            display_order: iIdx,
+          } as EstimateBuilderItem;
+        });
+
+        const catBuilderCost = items.reduce((s, i) => s + (i.builder_cost || 0), 0);
+        const catClientPrice = items.reduce((s, i) => s + (i.client_price || 0), 0);
+
+        return {
+          id: catId,
+          estimate_id: "",
+          cost_code_id: null,
+          name: section.name,
+          display_order: categories.length + sIdx,
+          builder_cost: catBuilderCost,
+          client_price: catClientPrice,
+          profit: catClientPrice - catBuilderCost,
+          show_to_client: true,
+          is_expanded: true,
+          items,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        } as unknown as EstimateCategory;
+      });
+
+      // 4. Populate builder state
+      setCategories((prev) => [...prev, ...newCategories]);
+      setExpandedCategories(
+        (prev) => new Set([...Array.from(prev), ...newCategories.map((c) => c.id)])
+      );
+
+      // 5. Auto-fill title if empty
+      if (generated.property_name && !detailsForm.title) {
+        setDetailsForm((prev) => ({ ...prev, title: generated.property_name }));
+      }
+
+      const totalItems = newCategories.reduce(
+        (s, c) => s + ((c.items as any[])?.length || 0),
+        0
+      );
+      toast({
+        title: "Estimate generated",
+        description: `${newCategories.length} trade sections · ${totalItems} line items`,
+      });
+
+      setAiPanelOpen(false);
+      setAiDescription("");
+    } catch (error: any) {
+      toast({
+        title: "Generation failed",
+        description: error.message || "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
   // ─── Client Select ─────────────────────────────────────
 
   const handleClientSelect = (clientId: string) => {
@@ -613,8 +755,8 @@ export default function CreateEstimateBuilderPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="flex items-center justify-center min-h-screen bg-[#18191b]">
+        <div className="h-5 w-5 rounded-full border border-[#333] border-t-[#F5A623] animate-spin" />
       </div>
     );
   }
@@ -622,94 +764,95 @@ export default function CreateEstimateBuilderPage() {
   // ─── Render ────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col min-h-screen bg-background">
+    <div className="flex flex-col min-h-screen bg-[#18191b]">
       {/* ── Top Bar ── */}
-      <div className="border-b bg-card sticky top-0 z-20">
+      <div className="border-b border-[#34373c] bg-[#202224] sticky top-0 z-20">
         <div className="px-4 py-3">
           <div className="flex items-center gap-3 mb-2">
-            <Link href="/estimates">
-              <Button variant="ghost" size="sm">
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
+            <Link href="/estimates" className="text-[11px] font-mono text-[#555] hover:text-[#999] transition-colors">
+              ← Estimates
             </Link>
+            <div className="h-3 w-px bg-[#3a3d42]" />
             <div className="flex-1 min-w-0">
-              <div className="text-xs text-muted-foreground">New Estimate</div>
-              <h1 className="text-lg font-bold truncate">
-                {detailsForm.title || "Untitled Estimate"}
+              <div className="text-[10px] font-mono text-[#666] uppercase tracking-widest">New Estimate</div>
+              <h1 className="text-[15px] font-semibold text-[#d0d0d0] truncate mt-0.5">
+                {detailsForm.title || "Untitled"}
               </h1>
             </div>
-            <Badge variant="outline">Draft</Badge>
+            <span className="text-[10px] font-mono text-[#555] uppercase tracking-widest border border-[#3a3d42] rounded px-2 py-0.5">
+              Draft
+            </span>
           </div>
 
           {/* Summary metrics row */}
-          <div className="flex items-center gap-6 text-sm">
+          <div className="flex items-center gap-5 text-[12px]">
             <div>
-              <span className="text-muted-foreground">Builder Cost</span>
-              <p className="text-base font-bold">{formatCurrency(totalBuilderCost)}</p>
+              <span className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Builder Cost</span>
+              <p className="text-[15px] font-mono font-semibold text-[#aaa]">{formatCurrency(totalBuilderCost)}</p>
             </div>
-            <div className="text-muted-foreground">=</div>
+            <span className="text-[#333]">→</span>
             <div>
-              <span className="text-muted-foreground">Client Price</span>
-              <p className="text-base font-bold">{formatCurrency(totalClientPrice)}</p>
+              <span className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Client Price</span>
+              <p className="text-[15px] font-mono font-semibold text-[#d0d0d0]">{formatCurrency(totalClientPrice)}</p>
             </div>
-            <div className="text-muted-foreground">-</div>
+            <span className="text-[#333]">·</span>
             <div>
-              <span className="text-muted-foreground">Profit</span>
-              <p className="text-base font-bold text-green-600">
+              <span className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Profit</span>
+              <p className="text-[15px] font-mono font-semibold text-[#22C55E]">
                 {formatCurrency(totalProfit)}
-                <span className="text-xs font-normal ml-1">
-                  ({profitMargin.toFixed(1)}%)
-                </span>
+                <span className="text-[10px] font-normal text-[#555] ml-1">({profitMargin.toFixed(1)}%)</span>
               </p>
             </div>
 
-            <div className="ml-auto flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => router.push("/estimates")}>
+            <div className="ml-auto flex items-center gap-3">
+              <button
+                onClick={() => router.push("/estimates")}
+                className="text-[12px] text-[#555] hover:text-[#999] transition-colors"
+              >
                 Cancel
-              </Button>
-              <Button size="sm" onClick={handleSaveEstimate} disabled={saving}>
-                {saving ? (
-                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                ) : null}
+              </button>
+              <button
+                onClick={handleSaveEstimate}
+                disabled={saving}
+                className="flex items-center gap-1.5 px-4 py-1.5 rounded bg-[#2d3035] border border-[#333] text-[12px] text-[#F5A623] hover:bg-[#353840] transition-colors disabled:opacity-40"
+              >
+                {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 Save Estimate
-              </Button>
+              </button>
             </div>
           </div>
         </div>
       </div>
 
       {/* ── Collapsible Estimate Details ── */}
-      <div className="border-b">
+      <div className="border-b border-[#34373c]">
         <button
           onClick={() => setDetailsOpen(!detailsOpen)}
-          className="w-full px-4 py-2 flex items-center gap-2 text-sm font-medium hover:bg-muted/50 transition-colors"
+          className="w-full px-4 py-2.5 flex items-center gap-2 text-[12px] font-mono hover:bg-[#202224] transition-colors"
         >
-          <Settings2 className="h-3.5 w-3.5 text-muted-foreground" />
-          <span>Estimate Details</span>
+          <span className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Estimate Details</span>
           {detailsForm.client_name && (
-            <span className="text-xs text-muted-foreground">
-              — {detailsForm.client_name}
-            </span>
+            <span className="text-[11px] text-[#444]">— {detailsForm.client_name}</span>
           )}
           <div className="flex-1" />
           <ChevronUp
-            className={`h-4 w-4 text-muted-foreground transition-transform ${detailsOpen ? "" : "rotate-180"}`}
+            className={`h-3.5 w-3.5 text-[#444] transition-transform ${detailsOpen ? "" : "rotate-180"}`}
           />
         </button>
 
         {detailsOpen && (
-          <div className="px-4 pb-4 space-y-4 bg-muted/20">
+          <div className="px-4 pb-4 pt-2 space-y-3 bg-[#202224]">
             {/* Client + Title row */}
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1">
-                <Label className="text-xs">Client</Label>
+                <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Client</p>
                 <Select value={detailsForm.client_id} onValueChange={handleClientSelect}>
-                  <SelectTrigger className="h-9">
+                  <SelectTrigger className="h-8 bg-[#202224] border-[#3a3d42] text-[#aaa] text-[13px] focus:ring-0 focus:border-[#333]">
                     <SelectValue placeholder="Select client..." />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-[#202224] border-[#3a3d42]">
                     {clients.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
+                      <SelectItem key={c.id} value={c.id} className="text-[#aaa] focus:bg-[#292c31] focus:text-[#d0d0d0]">
                         {c.name}
                       </SelectItem>
                     ))}
@@ -717,118 +860,78 @@ export default function CreateEstimateBuilderPage() {
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Client Name *</Label>
-                <Input
-                  className="h-9"
+                <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Client Name *</p>
+                <input
+                  className="w-full h-8 px-2.5 rounded bg-[#202224] border border-[#3a3d42] text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#333] transition-colors"
                   value={detailsForm.client_name}
-                  onChange={(e) =>
-                    setDetailsForm({ ...detailsForm, client_name: e.target.value })
-                  }
+                  onChange={(e) => setDetailsForm({ ...detailsForm, client_name: e.target.value })}
                   placeholder="Client name"
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Project Title *</Label>
-                <Input
-                  className="h-9"
+                <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Project Title *</p>
+                <input
+                  className="w-full h-8 px-2.5 rounded bg-[#202224] border border-[#3a3d42] text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#333] transition-colors"
                   value={detailsForm.title}
-                  onChange={(e) =>
-                    setDetailsForm({ ...detailsForm, title: e.target.value })
-                  }
-                  placeholder="e.g., Kitchen Renovation"
+                  onChange={(e) => setDetailsForm({ ...detailsForm, title: e.target.value })}
+                  placeholder="e.g. Roof Repair — Governor's Harbour"
                 />
               </div>
             </div>
 
             {/* Contact + Dates row */}
             <div className="grid grid-cols-4 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs">Email</Label>
-                <Input
-                  className="h-9"
-                  value={detailsForm.client_email}
-                  onChange={(e) =>
-                    setDetailsForm({ ...detailsForm, client_email: e.target.value })
-                  }
-                  placeholder="email@example.com"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Phone</Label>
-                <Input
-                  className="h-9"
-                  value={detailsForm.client_phone}
-                  onChange={(e) =>
-                    setDetailsForm({ ...detailsForm, client_phone: e.target.value })
-                  }
-                  placeholder="(242) 555-0100"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Issue Date</Label>
-                <Input
-                  type="date"
-                  className="h-9"
-                  value={detailsForm.issue_date}
-                  onChange={(e) =>
-                    setDetailsForm({ ...detailsForm, issue_date: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Valid Until</Label>
-                <Input
-                  type="date"
-                  className="h-9"
-                  value={detailsForm.valid_until}
-                  onChange={(e) =>
-                    setDetailsForm({ ...detailsForm, valid_until: e.target.value })
-                  }
-                />
-              </div>
+              {[
+                { label: "Email", key: "client_email", placeholder: "email@example.com", type: "email" },
+                { label: "Phone", key: "client_phone", placeholder: "(242) 555-0100", type: "text" },
+                { label: "Issue Date", key: "issue_date", placeholder: "", type: "date" },
+                { label: "Valid Until", key: "valid_until", placeholder: "", type: "date" },
+              ].map((f) => (
+                <div key={f.key} className="space-y-1">
+                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">{f.label}</p>
+                  <input
+                    type={f.type}
+                    className="w-full h-8 px-2.5 rounded bg-[#202224] border border-[#3a3d42] text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#333] transition-colors"
+                    value={(detailsForm as any)[f.key]}
+                    onChange={(e) => setDetailsForm({ ...detailsForm, [f.key]: e.target.value })}
+                    placeholder={f.placeholder}
+                  />
+                </div>
+              ))}
             </div>
 
             {/* Description */}
             <div className="space-y-1">
-              <Label className="text-xs">Description</Label>
-              <Textarea
+              <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Description</p>
+              <textarea
+                className="w-full px-2.5 py-2 rounded bg-[#202224] border border-[#3a3d42] text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#333] transition-colors resize-none"
                 value={detailsForm.description}
-                onChange={(e) =>
-                  setDetailsForm({ ...detailsForm, description: e.target.value })
-                }
+                onChange={(e) => setDetailsForm({ ...detailsForm, description: e.target.value })}
                 placeholder="Brief project description..."
                 rows={2}
-                className="resize-none"
               />
             </div>
 
             {/* Notes + Terms */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label className="text-xs">Notes (internal)</Label>
-                <Textarea
+                <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Notes (internal)</p>
+                <textarea
+                  className="w-full px-2.5 py-2 rounded bg-[#202224] border border-[#3a3d42] text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#333] transition-colors resize-none"
                   value={detailsForm.notes}
-                  onChange={(e) =>
-                    setDetailsForm({ ...detailsForm, notes: e.target.value })
-                  }
+                  onChange={(e) => setDetailsForm({ ...detailsForm, notes: e.target.value })}
                   placeholder="Internal notes..."
                   rows={2}
-                  className="resize-none"
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Terms & Conditions</Label>
-                <Textarea
+                <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Terms & Conditions</p>
+                <textarea
+                  className="w-full px-2.5 py-2 rounded bg-[#202224] border border-[#3a3d42] text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#333] transition-colors resize-none"
                   value={detailsForm.terms_and_conditions}
-                  onChange={(e) =>
-                    setDetailsForm({
-                      ...detailsForm,
-                      terms_and_conditions: e.target.value,
-                    })
-                  }
+                  onChange={(e) => setDetailsForm({ ...detailsForm, terms_and_conditions: e.target.value })}
                   placeholder="Payment terms, warranty info..."
                   rows={2}
-                  className="resize-none"
                 />
               </div>
             </div>
@@ -836,58 +939,161 @@ export default function CreateEstimateBuilderPage() {
         )}
       </div>
 
+      {/* ── AI Generate Panel ── */}
+      {aiPanelOpen && (
+        <div
+          className="border-b"
+          style={{
+            background: "#202224",
+          }}
+        >
+          {/* Panel header */}
+          <div className="px-4 pt-3 pb-2 flex items-center gap-2.5">
+            <div className="flex items-center gap-1.5">
+              <ClaudeIcon
+                className="h-3.5 w-3.5"
+                style={{ color: "#f59e0b" }}
+              />
+              <span
+                className="text-xs font-bold tracking-widest uppercase"
+                style={{ color: "#f59e0b", fontFamily: "monospace" }}
+              >
+                AI Generate
+              </span>
+            </div>
+            <span
+              className="text-xs"
+              style={{ color: "#6b7280" }}
+            >
+              — describe the job, Claude fills in trade sections with real Eleuthera prices
+            </span>
+            <button
+              onClick={() => { setAiPanelOpen(false); setAiDescription(""); }}
+              className="ml-auto p-1 rounded hover:bg-white/10 transition-colors"
+              style={{ color: "#6b7280" }}
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+
+          {/* Textarea */}
+          <div className="px-4 pb-3">
+            <textarea
+              value={aiDescription}
+              onChange={(e) => setAiDescription(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleAIGenerate();
+              }}
+              disabled={aiGenerating}
+              placeholder={"e.g. Repair hurricane damage at Governor's Harbour — replace 3 sections of Ondura roofing, fix rotted fascia boards, repaint exterior two coats"}
+              rows={3}
+              className="w-full rounded-md px-3 py-2.5 text-sm resize-none outline-none transition-all"
+              style={{
+                background: "#292c31",
+                border: "1px solid #3a3d42",
+                color: "#e5e7eb",
+                fontFamily: "monospace",
+                lineHeight: "1.6",
+              }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = "#f59e0b60"; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = "#3a3d42"; }}
+            />
+
+            <div className="flex items-center justify-between mt-2">
+              <span
+                className="text-xs"
+                style={{ color: "#4b5563" }}
+              >
+                ⌘↵ to generate · uses 165-item Eleuthera materials DB
+              </span>
+
+              <button
+                onClick={handleAIGenerate}
+                disabled={!aiDescription.trim() || aiGenerating}
+                className="flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{
+                  background: aiGenerating
+                    ? "#78350f"
+                    : "linear-gradient(135deg, #d97706 0%, #ea580c 100%)",
+                  color: "#fff",
+                  boxShadow: aiGenerating ? "none" : "0 0 16px #d9770640",
+                }}
+              >
+                {aiGenerating ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>Claude is analyzing…</span>
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="h-3.5 w-3.5" />
+                    <span>Generate Estimate</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Main Content ── */}
       <div className="flex-1 overflow-auto">
         {/* Action bar */}
-        <div className="bg-muted/80 border-b px-4 py-2 flex items-center gap-2">
-          <Button size="sm" onClick={() => setAddCategoryOpen(true)}>
-            <Plus className="h-3.5 w-3.5 mr-1.5" />
-            Category
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              setAddingToCategoryId(categories[0]?.id || null);
-              setCatalogOpen(true);
-            }}
-            disabled={categories.length === 0}
+        <div className="bg-[#202224] border-b border-[#34373c] px-4 py-2 flex items-center gap-4">
+          <button
+            onClick={() => setAddCategoryOpen(true)}
+            className="text-[11px] font-mono text-[#888] hover:text-[#d0d0d0] transition-colors"
           >
-            <Library className="h-3.5 w-3.5 mr-1.5" />
+            + Section
+          </button>
+          <button
+            onClick={() => { setAddingToCategoryId(categories[0]?.id || null); setCatalogOpen(true); }}
+            disabled={categories.length === 0}
+            className="text-[11px] font-mono text-[#888] hover:text-[#d0d0d0] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          >
             Catalog
-          </Button>
+          </button>
+          <button
+            onClick={() => setAiPanelOpen(!aiPanelOpen)}
+            className={cn(
+              "text-[11px] font-mono transition-colors",
+              aiPanelOpen ? "text-[#F5A623]" : "text-[#888] hover:text-[#F5A623]"
+            )}
+          >
+            AI Generate
+          </button>
           <div className="flex-1" />
-          <span className="text-xs text-muted-foreground">
-            {categories.reduce((s, c) => s + ((c.items as any[])?.length || 0), 0)} items
-            in {categories.length} categories
+          <span className="text-[10px] font-mono text-[#444]">
+            {categories.reduce((s, c) => s + ((c.items as any[])?.length || 0), 0)} items · {categories.length} sections
           </span>
         </div>
 
         {/* Table */}
         <div className="px-4 pb-8">
           {categories.length === 0 ? (
-            <div className="text-center py-32 text-muted-foreground">
-              <Calculator className="h-12 w-12 mx-auto mb-4 opacity-40" />
-              <p className="font-medium mb-1">No categories yet</p>
-              <p className="text-sm mb-4">
-                Add a category to start building your estimate
+            <div className="text-center py-32">
+              <p className="text-[13px] text-[#555]">No sections yet</p>
+              <p className="text-[12px] text-[#444] mt-1 mb-4">
+                Add a category manually or use AI Generate
               </p>
-              <Button onClick={() => setAddCategoryOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Category
-              </Button>
+              <button
+                onClick={() => setAddCategoryOpen(true)}
+                className="text-[12px] text-[#F5A623] hover:opacity-80 transition-opacity"
+              >
+                + Add category
+              </button>
             </div>
           ) : (
             <Table>
               <TableHeader>
-                <TableRow className="bg-muted/50">
-                  <TableHead className="w-[40%]">Items</TableHead>
-                  <TableHead className="text-right w-[10%]">Unit Cost</TableHead>
-                  <TableHead className="text-right w-[8%]">Qty</TableHead>
-                  <TableHead className="text-right w-[8%]">Unit</TableHead>
-                  <TableHead className="text-right w-[12%]">Builder Cost</TableHead>
-                  <TableHead className="text-right w-[12%]">Client Price</TableHead>
-                  <TableHead className="text-right w-[10%]">Profit</TableHead>
+                <TableRow className="bg-[#202224] border-b border-[#2d3035]">
+                  <TableHead className="w-[40%] text-[10px] font-mono uppercase tracking-widest text-[#555]">Items</TableHead>
+                  <TableHead className="text-right w-[10%] text-[10px] font-mono uppercase tracking-widest text-[#555]">Unit Cost</TableHead>
+                  <TableHead className="text-right w-[8%] text-[10px] font-mono uppercase tracking-widest text-[#555]">Qty</TableHead>
+                  <TableHead className="text-right w-[8%] text-[10px] font-mono uppercase tracking-widest text-[#555]">Unit</TableHead>
+                  <TableHead className="text-right w-[12%] text-[10px] font-mono uppercase tracking-widest text-[#555]">Builder Cost</TableHead>
+                  <TableHead className="text-right w-[12%] text-[10px] font-mono uppercase tracking-widest text-[#555]">Client Price</TableHead>
+                  <TableHead className="text-right w-[10%] text-[10px] font-mono uppercase tracking-widest text-[#555]">Profit</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -907,20 +1113,20 @@ export default function CreateEstimateBuilderPage() {
                 ))}
 
                 {/* Totals footer row */}
-                <TableRow className="bg-muted/50 font-bold border-t-2">
+                <TableRow className="bg-[#202224] border-t border-[#34373c]">
                   <TableCell className="py-3">
-                    <span className="text-base">Estimate Total</span>
+                    <span className="text-[11px] font-mono text-[#666] uppercase tracking-widest">Estimate Total</span>
                   </TableCell>
                   <TableCell />
                   <TableCell />
                   <TableCell />
-                  <TableCell className="text-right text-base">
+                  <TableCell className="text-right text-[14px] font-mono font-semibold text-[#aaa]">
                     {formatCurrency(totalBuilderCost)}
                   </TableCell>
-                  <TableCell className="text-right text-base">
+                  <TableCell className="text-right text-[14px] font-mono font-semibold text-[#d0d0d0]">
                     {formatCurrency(totalClientPrice)}
                   </TableCell>
-                  <TableCell className="text-right text-base text-green-600">
+                  <TableCell className="text-right text-[14px] font-mono font-semibold text-[#22C55E]">
                     {formatCurrency(totalProfit)}
                   </TableCell>
                 </TableRow>
@@ -932,123 +1138,104 @@ export default function CreateEstimateBuilderPage() {
 
       {/* ── Add Category Dialog ── */}
       <Dialog open={addCategoryOpen} onOpenChange={setAddCategoryOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md bg-[#202224] border-[#34373c] text-[#d0d0d0]">
           <DialogHeader>
-            <DialogTitle>Add Category</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-[#d0d0d0] text-[15px]">Add Section</DialogTitle>
+            <DialogDescription className="text-[#555] text-[12px]">
               Organize your estimate by trade or cost code
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label>Cost Code (optional)</Label>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Cost Code (optional)</p>
               <Select
                 value={newCategoryForm.cost_code_id}
                 onValueChange={(val) => {
                   const code = costCodes.find((c) => c.id === val);
-                  setNewCategoryForm({
-                    cost_code_id: val,
-                    name: code
-                      ? `${code.code} - ${code.name}`
-                      : newCategoryForm.name,
-                  });
+                  setNewCategoryForm({ cost_code_id: val, name: code ? `${code.code} - ${code.name}` : newCategoryForm.name });
                 }}
               >
-                <SelectTrigger>
+                <SelectTrigger className="bg-[#292c31] border-[#3a3d42] text-[#aaa] text-[13px] focus:ring-0 focus:border-[#333]">
                   <SelectValue placeholder="Select a cost code..." />
                 </SelectTrigger>
-                <SelectContent className="max-h-60 overflow-y-auto">
+                <SelectContent className="bg-[#202224] border-[#3a3d42] max-h-60 overflow-y-auto">
                   {costCodes.map((code) => (
-                    <SelectItem key={code.id} value={code.id}>
+                    <SelectItem key={code.id} value={code.id} className="text-[#aaa] focus:bg-[#292c31] focus:text-[#d0d0d0]">
                       {code.code} - {code.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>Category Name</Label>
-              <Input
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Section Name</p>
+              <input
+                className="w-full h-9 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#333] transition-colors"
                 value={newCategoryForm.name}
-                onChange={(e) =>
-                  setNewCategoryForm({ ...newCategoryForm, name: e.target.value })
-                }
-                placeholder="e.g. Foundation, Framing, Electrical..."
+                onChange={(e) => setNewCategoryForm({ ...newCategoryForm, name: e.target.value })}
+                placeholder="e.g. ROOF REPAIRS, MASONRY, CARPENTRY…"
+                onKeyDown={(e) => { if (e.key === "Enter") handleAddCategory(); }}
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAddCategoryOpen(false)}>
+            <button onClick={() => setAddCategoryOpen(false)} className="px-4 py-2 text-[12px] text-[#555] hover:text-[#aaa] transition-colors">
               Cancel
-            </Button>
-            <Button
+            </button>
+            <button
               onClick={handleAddCategory}
               disabled={!newCategoryForm.name.trim()}
+              className="px-4 py-2 rounded bg-[#2d3035] border border-[#333] text-[12px] text-[#F5A623] hover:bg-[#353840] transition-colors disabled:opacity-40"
             >
-              Add Category
-            </Button>
+              Add Section
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* ── Item Detail Modal ── */}
       <Dialog open={itemModalOpen} onOpenChange={setItemModalOpen}>
-        <DialogContent className="max-w-xl">
+        <DialogContent className="max-w-xl bg-[#202224] border-[#34373c] text-[#d0d0d0]">
           <DialogHeader>
-            <DialogTitle>
-              {editingItem ? "Edit Cost Item" : "Add Cost Item"}
+            <DialogTitle className="text-[#d0d0d0] text-[15px]">
+              {editingItem ? "Edit Item" : "Add Item"}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2 max-h-[70vh] overflow-y-auto">
-            {/* Title + Cost Type */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Title</Label>
-                <Input
+          <div className="space-y-3 py-2 max-h-[70vh] overflow-y-auto pr-1">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Title</p>
+                <input
+                  className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#333] transition-colors"
                   value={itemForm.title}
-                  onChange={(e) =>
-                    setItemForm({ ...itemForm, title: e.target.value })
-                  }
-                  placeholder="e.g. Framing Lumber - 2x4"
+                  onChange={(e) => setItemForm({ ...itemForm, title: e.target.value })}
+                  placeholder="e.g. Ondura Roofing Sheet"
                 />
               </div>
-              <div className="space-y-2">
-                <Label>Cost Type</Label>
-                <Select
-                  value={itemForm.cost_type}
-                  onValueChange={(val: CostType) =>
-                    setItemForm({ ...itemForm, cost_type: val })
-                  }
-                >
-                  <SelectTrigger>
+              <div className="space-y-1">
+                <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Cost Type</p>
+                <Select value={itemForm.cost_type} onValueChange={(val: CostType) => setItemForm({ ...itemForm, cost_type: val })}>
+                  <SelectTrigger className="h-8 bg-[#292c31] border-[#3a3d42] text-[#aaa] text-[13px] focus:ring-0 focus:border-[#333]">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="material">Material</SelectItem>
-                    <SelectItem value="labor">Labor</SelectItem>
-                    <SelectItem value="equipment">Equipment</SelectItem>
-                    <SelectItem value="subcontractor">Subcontractor</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
+                  <SelectContent className="bg-[#202224] border-[#3a3d42]">
+                    {["material","labor","equipment","subcontractor","other"].map((v) => (
+                      <SelectItem key={v} value={v} className="text-[#aaa] focus:bg-[#292c31] focus:text-[#d0d0d0] capitalize">{v}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
-            {/* Cost Code */}
-            <div className="space-y-2">
-              <Label>Cost Code</Label>
-              <Select
-                value={itemForm.cost_code}
-                onValueChange={(val) =>
-                  setItemForm({ ...itemForm, cost_code: val })
-                }
-              >
-                <SelectTrigger>
+            <div className="space-y-1">
+              <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Cost Code</p>
+              <Select value={itemForm.cost_code} onValueChange={(val) => setItemForm({ ...itemForm, cost_code: val })}>
+                <SelectTrigger className="h-8 bg-[#292c31] border-[#3a3d42] text-[#aaa] text-[13px] focus:ring-0 focus:border-[#333]">
                   <SelectValue placeholder="Select cost code..." />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-[#202224] border-[#3a3d42]">
                   {costCodes.map((code) => (
-                    <SelectItem key={code.id} value={code.code}>
+                    <SelectItem key={code.id} value={code.code} className="text-[#aaa] focus:bg-[#292c31] focus:text-[#d0d0d0]">
                       {code.code} - {code.name}
                     </SelectItem>
                   ))}
@@ -1056,266 +1243,194 @@ export default function CreateEstimateBuilderPage() {
               </Select>
             </div>
 
-            {/* Description */}
-            <div className="space-y-2">
-              <Label>Description</Label>
-              <Textarea
+            <div className="space-y-1">
+              <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Description</p>
+              <textarea
+                className="w-full px-2.5 py-2 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#333] transition-colors resize-none"
                 value={itemForm.description}
-                onChange={(e) =>
-                  setItemForm({ ...itemForm, description: e.target.value })
-                }
+                onChange={(e) => setItemForm({ ...itemForm, description: e.target.value })}
                 placeholder="Item details..."
                 rows={2}
               />
             </div>
 
-            {/* Cost Information */}
-            <div className="border-t pt-4">
-              <h4 className="text-sm font-medium mb-3">Cost Information</h4>
+            <div className="border-t border-[#2d3035] pt-3">
+              <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest mb-3">Cost</p>
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">
-                  <Label className="text-xs">Unit Cost</Label>
+                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Unit Cost</p>
                   <div className="relative">
-                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
-                      $
-                    </span>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      className="pl-6"
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#555] text-[12px]">$</span>
+                    <input
+                      type="number" step="0.01" min="0"
+                      className="w-full h-8 pl-6 pr-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors"
                       value={itemForm.unit_cost || ""}
-                      onChange={(e) =>
-                        setItemForm({
-                          ...itemForm,
-                          unit_cost: parseFloat(e.target.value) || 0,
-                        })
-                      }
+                      onChange={(e) => setItemForm({ ...itemForm, unit_cost: parseFloat(e.target.value) || 0 })}
                     />
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Quantity</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
+                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Qty</p>
+                  <input
+                    type="number" step="0.01" min="0"
+                    className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors"
                     value={itemForm.quantity || ""}
-                    onChange={(e) =>
-                      setItemForm({
-                        ...itemForm,
-                        quantity: parseFloat(e.target.value) || 0,
-                      })
-                    }
+                    onChange={(e) => setItemForm({ ...itemForm, quantity: parseFloat(e.target.value) || 0 })}
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Unit</Label>
-                  <Select
-                    value={itemForm.unit}
-                    onValueChange={(val) =>
-                      setItemForm({ ...itemForm, unit: val })
-                    }
-                  >
-                    <SelectTrigger>
+                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Unit</p>
+                  <Select value={itemForm.unit} onValueChange={(val) => setItemForm({ ...itemForm, unit: val })}>
+                    <SelectTrigger className="h-8 bg-[#292c31] border-[#3a3d42] text-[#aaa] text-[13px] focus:ring-0 focus:border-[#333]">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="EACH">EACH</SelectItem>
-                      <SelectItem value="sqft">sqft</SelectItem>
-                      <SelectItem value="lnft">lnft</SelectItem>
-                      <SelectItem value="CU YD">CU YD</SelectItem>
-                      <SelectItem value="hour">hour</SelectItem>
-                      <SelectItem value="day">day</SelectItem>
-                      <SelectItem value="sheet">sheet</SelectItem>
-                      <SelectItem value="bag">bag</SelectItem>
-                      <SelectItem value="ton">ton</SelectItem>
-                      <SelectItem value="gallon">gallon</SelectItem>
+                    <SelectContent className="bg-[#202224] border-[#3a3d42]">
+                      {["EACH","sqft","lnft","CU YD","hour","day","sheet","bag","ton","gallon","LS"].map((u) => (
+                        <SelectItem key={u} value={u} className="text-[#aaa] focus:bg-[#292c31] focus:text-[#d0d0d0]">{u}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
 
-              {/* Builder Cost (computed) */}
               <div className="grid grid-cols-3 gap-3 mt-3">
                 <div className="space-y-1">
-                  <Label className="text-xs">Builder Cost</Label>
-                  <div className="h-9 px-3 flex items-center rounded-md border bg-muted font-mono font-semibold">
+                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Builder Cost</p>
+                  <div className="h-8 px-2.5 flex items-center rounded border border-[#2d3035] bg-[#202224] font-mono text-[13px] text-[#aaa]">
                     {formatCurrency(formBuilderCost)}
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Markup %</Label>
+                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Markup %</p>
                   <div className="relative">
-                    <Input
-                      type="number"
-                      step="0.5"
-                      min="0"
+                    <input
+                      type="number" step="0.5" min="0"
+                      className="w-full h-8 px-2.5 pr-6 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors"
                       value={itemForm.markup_percent || ""}
-                      onChange={(e) =>
-                        setItemForm({
-                          ...itemForm,
-                          markup_percent: parseFloat(e.target.value) || 0,
-                        })
-                      }
+                      onChange={(e) => setItemForm({ ...itemForm, markup_percent: parseFloat(e.target.value) || 0 })}
                     />
-                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
-                      %
-                    </span>
+                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#555] text-[12px]">%</span>
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Client Price</Label>
-                  <div className="h-9 px-3 flex items-center rounded-md border bg-muted font-mono font-semibold text-primary">
+                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Client Price</p>
+                  <div className="h-8 px-2.5 flex items-center rounded border border-[#2d3035] bg-[#202224] font-mono text-[13px] text-[#F5A623] font-semibold">
                     {formatCurrency(formClientPrice)}
                   </div>
                 </div>
               </div>
 
-              {/* Profit display */}
               {formBuilderCost > 0 && (
-                <div className="mt-3 p-2 rounded-md bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 flex items-center justify-between text-sm">
-                  <span className="text-green-700 dark:text-green-400">
-                    Profit on this item
-                  </span>
-                  <span className="font-bold text-green-700 dark:text-green-400">
-                    {formatCurrency(formMarkupAmount)}
-                  </span>
+                <div className="mt-3 px-3 py-2 rounded border border-[#22C55E]/20 bg-[#22C55E]/5 flex items-center justify-between">
+                  <span className="text-[11px] font-mono text-[#22C55E]/70">Profit</span>
+                  <span className="text-[13px] font-mono font-semibold text-[#22C55E]">{formatCurrency(formMarkupAmount)}</span>
                 </div>
               )}
             </div>
 
-            {/* Options */}
-            <div className="flex items-center gap-6 border-t pt-3">
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="show_to_client"
-                  checked={itemForm.show_to_client}
-                  onCheckedChange={(checked) =>
-                    setItemForm({ ...itemForm, show_to_client: !!checked })
-                  }
-                />
-                <Label htmlFor="show_to_client" className="text-sm font-normal">
-                  Show to client
-                </Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="save_to_catalog"
-                  checked={itemForm.save_to_catalog}
-                  onCheckedChange={(checked) =>
-                    setItemForm({ ...itemForm, save_to_catalog: !!checked })
-                  }
-                />
-                <Label htmlFor="save_to_catalog" className="text-sm font-normal">
-                  Save to catalog
-                </Label>
-              </div>
+            <div className="flex items-center gap-5 border-t border-[#2d3035] pt-3">
+              {[
+                { id: "show_to_client", label: "Show to client", checked: itemForm.show_to_client, key: "show_to_client" },
+                { id: "save_to_catalog", label: "Save to catalog", checked: itemForm.save_to_catalog, key: "save_to_catalog" },
+              ].map((opt) => (
+                <label key={opt.id} className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={opt.checked}
+                    onChange={(e) => setItemForm({ ...itemForm, [opt.key]: e.target.checked })}
+                    className="accent-[#F5A623] h-3.5 w-3.5"
+                  />
+                  <span className="text-[11px] font-mono text-[#666]">{opt.label}</span>
+                </label>
+              ))}
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setItemModalOpen(false)}>
+            <button onClick={() => setItemModalOpen(false)} className="px-4 py-2 text-[12px] text-[#555] hover:text-[#aaa] transition-colors">
               Cancel
-            </Button>
-            <Button onClick={handleSaveItem}>
-              {editingItem ? "Update Item" : "Add Item"}
-            </Button>
+            </button>
+            <button
+              onClick={handleSaveItem}
+              className="px-4 py-2 rounded bg-[#2d3035] border border-[#333] text-[12px] text-[#F5A623] hover:bg-[#353840] transition-colors"
+            >
+              {editingItem ? "Update" : "Add Item"}
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* ── Catalog Modal ── */}
       <Dialog open={catalogOpen} onOpenChange={setCatalogOpen}>
-        <DialogContent className="max-w-3xl max-h-[80vh] flex flex-col">
+        <DialogContent className="max-w-3xl max-h-[80vh] flex flex-col bg-[#202224] border-[#34373c]">
           <DialogHeader>
-            <DialogTitle>Cost Catalog</DialogTitle>
-            <DialogDescription>
-              Quick-add items from your catalog library
-            </DialogDescription>
+            <DialogTitle className="text-[#d0d0d0] text-[15px]">Cost Catalog</DialogTitle>
+            <DialogDescription className="text-[#555] text-[12px]">Quick-add items from your catalog library</DialogDescription>
           </DialogHeader>
 
-          {/* Search + Filter */}
           <div className="flex gap-2 py-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                value={catalogSearch}
-                onChange={(e) => setCatalogSearch(e.target.value)}
-                placeholder="Search items..."
-                className="pl-8"
-              />
+            <input
+              value={catalogSearch}
+              onChange={(e) => setCatalogSearch(e.target.value)}
+              placeholder="Search items..."
+              className="flex-1 h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#333] transition-colors"
+            />
+            <div className="flex items-center gap-1">
+              {["all","material","labor","equipment","subcontractor"].map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setCatalogFilter(f)}
+                  className={cn(
+                    "px-2.5 py-1.5 rounded text-[10px] font-mono uppercase tracking-wide transition-colors",
+                    catalogFilter === f ? "bg-[#2d3035] text-[#F5A623] border border-[#333]" : "text-[#555] hover:text-[#999]"
+                  )}
+                >
+                  {f}
+                </button>
+              ))}
             </div>
-            <Select value={catalogFilter} onValueChange={setCatalogFilter}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="material">Material</SelectItem>
-                <SelectItem value="labor">Labor</SelectItem>
-                <SelectItem value="equipment">Equipment</SelectItem>
-                <SelectItem value="subcontractor">Subcontractor</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
 
-          {/* Catalog Table */}
-          <div className="flex-1 overflow-auto border rounded-md">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Item</TableHead>
-                  <TableHead className="text-right">Unit Cost</TableHead>
-                  <TableHead className="text-right">Unit</TableHead>
-                  <TableHead className="text-right">Markup</TableHead>
-                  <TableHead className="w-20" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+          <div className="flex-1 overflow-auto rounded border border-[#2d3035]">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-[#2d3035]">
+                  <th className="px-4 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555]">Item</th>
+                  <th className="px-4 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Unit Cost</th>
+                  <th className="px-4 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Unit</th>
+                  <th className="px-4 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Markup</th>
+                  <th className="w-16 px-4 py-2.5" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#292c31]">
                 {filteredCatalog.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={5}
-                      className="text-center py-8 text-muted-foreground"
-                    >
-                      No catalog items found
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredCatalog.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>
-                        <div className="font-medium">{item.title}</div>
-                        {item.description && (
-                          <div className="text-xs text-muted-foreground truncate max-w-xs">
-                            {item.description}
-                          </div>
-                        )}
-                        <Badge variant="outline" className="text-xs mt-1">
-                          {item.cost_type}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {formatCurrency(item.unit_cost)}
-                      </TableCell>
-                      <TableCell className="text-right text-muted-foreground">
-                        {item.unit}
-                      </TableCell>
-                      <TableCell className="text-right text-muted-foreground">
-                        {item.default_markup_percent}%
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button size="sm" onClick={() => addFromCatalog(item)}>
-                          <Plus className="h-3 w-3 mr-1" />
-                          Add
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  <tr>
+                    <td colSpan={5} className="text-center py-10 text-[13px] text-[#555]">No catalog items found</td>
+                  </tr>
+                ) : filteredCatalog.map((item) => (
+                  <tr key={item.id} className="group hover:bg-[#23252a] transition-colors">
+                    <td className="px-4 py-3">
+                      <p className="text-[13px] text-[#aaa]">{item.title}</p>
+                      {item.description && (
+                        <p className="text-[11px] text-[#555] truncate max-w-xs">{item.description}</p>
+                      )}
+                      <span className="text-[10px] font-mono text-[#444] capitalize">{item.cost_type}</span>
+                    </td>
+                    <td className="px-4 py-3 text-right text-[12px] font-mono text-[#aaa]">{formatCurrency(item.unit_cost)}</td>
+                    <td className="px-4 py-3 text-right text-[11px] font-mono text-[#555]">{item.unit}</td>
+                    <td className="px-4 py-3 text-right text-[11px] font-mono text-[#555]">{item.default_markup_percent}%</td>
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        onClick={() => addFromCatalog(item)}
+                        className="text-[11px] text-[#F5A623] hover:opacity-80 transition-opacity opacity-0 group-hover:opacity-100"
+                      >
+                        + Add
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </DialogContent>
       </Dialog>
@@ -1353,46 +1468,34 @@ function CategorySection({
   return (
     <>
       {/* Category Header Row */}
-      <TableRow className="bg-muted/30 hover:bg-muted/50">
-        <TableCell className="py-2">
+      <TableRow className="group bg-[#202224] hover:bg-[#272a2c] border-b border-[#2d3035]">
+        <TableCell className="py-2.5">
           <div className="flex items-center gap-2">
-            <button onClick={onToggle} className="p-0.5 rounded hover:bg-muted">
+            <button onClick={onToggle} className="p-0.5 rounded hover:bg-[#292c31] transition-colors">
               {isExpanded ? (
-                <ChevronDown className="h-4 w-4" />
+                <ChevronDown className="h-3.5 w-3.5 text-[#555]" />
               ) : (
-                <ChevronRight className="h-4 w-4" />
+                <ChevronRight className="h-3.5 w-3.5 text-[#555]" />
               )}
             </button>
-            <span className="font-semibold text-sm">{category.name}</span>
-            <span className="text-xs text-muted-foreground">
-              ({items.length} item{items.length !== 1 ? "s" : ""})
+            <span className="text-[12px] font-mono font-semibold text-[#b8b8b8] uppercase tracking-wide">{category.name}</span>
+            <span className="text-[10px] font-mono text-[#444]">
+              {items.length} item{items.length !== 1 ? "s" : ""}
             </span>
             {!isLocked && (
-              <div className="flex items-center gap-1 ml-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onAddItem();
-                  }}
-                  title="Add custom item"
+              <div className="flex items-center gap-2 ml-2 opacity-0 group-hover:opacity-100">
+                <button
+                  onClick={(e) => { e.stopPropagation(); onAddItem(); }}
+                  className="text-[10px] font-mono text-[#555] hover:text-[#F5A623] transition-colors"
                 >
-                  <Plus className="h-3.5 w-3.5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onAddFromCatalog();
-                  }}
-                  title="Add from catalog"
+                  + item
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onAddFromCatalog(); }}
+                  className="text-[10px] font-mono text-[#555] hover:text-[#aaa] transition-colors"
                 >
-                  <Library className="h-3.5 w-3.5" />
-                </Button>
+                  catalog
+                </button>
               </div>
             )}
           </div>
@@ -1400,42 +1503,34 @@ function CategorySection({
         <TableCell />
         <TableCell />
         <TableCell />
-        <TableCell className="text-right font-semibold text-sm">
+        <TableCell className="text-right text-[12px] font-mono text-[#666]">
           {formatCurrency(category.builder_cost || 0)}
         </TableCell>
-        <TableCell className="text-right font-semibold text-sm">
+        <TableCell className="text-right text-[12px] font-mono text-[#aaa] font-semibold">
           {formatCurrency(category.client_price || 0)}
         </TableCell>
         <TableCell className="text-right">
-          <div className="flex items-center justify-end gap-2">
-            <span className="font-semibold text-sm text-green-600">
-              {formatCurrency(
-                (category.client_price || 0) - (category.builder_cost || 0)
-              )}
+          <div className="flex items-center justify-end gap-3">
+            <span className="text-[12px] font-mono text-[#22C55E]">
+              {formatCurrency((category.client_price || 0) - (category.builder_cost || 0))}
             </span>
             {!isLocked && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                    <MoreHorizontal className="h-3.5 w-3.5" />
-                  </Button>
+                  <button className="p-1 rounded hover:bg-[#292c31] transition-colors">
+                    <MoreHorizontal className="h-3.5 w-3.5 text-[#444]" />
+                  </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={onAddItem}>
-                    <Plus className="h-3.5 w-3.5 mr-2" />
-                    Add Item
+                <DropdownMenuContent align="end" className="bg-[#202224] border-[#34373c]">
+                  <DropdownMenuItem onClick={onAddItem} className="text-[12px] text-[#aaa] focus:bg-[#292c31] focus:text-[#d0d0d0]">
+                    Add item
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={onAddFromCatalog}>
-                    <Library className="h-3.5 w-3.5 mr-2" />
-                    Add from Catalog
+                  <DropdownMenuItem onClick={onAddFromCatalog} className="text-[12px] text-[#aaa] focus:bg-[#292c31] focus:text-[#d0d0d0]">
+                    Add from catalog
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={onDeleteCategory}
-                    className="text-destructive"
-                  >
-                    <Trash2 className="h-3.5 w-3.5 mr-2" />
-                    Delete Category
+                  <DropdownMenuSeparator className="bg-[#34373c]" />
+                  <DropdownMenuItem onClick={onDeleteCategory} className="text-[12px] text-[#EF4444] focus:bg-[#292c31] focus:text-[#EF4444]">
+                    Delete section
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -1444,98 +1539,66 @@ function CategorySection({
         </TableCell>
       </TableRow>
 
-      {/* Item rows (if expanded) */}
-      {isExpanded &&
-        items.map((item) => (
-          <TableRow
-            key={item.id}
-            className="hover:bg-muted/20 cursor-pointer group"
-            onClick={() => !isLocked && onEditItem(item)}
-          >
-            <TableCell className="pl-10">
-              <div className="flex items-center gap-2">
-                <div>
-                  <span className="text-sm font-medium text-primary">
-                    {item.title || item.description}
-                  </span>
-                  {item.cost_code && (
-                    <span className="text-xs text-muted-foreground ml-2">
-                      [{item.cost_code}]
-                    </span>
-                  )}
-                  {item.description &&
-                    item.title &&
-                    item.description !== item.title && (
-                      <div className="text-xs text-muted-foreground truncate max-w-xs">
-                        {item.description}
-                      </div>
-                    )}
-                </div>
-              </div>
-            </TableCell>
-            <TableCell className="text-right font-mono text-sm">
-              {formatCurrency(item.unit_cost || 0)}
-            </TableCell>
-            <TableCell className="text-right text-sm">
-              {(item.quantity || 0).toFixed(
-                item.quantity % 1 === 0 ? 0 : 2
+      {/* Item rows */}
+      {isExpanded && items.map((item) => (
+        <TableRow
+          key={item.id}
+          className="hover:bg-[#23252a] cursor-pointer group border-b border-[#272a2c]"
+          onClick={() => !isLocked && onEditItem(item)}
+        >
+          <TableCell className="pl-10 py-2.5">
+            <div>
+              <span className="text-[13px] text-[#888] group-hover:text-[#b0b0b0] transition-colors">
+                {item.title || item.description}
+              </span>
+              {item.cost_code && (
+                <span className="text-[10px] font-mono text-[#444] ml-2">[{item.cost_code}]</span>
               )}
-            </TableCell>
-            <TableCell className="text-right text-xs text-muted-foreground">
-              {item.unit || "EACH"}
-            </TableCell>
-            <TableCell className="text-right font-mono text-sm">
-              {formatCurrency(item.builder_cost || 0)}
-            </TableCell>
-            <TableCell className="text-right font-mono text-sm">
-              {formatCurrency(item.client_price || 0)}
-            </TableCell>
-            <TableCell className="text-right">
-              <div className="flex items-center justify-end gap-2">
-                <span className="font-mono text-sm text-green-600">
-                  {formatCurrency(item.profit || 0)}
-                </span>
-                {!isLocked && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteItem(item.id);
-                    }}
-                  >
-                    <Trash2 className="h-3 w-3 text-destructive" />
-                  </Button>
-                )}
-              </div>
-            </TableCell>
-          </TableRow>
-        ))}
+              {item.description && item.title && item.description !== item.title && (
+                <div className="text-[11px] text-[#444] truncate max-w-xs">{item.description}</div>
+              )}
+            </div>
+          </TableCell>
+          <TableCell className="text-right text-[12px] font-mono text-[#555]">
+            {formatCurrency(item.unit_cost || 0)}
+          </TableCell>
+          <TableCell className="text-right text-[12px] font-mono text-[#555]">
+            {(item.quantity || 0) % 1 === 0 ? item.quantity : (item.quantity || 0).toFixed(2)}
+          </TableCell>
+          <TableCell className="text-right text-[11px] font-mono text-[#444]">
+            {item.unit || "EACH"}
+          </TableCell>
+          <TableCell className="text-right text-[12px] font-mono text-[#666]">
+            {formatCurrency(item.builder_cost || 0)}
+          </TableCell>
+          <TableCell className="text-right text-[12px] font-mono text-[#aaa]">
+            {formatCurrency(item.client_price || 0)}
+          </TableCell>
+          <TableCell className="text-right">
+            <div className="flex items-center justify-end gap-2">
+              <span className="text-[12px] font-mono text-[#22C55E]">{formatCurrency(item.profit || 0)}</span>
+              {!isLocked && (
+                <button
+                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-[#292c31]"
+                  onClick={(e) => { e.stopPropagation(); onDeleteItem(item.id); }}
+                >
+                  <Trash2 className="h-3 w-3 text-[#EF4444]" />
+                </button>
+              )}
+            </div>
+          </TableCell>
+        </TableRow>
+      ))}
 
-      {/* Empty state row */}
       {isExpanded && items.length === 0 && (
-        <TableRow>
-          <TableCell
-            colSpan={7}
-            className="text-center py-4 text-muted-foreground text-sm"
-          >
-            No items yet.{" "}
+        <TableRow className="border-b border-[#272a2c]">
+          <TableCell colSpan={7} className="text-center py-5 text-[12px] text-[#444]">
+            No items.{" "}
             {!isLocked && (
               <>
-                <button
-                  onClick={onAddItem}
-                  className="text-primary underline hover:no-underline"
-                >
-                  Add item
-                </button>{" "}
-                or{" "}
-                <button
-                  onClick={onAddFromCatalog}
-                  className="text-primary underline hover:no-underline"
-                >
-                  browse catalog
-                </button>
+                <button onClick={onAddItem} className="text-[#F5A623] hover:opacity-80">Add item</button>
+                {" "}or{" "}
+                <button onClick={onAddFromCatalog} className="text-[#666] hover:text-[#aaa]">browse catalog</button>
               </>
             )}
           </TableCell>

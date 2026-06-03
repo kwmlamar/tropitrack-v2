@@ -1,183 +1,249 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { openai, OPENAI_MODEL } from "@/lib/openai";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-const ASSISTANT_SYSTEM_PROMPT = `You are TropiTrack AI, a helpful and knowledgeable AI assistant for a construction project management system used by Bahamian construction companies.
+const BASE_SYSTEM = `You are Claude, the AI assistant built into Bedrock — the business OS for ODS Construction (also known as Whelsco), a construction company based in central Eleuthera, Bahamas.
 
-Your role is to:
-- Answer questions about construction project management
-- Help users navigate and use the TropiTrack system
-- Provide guidance on best practices for construction management
-- Assist with understanding project data, reports, and workflows
-- Be friendly, professional, and conversational
+You help the ODS team — Wallace Sr. (owner), Jay (admin), Omar (site foreman), and Lamar (operator) — run their business more efficiently.
 
-Key information about TropiTrack:
-- It's a construction management system for Bahamian companies
-- Manages projects, workers, time tracking, payroll, materials, vendors, estimates, and invoices
-- Uses BSD (Bahamian Dollar) currency
-- Tracks labor costs, material costs, equipment costs, and overhead
-- Supports time tracking with overtime calculations (1.5x rate after 8 hours)
-- Includes payroll processing with NIB deductions
+ODS runs:
+- SB Construction: active construction jobs across Eleuthera
+- A laundromat currently under build-out (top priority for Wallace Sr.)
+- Maple House property
 
-When users ask questions:
-- If they're asking about data in their system, suggest using the search feature (⌘K) to find specific records
-- Provide helpful explanations and guidance
-- Be conversational and natural
-- If you don't know something specific about their data, acknowledge that and guide them to where they can find it
+Bedrock manages: jobs/projects, crew timesheets, payroll (cash-paid in BSD$), materials (Eleuthera pricing DB), receipt scanning, Gantt charts, and business goals.
 
-Keep responses concise but helpful. Be warm and professional.`;
+BSD$ = USD$ at 1:1 parity. All prices are in Bahamian Dollars.
+
+Key people:
+- Wallace Sr.: owner, phone/WhatsApp only, wants Sundays off, focused on finishing the laundromat
+- Jay: dashboard admin, owns timesheets, disciplined
+- Omar: runs job sites
+- Lamar: builds and operates Bedrock
+
+When answering:
+- Be direct and practical — these are builders, not executives
+- Keep responses tight. No fluff.
+- You are part of the system. Act like it.`;
+
+const SKILL_PROMPTS: Record<string, string> = {
+  estimate: `
+
+━━ ACTIVE SKILL: ESTIMATE BUILDER ━━
+You are now in estimate-building mode for ODS Construction.
+
+When the user describes a job, generate a structured estimate with:
+- Trade sections in ALL CAPS (ROOF REPAIRS, MASONRY/CEMENT WORK, CARPENTRY, ELECTRICAL, GENERAL CONDITIONS, etc.)
+- Line items per section: description | labor | material | equipment | total
+- Eleuthera pricing: Nassau freight adds ~35% to mainland material prices
+- Labor rates: General laborer BSD$15-18/hr, Skilled trades BSD$20-28/hr, Foreman BSD$25-32/hr
+- Standard work day = 8hrs. Include crew-days per section.
+- Subtotal → Overhead (15%) → VAT (10%) → Total Job Cost
+- Present as a clean markdown table
+
+After generating, ask: "Want me to adjust quantities, add a section, or draft this for the client?"
+If asked to refine, do it. If asked for a PDF-ready version, format it cleanly.`,
+
+  timesheet: `
+
+━━ ACTIVE SKILL: TIMESHEETS ━━
+You are in timesheet-logging mode.
+
+Help the user log crew hours. When they describe a work day:
+- Ask: worker name(s), project, date, start/end times, any breaks
+- Standard day: 7am–4pm with 1hr lunch = 7 net hrs. OT starts after 8hrs at 1.5×.
+- If multiple workers on same job, batch them together
+- Output format: | Worker | Project | Date | Regular Hrs | OT Hrs | Notes |
+- Flag if anything looks off (e.g. 12+ hour days, missing project)
+
+If the user says "log [name] on [job] today" — fill in today's date automatically and use standard hours unless told otherwise.`,
+
+  payroll: `
+
+━━ ACTIVE SKILL: PAYROLL ━━
+You are in payroll-calculation mode.
+
+Help process or review ODS payroll:
+- All amounts in BSD$ (= USD$)
+- NIB (National Insurance Board) deductions:
+  - Employee: 4.65% of insurable wages (max $550/week insurable)
+  - Employer: 6.65% of insurable wages
+- Workers are paid in cash, weekly or bi-weekly
+- Formula: Gross Pay = (Regular hrs × rate) + (OT hrs × rate × 1.5)
+- Net Pay = Gross - NIB Employee deduction
+
+When given hours and a rate, calculate and show:
+- Gross pay breakdown (regular + OT)
+- NIB employee deduction
+- NIB employer contribution (employer cost, not deducted from worker)
+- Net pay to worker
+
+If the user says "run payroll for [name]", ask for: dates covered, hours worked, hourly rate.`,
+
+  client_update: `
+
+━━ ACTIVE SKILL: CLIENT UPDATE ━━
+You are drafting professional client updates for ODS Construction.
+
+Write updates that:
+- Are under 150 words
+- Use plain English — no construction jargon
+- Cover: what's been done, current status, what's next, anything needed from client
+- Tone: professional but warm, like a Bahamian contractor who gets things done and respects the client's time
+
+If the user gives you bullet points or rough notes, turn them into a polished WhatsApp/email message.
+If they just say "write an update for [job]", ask: what was done this week, any issues, next steps.
+
+Always end with the contractor's name or "ODS Construction" as the sign-off.`,
+
+  job_status: `
+
+━━ ACTIVE SKILL: JOB STATUS ━━
+You are reviewing active construction job status.
+
+When the user asks about a job:
+- Focus on: % complete, phases done vs remaining, current phase, expected finish
+- Flag anything that could cause delays: material delays, weather, crew shortages
+- Keep it to 4-6 bullet points max — builders need facts, not reports
+- If you don't have specific data, ask the user to tell you what's been completed
+
+If asked to compare multiple jobs, use a simple table.`,
+};
+
+// Derive a short title from the user's first message
+function deriveTitle(msg: string): string {
+  const cleaned = msg.replace(/\s+/g, " ").trim();
+  if (cleaned.length <= 48) return cleaned;
+  return cleaned.slice(0, 48).replace(/\s+\S*$/, "") + "…";
+}
 
 export async function POST(request: NextRequest) {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    return NextResponse.json({ success: false, message: "ANTHROPIC_API_KEY not configured." }, { status: 500 });
+  }
+
   try {
-    // Get auth token from request
     const authHeader = request.headers.get("authorization");
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    if (!authHeader) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const token = authHeader.replace("Bearer ", "");
-
-    // Create authenticated Supabase client
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) return NextResponse.json({ error: "Invalid token" }, { status: 401 });
 
-    // Verify the user
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser(token);
-
-    if (authError || !user) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    }
-
-    const { message, conversation_history = [] } = await request.json();
-
+    const { thread_id, skill_id, message } = await request.json();
     if (!message || typeof message !== "string") {
-      return NextResponse.json(
-        { error: "Message is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Message required" }, { status: 400 });
     }
 
-    // Build conversation messages
-    const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
-      { role: "system", content: ASSISTANT_SYSTEM_PROMPT },
-    ];
+    // Resolve user's company for new-thread creation
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("company_id")
+      .eq("id", user.id)
+      .single();
+    if (!profile?.company_id) {
+      return NextResponse.json({ error: "User has no company" }, { status: 400 });
+    }
 
-    // Add conversation history (limit to last 10 messages to avoid token limits)
-    const recentHistory = conversation_history.slice(-10);
-    for (const msg of recentHistory) {
-      if (msg.role && msg.content) {
-        messages.push({
-          role: msg.role as "user" | "assistant",
-          content: msg.content,
-        });
+    // Resolve thread: either load existing (and verify ownership) or create new
+    let activeThreadId = thread_id as string | undefined;
+    let activeSkillId: string | null = null;
+
+    if (activeThreadId) {
+      const { data: thread, error: threadErr } = await supabase
+        .from("ai_threads")
+        .select("id, user_id, skill_id")
+        .eq("id", activeThreadId)
+        .single();
+      if (threadErr || !thread) {
+        return NextResponse.json({ error: "Thread not found" }, { status: 404 });
       }
-    }
-
-    // Add current message
-    messages.push({ role: "user", content: message });
-
-    // Call OpenAI
-    let completion;
-    try {
-      completion = await openai.chat.completions.create({
-        model: OPENAI_MODEL,
-        messages,
-        temperature: 0.7,
-        max_tokens: 500,
-      });
-    } catch (openaiError: any) {
-      // Handle OpenAI-specific errors
-      const status = openaiError?.status || openaiError?.response?.status || openaiError?.statusCode;
-      const errorMessage = openaiError?.message || openaiError?.error?.message || String(openaiError);
-      
-      if (status === 429 || errorMessage.includes("quota") || errorMessage.includes("429")) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: "OpenAI API quota exceeded. Please check your OpenAI account billing and usage limits. You may need to add credits or upgrade your plan at https://platform.openai.com/account/billing",
-            error: "QUOTA_EXCEEDED",
-            errorCode: 429,
-            details: errorMessage,
-          },
-          { status: 429 }
-        );
+      if (thread.user_id !== user.id) {
+        return NextResponse.json({ error: "Cannot post to another user's thread" }, { status: 403 });
       }
-      if (status === 401 || errorMessage.includes("Invalid API key") || errorMessage.includes("401")) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: "OpenAI API key is invalid or expired. Please check your OPENAI_API_KEY environment variable.",
-            error: "INVALID_API_KEY",
-            errorCode: 401,
-            details: errorMessage,
-          },
-          { status: 401 }
-        );
+      activeSkillId = thread.skill_id;
+    } else {
+      const { data: newThread, error: createErr } = await supabase
+        .from("ai_threads")
+        .insert({
+          user_id: user.id,
+          company_id: profile.company_id,
+          skill_id: skill_id ?? null,
+          title: deriveTitle(message),
+        })
+        .select("id, skill_id")
+        .single();
+      if (createErr || !newThread) {
+        return NextResponse.json({ error: `Thread create failed: ${createErr?.message}` }, { status: 500 });
       }
-      // Re-throw to be caught by outer catch
-      throw openaiError;
+      activeThreadId = newThread.id;
+      activeSkillId = newThread.skill_id;
     }
 
-    const responseText = completion.choices[0]?.message?.content?.trim();
+    // Persist the user's message
+    await supabase.from("ai_thread_messages").insert({
+      thread_id: activeThreadId,
+      role: "user",
+      content: message,
+    });
 
-    if (!responseText) {
-      throw new Error("No response from AI");
+    // Load recent history for context (last 20 messages, in order)
+    const { data: history } = await supabase
+      .from("ai_thread_messages")
+      .select("role, content")
+      .eq("thread_id", activeThreadId)
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    const orderedHistory = (history ?? []).slice().reverse();
+
+    // Build system prompt with skill addon
+    const skillAddon = activeSkillId && SKILL_PROMPTS[activeSkillId] ? SKILL_PROMPTS[activeSkillId] : "";
+    const systemPrompt = BASE_SYSTEM + skillAddon;
+
+    // Call Anthropic
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 2048,
+        system: systemPrompt,
+        messages: orderedHistory,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      return NextResponse.json({ success: false, message: `Claude API error: ${err}` }, { status: res.status });
     }
+
+    const data = await res.json();
+    const responseText = data.content?.find((b: { type: string }) => b.type === "text")?.text?.trim();
+    if (!responseText) throw new Error("No response from Claude");
+
+    // Persist assistant response
+    await supabase.from("ai_thread_messages").insert({
+      thread_id: activeThreadId,
+      role: "assistant",
+      content: responseText,
+    });
 
     return NextResponse.json({
       success: true,
+      thread_id: activeThreadId,
       message: responseText,
-      tokens_used: completion.usage?.total_tokens,
     });
   } catch (error: unknown) {
-    console.error("Chat error:", error);
-
-    const errorMessage =
-      error instanceof Error ? error.message : "Chat failed";
-
-    // Check if it's an OpenAI error with status
-    if (error && typeof error === "object") {
-      const status = (error as any).status || (error as any).response?.status || (error as any).statusCode;
-      const errorMessage = (error as any).message || (error as any).error?.message || String(error);
-      
-      if (status === 429 || errorMessage.includes("quota") || errorMessage.includes("429")) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: "OpenAI API quota exceeded. Please check your OpenAI account billing and usage limits at https://platform.openai.com/account/billing",
-            error: "QUOTA_EXCEEDED",
-            errorCode: 429,
-            details: errorMessage,
-          },
-          { status: 429 }
-        );
-      }
-      if (status === 401 || errorMessage.includes("Invalid API key") || errorMessage.includes("401")) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: "OpenAI API key is invalid or expired. Please check your OPENAI_API_KEY environment variable.",
-            error: "INVALID_API_KEY",
-            errorCode: 401,
-            details: errorMessage,
-          },
-          { status: 401 }
-        );
-      }
-    }
-
-    return NextResponse.json(
-      {
-        success: false,
-        message: "I'm sorry, I encountered an error. Please try again.",
-        error: errorMessage,
-      },
-      { status: 500 }
-    );
+    const msg = error instanceof Error ? error.message : "Chat failed";
+    return NextResponse.json({ success: false, message: msg }, { status: 500 });
   }
 }

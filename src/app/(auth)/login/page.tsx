@@ -57,9 +57,16 @@ function LoginForm() {
 
       if (error) {
         console.error("Login error:", error);
+        const isNetworkError =
+          error.message?.includes("Load failed") ||
+          error.message?.includes("Failed to fetch") ||
+          error.message?.includes("NetworkError") ||
+          error.name === "AuthRetryableFetchError";
         toast({
           title: "Login failed",
-          description: error.message || "Invalid email or password. Please try again.",
+          description: isNetworkError
+            ? "Cannot reach the server. The service may be temporarily unavailable—try again in a few minutes or check status at supabase.com/dashboard."
+            : error.message || "Invalid email or password. Please try again.",
           variant: "destructive",
         });
         setLoading(false);

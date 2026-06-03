@@ -18,6 +18,10 @@ const config = {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ["var(--font-sans)", "system-ui", "sans-serif"],
+        mono: ["var(--font-mono)", "monospace"],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -52,12 +56,12 @@ const config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // TropiTrack brand colors
-        tropi: {
-          teal: "#0D9488",
-          "teal-dark": "#0F766E",
-          gold: "#F59E0B",
-          sand: "#FEF3C7",
+        bedrock: {
+          amber: "hsl(var(--bedrock-amber))",
+          green: "hsl(var(--bedrock-green))",
+          red: "hsl(var(--bedrock-red))",
+          surface: "hsl(var(--bedrock-surface))",
+          line: "hsl(var(--bedrock-line))",
         },
       },
       borderRadius: {

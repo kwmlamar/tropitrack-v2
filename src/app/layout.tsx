@@ -1,12 +1,21 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeColorMeta } from "@/components/theme-color-meta";
-import { InstallPrompt } from "@/components/mobile/install-prompt";
 
-const inter = Inter({ subsets: ["latin"] });
+const ibmPlexSans = IBM_Plex_Sans({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-sans",
+});
+
+const ibmPlexMono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-mono",
+});
 
 // Get the base URL from environment or use a default
 const getBaseUrl = () => {
@@ -23,35 +32,21 @@ const baseUrl = getBaseUrl();
 
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
-  title: "TropiTrack - Construction Management",
-  description: "Construction project management, time tracking, and payroll for Caribbean businesses",
+  title: "Bedrock — ODS Management",
+  description: "Business OS for ODS Management. Jobs, crew, payroll, and goals — all in one place.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
-    title: "TropiTrack",
+    statusBarStyle: "black-translucent",
+    title: "Bedrock",
   },
   icons: {
     icon: "/icons/icon-192x192.png",
     apple: "/icons/icon-192x192.png",
   },
   openGraph: {
-    title: "TropiTrack - Construction Management",
-    description: "Construction project management, time tracking, and payroll for Caribbean businesses",
-    images: [
-      {
-        url: "/icons/icon-512x512.png",
-        width: 512,
-        height: 512,
-        alt: "TropiTrack Logo",
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "TropiTrack - Construction Management",
-    description: "Construction project management, time tracking, and payroll for Caribbean businesses",
-    images: ["/icons/icon-512x512.png"],
+    title: "Bedrock — ODS Management",
+    description: "Business OS for ODS Management.",
   },
 };
 
@@ -74,12 +69,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
-        <ThemeProvider defaultTheme="system" storageKey="tropitrack-theme">
+      <body className={`${ibmPlexSans.variable} ${ibmPlexMono.variable} font-sans`}>
+        <ThemeProvider defaultTheme="dark" storageKey="bedrock-theme">
           <ThemeColorMeta />
           {children}
           <Toaster />
-          <InstallPrompt />
         </ThemeProvider>
       </body>
     </html>

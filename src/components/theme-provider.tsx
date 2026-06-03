@@ -37,30 +37,14 @@ export function ThemeProvider({
     setMounted(true);
   }, [storageKey]);
 
-  // Apply theme changes
+  // Always force dark mode
   useEffect(() => {
     if (!mounted) return;
-
     const root = window.document.documentElement;
     root.classList.remove("light", "dark");
-
-    let resolved: "light" | "dark";
-
-    if (theme === "system") {
-      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
-        ? "dark"
-        : "light";
-      resolved = systemTheme;
-    } else {
-      resolved = theme;
-    }
-
-    root.classList.add(resolved);
-    setResolvedTheme(resolved);
-
-    // Save to localStorage
-    localStorage.setItem(storageKey, theme);
-  }, [theme, mounted, storageKey]);
+    root.classList.add("dark");
+    setResolvedTheme("dark");
+  }, [mounted]);
 
   // Listen for system theme changes
   useEffect(() => {

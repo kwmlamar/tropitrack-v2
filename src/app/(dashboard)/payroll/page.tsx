@@ -1,28 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Header } from "@/components/layout/header";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { DatePicker } from "@/components/ui/date-picker";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/lib/auth-context";
+import { useToast } from "@/hooks/use-toast";
+import { formatCurrency, formatDate } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -30,36 +13,22 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Progress } from "@/components/ui/progress";
-import { createClient } from "@/lib/supabase/client";
-import { useAuth } from "@/lib/auth-context";
-import { useToast } from "@/hooks/use-toast";
-import { formatCurrency, formatDate } from "@/lib/utils";
 import {
-  Plus,
-  DollarSign,
-  Calendar,
-  Users,
-  Clock,
-  CheckCircle,
-  AlertCircle,
-  Loader2,
-  Calculator,
-  FileText,
-  Check,
-  X,
-  Banknote,
-} from "lucide-react";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Loader2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import type { PayPeriod, Worker } from "@/types";
+import type { PayPeriod, Worker, PayrollAdjustment, PayrollAdjustmentType } from "@/types";
 
-// NIB Constants (Bahamian National Insurance Board)
-const NIB_EMPLOYEE_RATE = 0.0465; // 4.65%
-const NIB_EMPLOYER_RATE = 0.0665; // 6.65%
-const NIB_WEEKLY_MAX_INSURABLE = 550; // $550 per week max insurable wages
+// NIB Constants
+const NIB_EMPLOYEE_RATE = 0.0465;
+const NIB_EMPLOYER_RATE = 0.0665;
+const NIB_WEEKLY_MAX_INSURABLE = 550;
 
 interface PayrollEntry {
   id: string;
@@ -75,21 +44,20 @@ interface PayrollEntry {
   paid_at?: string;
   total_paid?: number;
   payment_status?: "unpaid" | "partial" | "paid";
-  deduction_details?: {
-    nib_employee?: number;
-    nib_employer?: number;
-    nib_insurable_wages?: number;
-  };
-  worker?: {
-    first_name: string;
-    last_name: string;
-    nib_enabled?: boolean;
-  };
+  deduction_details?: { nib_employee?: number; nib_employer?: number; nib_insurable_wages?: number };
+  worker?: { first_name: string; last_name: string; nib_enabled?: boolean };
 }
 
 interface PayPeriodWithEntries extends PayPeriod {
   entries?: PayrollEntry[];
 }
+
+const PERIOD_DOT: Record<string, string> = {
+  open:       "bg-[#3B82F6]",
+  processing: "bg-[#F5A623]",
+  paid:       "bg-[#22C55E]",
+  cancelled:  "bg-[#EF4444]",
+};
 
 export default function PayrollPage() {
   const { user, profile, loading: authLoading } = useAuth();
@@ -107,59 +75,41 @@ export default function PayrollPage() {
   const [payingBulk, setPayingBulk] = useState(false);
   const [singlePayDialogOpen, setSinglePayDialogOpen] = useState(false);
   const [payingEntry, setPayingEntry] = useState<PayrollEntry | null>(null);
-  const [payAmount, setPayAmount] = useState<string>("");
-  const [payMethod, setPayMethod] = useState<string>("cash");
+  const [payAmount, setPayAmount] = useState("");
+  const [payMethod, setPayMethod] = useState("cash");
+  const [reopenDialogOpen, setReopenDialogOpen] = useState(false);
+  const [voidDialogOpen, setVoidDialogOpen] = useState(false);
+  const [adjustmentDialogOpen, setAdjustmentDialogOpen] = useState(false);
+  const [adjustmentsListOpen, setAdjustmentsListOpen] = useState(false);
+  const [reopenReason, setReopenReason] = useState("");
+  const [voidReason, setVoidReason] = useState("");
+  const [adjustments, setAdjustments] = useState<PayrollAdjustment[]>([]);
+  const [adjustmentForm, setAdjustmentForm] = useState({
+    worker_id: "", adjustment_type: "correction" as PayrollAdjustmentType,
+    hours_adjustment: "0", amount_adjustment: "0", reason: "",
+  });
+  const [periodForm, setPeriodForm] = useState({ start_date: "", end_date: "" });
   const supabase = createClient();
 
-  const [periodForm, setPeriodForm] = useState({
-    start_date: "",
-    end_date: "",
-  });
-
   useEffect(() => {
-    // Wait for auth to finish loading
     if (authLoading) return;
-    
-    // If profile exists but no company_id, stop loading
-    if (profile && !profile.company_id) {
-      setLoading(false);
-      return;
-    }
-    
-    // If profile has company_id, fetch data
-    if (profile?.company_id) {
-      fetchData();
-    } else if (profile === null) {
-      setLoading(false);
-    }
+    if (profile && !profile.company_id) { setLoading(false); return; }
+    if (profile?.company_id) fetchData();
+    else if (profile === null) setLoading(false);
   }, [profile?.company_id, profile, authLoading]);
 
   const fetchData = async () => {
     if (!profile?.company_id) return;
-    
     setLoading(true);
     try {
-      // Fetch pay periods
-      const { data: periodsData } = await supabase
-        .from("pay_periods")
-        .select("*")
-        .order("start_date", { ascending: false });
+      const [{ data: periodsData }, { data: workersData }] = await Promise.all([
+        supabase.from("pay_periods").select("*").order("start_date", { ascending: false }),
+        supabase.from("workers").select("*").eq("company_id", profile.company_id).eq("status", "active").order("last_name"),
+      ]);
       setPayPeriods(periodsData || []);
-
-      // Fetch active workers (filtered by company_id)
-      const { data: workersData } = await supabase
-        .from("workers")
-        .select("*")
-        .eq("company_id", profile.company_id)
-        .eq("status", "active")
-        .order("last_name");
       setWorkers(workersData || []);
-
-      // Select most recent open period
-      const openPeriod = periodsData?.find((p) => p.status === "open");
-      if (openPeriod) {
-        await fetchPeriodEntries(openPeriod);
-      }
+      const openPeriod = periodsData?.find(p => p.status === "open");
+      if (openPeriod) await fetchPeriodEntries(openPeriod);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -168,56 +118,28 @@ export default function PayrollPage() {
   };
 
   const fetchPeriodEntries = async (period: PayPeriod) => {
-    const { data: entriesData } = await supabase
+    const { data } = await supabase
       .from("payroll_entries")
-      .select(`
-        *,
-        worker:workers(first_name, last_name, nib_enabled)
-      `)
+      .select("*, worker:workers(first_name, last_name, nib_enabled)")
       .eq("pay_period_id", period.id);
-
-    setSelectedPeriod({
-      ...period,
-      entries: entriesData || [],
-    });
+    setSelectedPeriod({ ...period, entries: data || [] });
   };
 
   const handleCreatePeriod = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     try {
-      // Ensure dates are in YYYY-MM-DD format (no time component)
-      const startDate = periodForm.start_date.split('T')[0];
-      const endDate = periodForm.end_date.split('T')[0];
-      
       const { data, error } = await supabase
         .from("pay_periods")
-        .insert({
-          start_date: startDate,
-          end_date: endDate,
-          status: "open",
-        })
-        .select()
-        .single();
-
+        .insert({ start_date: periodForm.start_date.split("T")[0], end_date: periodForm.end_date.split("T")[0], status: "open" })
+        .select().single();
       if (error) throw error;
-
-      toast({
-        title: "Pay period created",
-        description: `Pay period from ${formatDate(periodForm.start_date)} to ${formatDate(periodForm.end_date)} has been created.`,
-        variant: "success",
-      });
-
+      toast({ title: "Pay period created" });
       setCreateDialogOpen(false);
       setPeriodForm({ start_date: "", end_date: "" });
       fetchData();
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "An error occurred";
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
@@ -225,166 +147,50 @@ export default function PayrollPage() {
 
   const handleProcessPayroll = async () => {
     if (!selectedPeriod || !user) return;
-
     setSubmitting(true);
     try {
-      // Fetch time entries for the pay period with worker NIB settings
-      const { data: timeEntries, error: timeEntriesError } = await supabase
+      const { data: timeEntries, error } = await supabase
         .from("time_entries")
-        .select(`
-          worker_id,
-          regular_hours,
-          overtime_hours,
-          date,
-          workers(hourly_rate, overtime_rate_multiplier, nib_enabled)
-        `)
+        .select("worker_id, regular_hours, overtime_hours, date, workers(hourly_rate, overtime_rate_multiplier, nib_enabled)")
         .gte("date", selectedPeriod.start_date)
         .lte("date", selectedPeriod.end_date);
-
-      if (timeEntriesError) {
-        throw new Error(`Failed to fetch time entries: ${timeEntriesError.message}`);
-      }
-
-      if (!timeEntries || timeEntries.length === 0) {
-        toast({
-          title: "No time entries",
-          description: "No time entries found for this pay period.",
-          variant: "destructive",
-        });
+      if (error) throw error;
+      if (!timeEntries?.length) {
+        toast({ title: "No time entries found", variant: "destructive" });
         setSubmitting(false);
         return;
       }
-
-      // Calculate number of weeks in pay period for NIB max calculation
-      const startDate = new Date(selectedPeriod.start_date);
-      const endDate = new Date(selectedPeriod.end_date);
-      const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-      const weeksInPeriod = Math.ceil(daysDiff / 7);
-
-      // Aggregate by worker
-      const workerTotals: Record<string, {
-        regular_hours: number;
-        overtime_hours: number;
-        hourly_rate: number;
-        overtime_multiplier: number;
-        nib_enabled: boolean;
-      }> = {};
-
+      const start = new Date(selectedPeriod.start_date);
+      const end = new Date(selectedPeriod.end_date);
+      const weeksInPeriod = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 7));
+      const workerTotals: Record<string, any> = {};
       timeEntries.forEach((entry: any) => {
-        // Convert DECIMAL to number
-        const regularHours = typeof entry.regular_hours === 'string' 
-          ? parseFloat(entry.regular_hours) 
-          : Number(entry.regular_hours) || 0;
-        const overtimeHours = typeof entry.overtime_hours === 'string'
-          ? parseFloat(entry.overtime_hours)
-          : Number(entry.overtime_hours) || 0;
-
+        const reg = parseFloat(entry.regular_hours) || 0;
+        const ot = parseFloat(entry.overtime_hours) || 0;
         if (!workerTotals[entry.worker_id]) {
-          workerTotals[entry.worker_id] = {
-            regular_hours: 0,
-            overtime_hours: 0,
-            hourly_rate: Number(entry.workers?.hourly_rate) || 0,
-            overtime_multiplier: Number(entry.workers?.overtime_rate_multiplier) || 1.5,
-            nib_enabled: entry.workers?.nib_enabled ?? true,
-          };
+          workerTotals[entry.worker_id] = { regular_hours: 0, overtime_hours: 0, hourly_rate: Number(entry.workers?.hourly_rate) || 0, overtime_multiplier: Number(entry.workers?.overtime_rate_multiplier) || 1.5, nib_enabled: entry.workers?.nib_enabled ?? true };
         }
-        workerTotals[entry.worker_id].regular_hours += regularHours;
-        workerTotals[entry.worker_id].overtime_hours += overtimeHours;
+        workerTotals[entry.worker_id].regular_hours += reg;
+        workerTotals[entry.worker_id].overtime_hours += ot;
       });
-
-      // Create payroll entries with proper NIB calculations
-      const payrollEntries = Object.entries(workerTotals).map(([worker_id, totals]) => {
-        const regularPay = totals.regular_hours * totals.hourly_rate;
-        const overtimePay = totals.overtime_hours * totals.hourly_rate * totals.overtime_multiplier;
-        const grossPay = regularPay + overtimePay;
-
-        // Calculate NIB deductions if enabled
-        let nibEmployeeDeduction = 0;
-        let nibEmployerContribution = 0;
-        let nibInsurableWages = 0;
-
-        if (totals.nib_enabled) {
-          // Max insurable wages for the pay period (based on number of weeks)
-          const maxInsurableWages = NIB_WEEKLY_MAX_INSURABLE * weeksInPeriod;
-
-          // Insurable wages is the lesser of gross pay or max
-          nibInsurableWages = Math.min(grossPay, maxInsurableWages);
-
-          // Calculate NIB contributions
-          nibEmployeeDeduction = nibInsurableWages * NIB_EMPLOYEE_RATE;
-          nibEmployerContribution = nibInsurableWages * NIB_EMPLOYER_RATE;
+      const payrollEntries = Object.entries(workerTotals).map(([worker_id, t]) => {
+        const grossPay = t.regular_hours * t.hourly_rate + t.overtime_hours * t.hourly_rate * t.overtime_multiplier;
+        let nibEE = 0, nibER = 0, nibWages = 0;
+        if (t.nib_enabled) {
+          nibWages = Math.min(grossPay, NIB_WEEKLY_MAX_INSURABLE * weeksInPeriod);
+          nibEE = nibWages * NIB_EMPLOYEE_RATE;
+          nibER = nibWages * NIB_EMPLOYER_RATE;
         }
-
-        const totalDeductions = nibEmployeeDeduction;
-        const netPay = grossPay - totalDeductions;
-
-        return {
-          pay_period_id: selectedPeriod.id,
-          worker_id,
-          regular_hours: totals.regular_hours,
-          overtime_hours: totals.overtime_hours,
-          regular_rate: totals.hourly_rate,
-          overtime_rate: totals.hourly_rate * totals.overtime_multiplier,
-          gross_pay: grossPay,
-          deductions: totalDeductions,
-          net_pay: netPay,
-          deduction_details: {
-            nib_employee: nibEmployeeDeduction,
-            nib_employer: nibEmployerContribution,
-            nib_insurable_wages: nibInsurableWages,
-          },
-        };
+        return { pay_period_id: selectedPeriod.id, worker_id, regular_hours: t.regular_hours, overtime_hours: t.overtime_hours, regular_rate: t.hourly_rate, overtime_rate: t.hourly_rate * t.overtime_multiplier, gross_pay: grossPay, deductions: nibEE, net_pay: grossPay - nibEE, deduction_details: { nib_employee: nibEE, nib_employer: nibER, nib_insurable_wages: nibWages } };
       });
-
-      // Insert payroll entries
-      const { error: entriesError } = await supabase
-        .from("payroll_entries")
-        .insert(payrollEntries);
-
-      if (entriesError) throw entriesError;
-
-      // Update pay period status
-      const { error: periodError } = await supabase
-        .from("pay_periods")
-        .update({
-          status: "processing",
-          processed_at: new Date().toISOString(),
-          processed_by: user.id,
-        })
-        .eq("id", selectedPeriod.id);
-
-      if (periodError) throw periodError;
-
-      toast({
-        title: "Payroll processed",
-        description: `Payroll has been calculated for ${payrollEntries.length} workers.`,
-        variant: "success",
-      });
-
+      const { error: insErr } = await supabase.from("payroll_entries").insert(payrollEntries);
+      if (insErr) throw insErr;
+      await supabase.from("pay_periods").update({ status: "processing", processed_at: new Date().toISOString(), processed_by: user.id }).eq("id", selectedPeriod.id);
+      toast({ title: "Payroll processed", description: `${payrollEntries.length} workers calculated.` });
       setProcessDialogOpen(false);
-      
-      // Refresh the pay periods list
-      const { data: periodsData } = await supabase
-        .from("pay_periods")
-        .select("*")
-        .order("start_date", { ascending: false });
-      setPayPeriods(periodsData || []);
-      
-      // Refresh the selected period to show the new payroll entries
-      if (selectedPeriod) {
-        const updatedPeriod = periodsData?.find((p) => p.id === selectedPeriod.id);
-        if (updatedPeriod) {
-          await fetchPeriodEntries(updatedPeriod);
-        }
-      }
-    } catch (error: unknown) {
-      console.error("Payroll processing error:", error);
-      const errorMessage = error instanceof Error ? error.message : "An error occurred";
-      toast({
-        title: "Error processing payroll",
-        description: errorMessage,
-        variant: "destructive",
-      });
+      fetchData();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
@@ -392,114 +198,48 @@ export default function PayrollPage() {
 
   const handleMarkPaid = async () => {
     if (!selectedPeriod) return;
-
-    try {
-      const { error } = await supabase
-        .from("pay_periods")
-        .update({ status: "paid" })
-        .eq("id", selectedPeriod.id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Pay period marked as paid",
-        variant: "success",
-      });
-
-      fetchData();
-    } catch (error) {
-      console.error("Error updating period:", error);
-    }
+    await supabase.from("pay_periods").update({ status: "paid" }).eq("id", selectedPeriod.id);
+    toast({ title: "Marked as paid" });
+    fetchData();
   };
 
-  const handleToggleEntry = (entryId: string) => {
-    const newSelected = new Set(selectedEntries);
-    if (newSelected.has(entryId)) {
-      newSelected.delete(entryId);
-    } else {
-      newSelected.add(entryId);
-    }
-    setSelectedEntries(newSelected);
+  const handleToggleEntry = (id: string) => {
+    const s = new Set(selectedEntries);
+    s.has(id) ? s.delete(id) : s.add(id);
+    setSelectedEntries(s);
   };
 
   const handleSelectAll = (checked: boolean) => {
     if (checked && selectedPeriod?.entries) {
-      // Select all entries with remaining balance
-      const unpaidIds = selectedPeriod.entries
-        .filter((e) => !e.is_paid && e.payment_status !== "paid")
-        .map((e) => e.id);
-      setSelectedEntries(new Set(unpaidIds));
+      setSelectedEntries(new Set([...unpaidEntries, ...partialEntries].map(e => e.id)));
     } else {
       setSelectedEntries(new Set());
     }
   };
 
   const handlePaySelected = async () => {
-    if (selectedEntries.size === 0 || !selectedPeriod) return;
-
-    const currentPeriodId = selectedPeriod.id;
+    if (!selectedEntries.size || !selectedPeriod) return;
+    const periodId = selectedPeriod.id;
     setPayingBulk(true);
     try {
-      // Get selected entries with their remaining balances
-      const selectedEntryList = selectedPeriod.entries?.filter((e) => selectedEntries.has(e.id)) || [];
-
-      // Create payment transactions for each (pays remaining balance)
-      const transactions = selectedEntryList.map((entry) => ({
-        payroll_entry_id: entry.id,
-        amount: entry.net_pay - (entry.total_paid || 0),
-        payment_method: "cash",
-        created_by: user?.id,
-      }));
-
-      const { error } = await supabase
-        .from("payment_transactions")
-        .insert(transactions);
-
+      const list = selectedPeriod.entries?.filter(e => selectedEntries.has(e.id)) || [];
+      const { error } = await supabase.from("payment_transactions").insert(
+        list.map(e => ({ payroll_entry_id: e.id, amount: e.net_pay - (e.total_paid || 0), payment_method: "cash", created_by: user?.id }))
+      );
       if (error) throw error;
-
-      // Check if all entries in the period are now paid
-      const { data: allEntries } = await supabase
-        .from("payroll_entries")
-        .select("id, is_paid")
-        .eq("pay_period_id", currentPeriodId);
-
-      const allPaid = allEntries?.every((e) => e.is_paid || selectedEntries.has(e.id));
-
-      // If all are paid, update the period status
-      if (allPaid) {
-        await supabase
-          .from("pay_periods")
-          .update({ status: "paid" })
-          .eq("id", currentPeriodId);
+      const { data: allEntries } = await supabase.from("payroll_entries").select("id, is_paid").eq("pay_period_id", periodId);
+      if (allEntries?.every(e => e.is_paid || selectedEntries.has(e.id))) {
+        await supabase.from("pay_periods").update({ status: "paid" }).eq("id", periodId);
       }
-
-      toast({
-        title: "Payment recorded",
-        description: `Paid ${selectedEntryList.length} worker(s).`,
-        variant: "success",
-      });
-
+      toast({ title: "Payment recorded", description: `${list.length} worker(s) paid.` });
       setSelectedEntries(new Set());
       setPayDialogOpen(false);
-
-      // Refresh data
-      const { data: periodsData } = await supabase
-        .from("pay_periods")
-        .select("*")
-        .order("start_date", { ascending: false });
-      setPayPeriods(periodsData || []);
-
-      const updatedPeriod = periodsData?.find((p) => p.id === currentPeriodId);
-      if (updatedPeriod) {
-        await fetchPeriodEntries(updatedPeriod);
-      }
+      const { data: perData } = await supabase.from("pay_periods").select("*").order("start_date", { ascending: false });
+      setPayPeriods(perData || []);
+      const updated = perData?.find(p => p.id === periodId);
+      if (updated) await fetchPeriodEntries(updated);
     } catch (error: any) {
-      console.error("Error recording payments:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to record payments",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       setPayingBulk(false);
     }
@@ -507,590 +247,668 @@ export default function PayrollPage() {
 
   const openPayDialog = (entry: PayrollEntry) => {
     setPayingEntry(entry);
-    const remaining = entry.net_pay - (entry.total_paid || 0);
-    setPayAmount(remaining.toFixed(2));
+    setPayAmount((entry.net_pay - (entry.total_paid || 0)).toFixed(2));
     setPayMethod("cash");
     setSinglePayDialogOpen(true);
   };
 
   const handlePaySingleEntry = async () => {
     if (!selectedPeriod || !payingEntry) return;
-
     const amount = parseFloat(payAmount);
-    if (isNaN(amount) || amount <= 0) {
-      toast({
-        title: "Invalid amount",
-        description: "Please enter a valid payment amount",
-        variant: "destructive",
-      });
-      return;
-    }
-
+    if (isNaN(amount) || amount <= 0) { toast({ title: "Invalid amount", variant: "destructive" }); return; }
     const remaining = payingEntry.net_pay - (payingEntry.total_paid || 0);
-    if (amount > remaining + 0.01) {
-      toast({
-        title: "Amount exceeds balance",
-        description: `Maximum payment is ${formatCurrency(remaining)}`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const currentPeriodId = selectedPeriod.id;
+    if (amount > remaining + 0.01) { toast({ title: "Exceeds balance", variant: "destructive" }); return; }
+    const periodId = selectedPeriod.id;
     setPayingEntryId(payingEntry.id);
     try {
-      // Insert payment transaction (trigger will update payroll_entry)
-      const { error } = await supabase
-        .from("payment_transactions")
-        .insert({
-          payroll_entry_id: payingEntry.id,
-          amount: amount,
-          payment_method: payMethod,
-          created_by: user?.id,
-        });
-
+      const { error } = await supabase.from("payment_transactions").insert({ payroll_entry_id: payingEntry.id, amount, payment_method: payMethod, created_by: user?.id });
       if (error) throw error;
-
-      // Check if all entries in the period are now paid
-      const { data: allEntries } = await supabase
-        .from("payroll_entries")
-        .select("id, is_paid, net_pay, total_paid")
-        .eq("pay_period_id", currentPeriodId);
-
-      const allPaid = allEntries?.every((e) => {
-        if (e.id === payingEntry.id) {
-          return (e.total_paid || 0) + amount >= e.net_pay;
-        }
-        return e.is_paid;
-      });
-
-      if (allPaid) {
-        await supabase
-          .from("pay_periods")
-          .update({ status: "paid" })
-          .eq("id", currentPeriodId);
+      const { data: allEntries } = await supabase.from("payroll_entries").select("id, is_paid, net_pay, total_paid").eq("pay_period_id", periodId);
+      if (allEntries?.every(e => e.id === payingEntry.id ? (e.total_paid || 0) + amount >= e.net_pay : e.is_paid)) {
+        await supabase.from("pay_periods").update({ status: "paid" }).eq("id", periodId);
       }
-
-      toast({
-        title: "Payment recorded",
-        description: `${formatCurrency(amount)} paid to ${payingEntry.worker?.first_name}`,
-        variant: "success",
-      });
-
+      toast({ title: "Payment recorded", description: `${formatCurrency(amount)} paid to ${payingEntry.worker?.first_name}` });
       setSinglePayDialogOpen(false);
       setPayingEntry(null);
-
-      // Refresh data
-      const { data: periodsData } = await supabase
-        .from("pay_periods")
-        .select("*")
-        .order("start_date", { ascending: false });
-      setPayPeriods(periodsData || []);
-
-      const updatedPeriod = periodsData?.find((p) => p.id === currentPeriodId);
-      if (updatedPeriod) {
-        await fetchPeriodEntries(updatedPeriod);
-      }
+      const { data: perData } = await supabase.from("pay_periods").select("*").order("start_date", { ascending: false });
+      setPayPeriods(perData || []);
+      const updated = perData?.find(p => p.id === periodId);
+      if (updated) await fetchPeriodEntries(updated);
     } catch (error: any) {
-      console.error("Error recording payment:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to record payment",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       setPayingEntryId(null);
     }
   };
 
-  const getStatusColor = (status: string) => {
-    const colors: Record<string, string> = {
-      open: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
-      processing: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
-      paid: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
-      cancelled: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
-    };
-    return colors[status] || "bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-300";
+  const handleReopenPeriod = async () => {
+    if (!selectedPeriod || !user || !reopenReason.trim()) return;
+    setSubmitting(true);
+    try {
+      await supabase.from("payroll_entries").delete().eq("pay_period_id", selectedPeriod.id);
+      await supabase.from("pay_periods").update({ status: "open", reopened_at: new Date().toISOString(), reopened_by: user.id, reopen_reason: reopenReason, processed_at: null, processed_by: null }).eq("id", selectedPeriod.id);
+      toast({ title: "Period reopened" });
+      setReopenDialogOpen(false);
+      setReopenReason("");
+      fetchData();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const totalGrossPay = selectedPeriod?.entries?.reduce((sum, e) => sum + e.gross_pay, 0) || 0;
-  const totalDeductions = selectedPeriod?.entries?.reduce((sum, e) => sum + e.deductions, 0) || 0;
-  const totalNetPay = selectedPeriod?.entries?.reduce((sum, e) => sum + e.net_pay, 0) || 0;
-  const totalNibEmployee = selectedPeriod?.entries?.reduce((sum, e) => sum + (e.deduction_details?.nib_employee || 0), 0) || 0;
-  const totalNibEmployer = selectedPeriod?.entries?.reduce((sum, e) => sum + (e.deduction_details?.nib_employer || 0), 0) || 0;
+  const handleVoidPeriod = async () => {
+    if (!selectedPeriod || !user || !voidReason.trim()) return;
+    setSubmitting(true);
+    try {
+      await supabase.from("pay_periods").update({ status: "cancelled", voided_at: new Date().toISOString(), voided_by: user.id, void_reason: voidReason }).eq("id", selectedPeriod.id);
+      toast({ title: "Period voided" });
+      setVoidDialogOpen(false);
+      setVoidReason("");
+      fetchData();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
-  const paidEntries = selectedPeriod?.entries?.filter((e) => e.payment_status === "paid" || e.is_paid) || [];
-  const partialEntries = selectedPeriod?.entries?.filter((e) => e.payment_status === "partial") || [];
-  const unpaidEntries = selectedPeriod?.entries?.filter((e) => !e.is_paid && e.payment_status !== "partial") || [];
-  const totalPaidAmount = selectedPeriod?.entries?.reduce((sum, e) => sum + (e.total_paid || 0), 0) || 0;
-  const totalUnpaidAmount = totalNetPay - totalPaidAmount;
-  const selectedTotal = selectedPeriod?.entries
-    ?.filter((e) => selectedEntries.has(e.id))
-    .reduce((sum, e) => sum + (e.net_pay - (e.total_paid || 0)), 0) || 0;
+  const fetchAdjustments = async (periodId: string) => {
+    const { data } = await supabase.from("payroll_adjustments").select("*, worker:workers(first_name, last_name)").eq("pay_period_id", periodId).order("created_at", { ascending: false });
+    if (data) setAdjustments(data);
+  };
+
+  const handleCreateAdjustment = async () => {
+    if (!selectedPeriod || !user || !adjustmentForm.worker_id || !adjustmentForm.reason.trim()) {
+      toast({ title: "Missing information", variant: "destructive" }); return;
+    }
+    setSubmitting(true);
+    try {
+      const { error } = await supabase.from("payroll_adjustments").insert({ pay_period_id: selectedPeriod.id, worker_id: adjustmentForm.worker_id, adjustment_type: adjustmentForm.adjustment_type, hours_adjustment: parseFloat(adjustmentForm.hours_adjustment) || 0, amount_adjustment: parseFloat(adjustmentForm.amount_adjustment) || 0, reason: adjustmentForm.reason, created_by: user.id });
+      if (error) throw error;
+      toast({ title: "Adjustment created" });
+      setAdjustmentDialogOpen(false);
+      setAdjustmentForm({ worker_id: "", adjustment_type: "correction", hours_adjustment: "0", amount_adjustment: "0", reason: "" });
+      fetchAdjustments(selectedPeriod.id);
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Computed values
+  const totalGross = selectedPeriod?.entries?.reduce((s, e) => s + e.gross_pay, 0) || 0;
+  const totalNibEE = selectedPeriod?.entries?.reduce((s, e) => s + (e.deduction_details?.nib_employee || 0), 0) || 0;
+  const totalNibER = selectedPeriod?.entries?.reduce((s, e) => s + (e.deduction_details?.nib_employer || 0), 0) || 0;
+  const totalNet = selectedPeriod?.entries?.reduce((s, e) => s + e.net_pay, 0) || 0;
+  const totalPaid = selectedPeriod?.entries?.reduce((s, e) => s + (e.total_paid || 0), 0) || 0;
+  const totalUnpaid = totalNet - totalPaid;
+  const paidEntries = selectedPeriod?.entries?.filter(e => e.payment_status === "paid" || e.is_paid) || [];
+  const partialEntries = selectedPeriod?.entries?.filter(e => e.payment_status === "partial") || [];
+  const unpaidEntries = selectedPeriod?.entries?.filter(e => !e.is_paid && e.payment_status !== "partial") || [];
+  const selectedTotal = selectedPeriod?.entries?.filter(e => selectedEntries.has(e.id)).reduce((s, e) => s + (e.net_pay - (e.total_paid || 0)), 0) || 0;
+  const canSelect = selectedPeriod?.status === "processing" && (unpaidEntries.length > 0 || partialEntries.length > 0);
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <Header title="Payroll" description="Manage pay periods and worker compensation">
-        <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              New Pay Period
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create Pay Period</DialogTitle>
-              <DialogDescription>Define the date range for this pay period</DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleCreatePeriod}>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="start_date">Start Date</Label>
-                  <DatePicker
-                    id="start_date"
-                    value={periodForm.start_date}
-                    onChange={(value) => setPeriodForm({ ...periodForm, start_date: value })}
-                    required
-                  />
+    <div className="flex flex-col h-full overflow-hidden bg-[#18191b]">
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-[#34373c] flex-shrink-0">
+        <div>
+          <p className="text-[11px] font-mono text-[#666] uppercase tracking-widest">Payroll</p>
+          <h1 className="text-[16px] font-semibold text-[#d0d0d0] mt-0.5">Pay Periods</h1>
+        </div>
+        <button
+          onClick={() => setCreateDialogOpen(true)}
+          className="text-[12px] font-medium text-[#F5A623] hover:opacity-80 transition-opacity"
+        >
+          + New Period
+        </button>
+      </div>
+
+      {/* Two-panel layout */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left: periods list */}
+        <div className="w-[260px] flex-shrink-0 border-r border-[#34373c] flex flex-col overflow-hidden">
+          <div className="px-4 py-3 border-b border-[#2d3035]">
+            <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Pay Periods</p>
+          </div>
+          <div className="flex-1 overflow-auto">
+            {loading ? (
+              <div className="divide-y divide-[#292c31]">
+                {Array(4).fill(0).map((_, i) => <div key={i} className="h-16 animate-pulse" />)}
+              </div>
+            ) : payPeriods.length === 0 ? (
+              <div className="px-4 py-8 text-center">
+                <p className="text-[12px] text-[#555]">No pay periods yet</p>
+                <button onClick={() => setCreateDialogOpen(true)} className="mt-2 text-[11px] text-[#F5A623] hover:opacity-80">
+                  Create first →
+                </button>
+              </div>
+            ) : (
+              <div className="divide-y divide-[#292c31]">
+                {payPeriods.map(period => (
+                  <button
+                    key={period.id}
+                    onClick={() => fetchPeriodEntries(period)}
+                    className={cn(
+                      "w-full px-4 py-3 text-left transition-colors",
+                      selectedPeriod?.id === period.id ? "bg-[#292c31]" : "hover:bg-[#23252a]"
+                    )}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={cn("h-1.5 w-1.5 rounded-full flex-shrink-0", PERIOD_DOT[period.status] ?? "bg-[#404040]")} />
+                      <span className="text-[10px] font-mono text-[#555] capitalize">{period.status}</span>
+                    </div>
+                    <p className="text-[12px] text-[#aaa] font-medium">
+                      {formatDate(period.start_date)} – {formatDate(period.end_date)}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right: period detail */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {!selectedPeriod ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <p className="text-[13px] text-[#555]">Select a pay period</p>
+                <button onClick={() => setCreateDialogOpen(true)} className="mt-3 text-[12px] text-[#F5A623] hover:opacity-80">
+                  or create one →
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Period header */}
+              <div className="px-6 py-3 border-b border-[#34373c] flex items-center justify-between flex-shrink-0">
+                <div className="flex items-center gap-3">
+                  <div>
+                    <p className="text-[10px] font-mono text-[#666] uppercase tracking-widest">
+                      {formatDate(selectedPeriod.start_date)} — {formatDate(selectedPeriod.end_date)}
+                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className={cn("h-1.5 w-1.5 rounded-full", PERIOD_DOT[selectedPeriod.status] ?? "bg-[#404040]")} />
+                      <span className="text-[11px] font-mono text-[#666] capitalize">{selectedPeriod.status}</span>
+                      {selectedPeriod.status === "cancelled" && selectedPeriod.void_reason && (
+                        <span className="text-[11px] text-[#555]">· {selectedPeriod.void_reason}</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="end_date">End Date</Label>
-                  <DatePicker
-                    id="end_date"
-                    value={periodForm.end_date}
-                    onChange={(value) => setPeriodForm({ ...periodForm, end_date: value })}
-                    required
-                  />
+
+                <div className="flex items-center gap-4">
+                  {selectedPeriod.status === "open" && (
+                    <button onClick={() => setProcessDialogOpen(true)} className="text-[12px] text-[#F5A623] hover:opacity-80">
+                      Process payroll
+                    </button>
+                  )}
+                  {selectedPeriod.status === "processing" && (
+                    <>
+                      <button onClick={() => setReopenDialogOpen(true)} className="text-[12px] text-[#F5A623] hover:opacity-80">Reopen</button>
+                      <button onClick={() => { fetchAdjustments(selectedPeriod.id); setAdjustmentsListOpen(true); }} className="text-[12px] text-[#666] hover:text-[#aaa] transition-colors">Adjustments</button>
+                      <button onClick={() => setVoidDialogOpen(true)} className="text-[12px] text-[#EF4444] hover:opacity-80">Void</button>
+                      {unpaidEntries.length > 0 && (
+                        <button onClick={handleMarkPaid} className="text-[12px] text-[#22C55E] hover:opacity-80">
+                          Mark all paid
+                        </button>
+                      )}
+                      {selectedEntries.size > 0 && (
+                        <button onClick={() => setPayDialogOpen(true)} className="text-[12px] font-medium text-[#22C55E] hover:opacity-80">
+                          Pay {selectedEntries.size} selected ({formatCurrency(selectedTotal)})
+                        </button>
+                      )}
+                    </>
+                  )}
+                  {selectedPeriod.status === "paid" && (
+                    <>
+                      <span className="text-[11px] font-mono text-[#22C55E]">Fully paid</span>
+                      <button onClick={() => { fetchAdjustments(selectedPeriod.id); setAdjustmentsListOpen(true); }} className="text-[12px] text-[#666] hover:text-[#aaa] transition-colors">Adjustments</button>
+                      <button onClick={() => setVoidDialogOpen(true)} className="text-[12px] text-[#EF4444] hover:opacity-80">Void</button>
+                    </>
+                  )}
                 </div>
               </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setCreateDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={submitting}>
-                  {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  Create Period
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </Header>
 
-      <div className="flex-1 p-6 space-y-6">
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Pay Periods List */}
-          <Card className="lg:col-span-1">
-            <CardHeader>
-              <CardTitle>Pay Periods</CardTitle>
-              <CardDescription>Select a period to view details</CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
-              {loading ? (
-                <div className="p-4 text-center">
-                  <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                </div>
-              ) : payPeriods.length > 0 ? (
-                <div className="divide-y">
-                  {payPeriods.map((period) => (
-                    <button
-                      key={period.id}
-                      onClick={() => fetchPeriodEntries(period)}
-                      className={`w-full p-4 text-left hover:bg-muted transition-colors ${
-                        selectedPeriod?.id === period.id ? "bg-muted" : ""
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium text-sm">
-                            {formatDate(period.start_date)} - {formatDate(period.end_date)}
-                          </p>
-                          <Badge className={`mt-1 ${getStatusColor(period.status)}`}>
-                            {period.status}
-                          </Badge>
-                        </div>
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                    </button>
+              {/* Stat row */}
+              {(selectedPeriod.entries?.length ?? 0) > 0 && (
+                <div className="px-6 py-3 border-b border-[#34373c] grid grid-cols-5 gap-3 flex-shrink-0">
+                  {[
+                    { label: "Gross",    value: formatCurrency(totalGross) },
+                    { label: "NIB-EE",   value: formatCurrency(totalNibEE), muted: true },
+                    { label: "NIB-ER",   value: formatCurrency(totalNibER), muted: true },
+                    { label: "Net Pay",  value: formatCurrency(totalNet), amber: true },
+                    { label: "Unpaid",   value: formatCurrency(totalUnpaid), warn: totalUnpaid > 0 },
+                  ].map(s => (
+                    <div key={s.label} className="rounded border border-[#2d3035] bg-[#202224] px-3 py-2.5">
+                      <p className="text-[10px] font-mono text-[#555] uppercase tracking-wider">{s.label}</p>
+                      <p className={cn(
+                        "text-[15px] font-semibold font-mono mt-0.5 leading-none",
+                        s.amber ? "text-[#F5A623]" : s.warn ? "text-[#EF4444]" : s.muted ? "text-[#555]" : "text-[#d0d0d0]"
+                      )}>
+                        {s.value}
+                      </p>
+                    </div>
                   ))}
                 </div>
-              ) : (
-                <div className="p-4 text-center text-muted-foreground">
-                  No pay periods created yet
-                </div>
               )}
-            </CardContent>
-          </Card>
 
-          {/* Period Details */}
-          <Card className="lg:col-span-2">
-            {selectedPeriod ? (
-              <>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle>
-                      {formatDate(selectedPeriod.start_date)} - {formatDate(selectedPeriod.end_date)}
-                    </CardTitle>
-                    <CardDescription>
-                      <Badge className={getStatusColor(selectedPeriod.status)}>
-                        {selectedPeriod.status}
-                      </Badge>
-                    </CardDescription>
-                  </div>
-                  <div className="flex gap-2">
+              {/* Entries table */}
+              <div className="flex-1 overflow-auto">
+                {!selectedPeriod.entries || selectedPeriod.entries.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full">
+                    <p className="text-[13px] text-[#555]">No payroll entries</p>
                     {selectedPeriod.status === "open" && (
-                      <Dialog open={processDialogOpen} onOpenChange={setProcessDialogOpen}>
-                        <DialogTrigger asChild>
-                          <Button>
-                            <Calculator className="h-4 w-4 mr-2" />
-                            Process Payroll
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Process Payroll</DialogTitle>
-                            <DialogDescription>
-                              This will calculate pay for all workers based on their time entries
-                              for this pay period. This action cannot be undone.
-                            </DialogDescription>
-                          </DialogHeader>
-                          <DialogFooter>
-                            <Button variant="outline" onClick={() => setProcessDialogOpen(false)}>
-                              Cancel
-                            </Button>
-                            <Button onClick={handleProcessPayroll} disabled={submitting}>
-                              {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                              Process
-                            </Button>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
+                      <button onClick={() => setProcessDialogOpen(true)} className="mt-3 text-[12px] text-[#F5A623] hover:opacity-80">
+                        Process payroll to generate →
+                      </button>
                     )}
-                    {selectedPeriod.status === "processing" && unpaidEntries.length > 0 && (
-                      <>
-                        {selectedEntries.size > 0 && (
-                          <Dialog open={payDialogOpen} onOpenChange={setPayDialogOpen}>
-                            <DialogTrigger asChild>
-                              <Button variant="default">
-                                <Banknote className="h-4 w-4 mr-2" />
-                                Pay Selected ({selectedEntries.size})
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>Confirm Payment</DialogTitle>
-                                <DialogDescription>
-                                  You are about to mark {selectedEntries.size} worker(s) as paid
-                                  for a total of {formatCurrency(selectedTotal)}.
-                                </DialogDescription>
-                              </DialogHeader>
-                              <div className="py-4">
-                                <div className="rounded-lg bg-muted p-4">
-                                  <div className="flex justify-between items-center">
-                                    <span className="text-sm text-muted-foreground">Workers selected</span>
-                                    <span className="font-medium">{selectedEntries.size}</span>
-                                  </div>
-                                  <div className="flex justify-between items-center mt-2">
-                                    <span className="text-sm text-muted-foreground">Total amount</span>
-                                    <span className="text-lg font-bold text-green-600">
-                                      {formatCurrency(selectedTotal)}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                              <DialogFooter>
-                                <Button variant="outline" onClick={() => setPayDialogOpen(false)}>
-                                  Cancel
-                                </Button>
-                                <Button onClick={handlePaySelected} disabled={payingBulk}>
-                                  {payingBulk && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                                  Confirm Payment
-                                </Button>
-                              </DialogFooter>
-                            </DialogContent>
-                          </Dialog>
+                  </div>
+                ) : (
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-[#2d3035] sticky top-0 bg-[#18191b]">
+                        {canSelect && (
+                          <th className="px-5 py-2.5 w-10">
+                            <Checkbox
+                              checked={[...unpaidEntries, ...partialEntries].length > 0 && [...unpaidEntries, ...partialEntries].every(e => selectedEntries.has(e.id))}
+                              onCheckedChange={handleSelectAll}
+                              className="border-[#333]"
+                            />
+                          </th>
                         )}
-                        <Button variant="outline" onClick={handleMarkPaid}>
-                          Mark All Paid
-                        </Button>
-                      </>
-                    )}
-                    {selectedPeriod.status === "paid" && (
-                      <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 px-3 py-1">
-                        <CheckCircle className="h-4 w-4 mr-1" />
-                        Fully Paid
-                      </Badge>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {/* Summary Cards */}
-                  <div className="grid gap-4 md:grid-cols-5 mb-6">
-                    <Card>
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-2">
-                          <DollarSign className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">Gross Pay</span>
-                        </div>
-                        <p className="text-2xl font-bold mt-1">{formatCurrency(totalGrossPay)}</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-2">
-                          <AlertCircle className="h-4 w-4 text-orange-500" />
-                          <span className="text-sm text-muted-foreground">NIB Employee</span>
-                        </div>
-                        <p className="text-2xl font-bold mt-1">{formatCurrency(totalNibEmployee)}</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-2">
-                          <AlertCircle className="h-4 w-4 text-blue-500" />
-                          <span className="text-sm text-muted-foreground">NIB Employer</span>
-                        </div>
-                        <p className="text-2xl font-bold mt-1 text-blue-600">{formatCurrency(totalNibEmployer)}</p>
-                      </CardContent>
-                    </Card>
-                    <Card className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                          <span className="text-sm text-muted-foreground">Paid</span>
-                        </div>
-                        <p className="text-2xl font-bold mt-1 text-green-600">
-                          {formatCurrency(totalPaidAmount)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">{paidEntries.length} worker(s)</p>
-                      </CardContent>
-                    </Card>
-                    <Card className="bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800">
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4 text-orange-600" />
-                          <span className="text-sm text-muted-foreground">Unpaid</span>
-                        </div>
-                        <p className="text-2xl font-bold mt-1 text-orange-600">
-                          {formatCurrency(totalUnpaidAmount)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">{unpaidEntries.length} worker(s)</p>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  {/* Payroll Entries */}
-                  {selectedPeriod.entries && selectedPeriod.entries.length > 0 ? (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          {selectedPeriod.status === "processing" && (unpaidEntries.length > 0 || partialEntries.length > 0) && (
-                            <TableHead className="w-10">
-                              <Checkbox
-                                checked={
-                                  (unpaidEntries.length > 0 || partialEntries.length > 0) &&
-                                  [...unpaidEntries, ...partialEntries].every((e) => selectedEntries.has(e.id))
-                                }
-                                onCheckedChange={handleSelectAll}
-                                aria-label="Select all with balance"
-                              />
-                            </TableHead>
-                          )}
-                          <TableHead>Worker</TableHead>
-                          <TableHead className="text-right">Hours</TableHead>
-                          <TableHead className="text-right">Gross Pay</TableHead>
-                          <TableHead className="text-right">NIB (EE)</TableHead>
-                          <TableHead className="text-right">NIB (ER)</TableHead>
-                          <TableHead className="text-right">Net Pay</TableHead>
-                          <TableHead className="text-center">Status</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {selectedPeriod.entries.map((entry) => {
-                          const isPaid = entry.is_paid || entry.payment_status === "paid";
-                          const hasBalance = !isPaid && (entry.net_pay - (entry.total_paid || 0)) > 0;
-                          return (
-                          <TableRow
-                            key={entry.id}
-                            className={isPaid ? "bg-green-50/50 dark:bg-green-900/10" : entry.payment_status === "partial" ? "bg-amber-50/30 dark:bg-amber-900/10" : ""}
-                          >
-                            {selectedPeriod.status === "processing" && (unpaidEntries.length > 0 || partialEntries.length > 0) && (
-                              <TableCell>
+                        <th className="px-5 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555]">Worker</th>
+                        <th className="px-5 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Reg</th>
+                        <th className="px-5 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">OT</th>
+                        <th className="px-5 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Gross</th>
+                        <th className="px-5 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">NIB-EE</th>
+                        <th className="px-5 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Net Pay</th>
+                        <th className="px-5 py-2.5 text-center text-[10px] font-mono uppercase tracking-widest text-[#555]">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#292c31]">
+                      {selectedPeriod.entries.map(entry => {
+                        const isPaid = entry.is_paid || entry.payment_status === "paid";
+                        const isPartial = entry.payment_status === "partial";
+                        const hasBalance = !isPaid && (entry.net_pay - (entry.total_paid || 0)) > 0;
+                        return (
+                          <tr key={entry.id} className={cn("hover:bg-[#23252a] transition-colors", isPaid && "opacity-60")}>
+                            {canSelect && (
+                              <td className="px-5 py-3">
                                 {hasBalance && (
                                   <Checkbox
                                     checked={selectedEntries.has(entry.id)}
                                     onCheckedChange={() => handleToggleEntry(entry.id)}
-                                    aria-label={`Select ${entry.worker?.first_name}`}
+                                    className="border-[#333]"
                                   />
                                 )}
-                              </TableCell>
+                              </td>
                             )}
-                            <TableCell>
-                              <div className="font-medium">
-                                {entry.worker?.first_name} {entry.worker?.last_name}
-                              </div>
-                              <div className="text-xs text-muted-foreground">
+                            <td className="px-5 py-3">
+                              <p className="text-[13px] text-[#aaa]">{entry.worker?.first_name} {entry.worker?.last_name}</p>
+                              <p className="text-[10px] font-mono text-[#444] mt-0.5">
                                 {entry.regular_hours.toFixed(1)} reg + {entry.overtime_hours.toFixed(1)} OT
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {(entry.regular_hours + entry.overtime_hours).toFixed(1)}
-                            </TableCell>
-                            <TableCell className="text-right">{formatCurrency(entry.gross_pay)}</TableCell>
-                            <TableCell className="text-right text-orange-600">
-                              {entry.deduction_details?.nib_employee
-                                ? formatCurrency(entry.deduction_details.nib_employee)
-                                : "-"}
-                            </TableCell>
-                            <TableCell className="text-right text-blue-600">
-                              {entry.deduction_details?.nib_employer
-                                ? formatCurrency(entry.deduction_details.nib_employer)
-                                : "-"}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="font-medium text-green-600">{formatCurrency(entry.net_pay)}</div>
-                              {(entry.total_paid || 0) > 0 && !entry.is_paid && (
-                                <div className="text-xs text-muted-foreground">
-                                  Bal: {formatCurrency(entry.net_pay - (entry.total_paid || 0))}
-                                </div>
+                              </p>
+                            </td>
+                            <td className="px-5 py-3 text-right text-[12px] font-mono text-[#666]">{entry.regular_hours.toFixed(1)}h</td>
+                            <td className="px-5 py-3 text-right text-[12px] font-mono">
+                              {entry.overtime_hours > 0 ? <span className="text-[#F5A623]">{entry.overtime_hours.toFixed(1)}h</span> : <span className="text-[#333]">—</span>}
+                            </td>
+                            <td className="px-5 py-3 text-right text-[12px] font-mono text-[#666]">{formatCurrency(entry.gross_pay)}</td>
+                            <td className="px-5 py-3 text-right text-[12px] font-mono text-[#555]">
+                              {entry.deduction_details?.nib_employee ? formatCurrency(entry.deduction_details.nib_employee) : "—"}
+                            </td>
+                            <td className="px-5 py-3 text-right">
+                              <span className="text-[13px] font-mono font-semibold text-[#aaa]">{formatCurrency(entry.net_pay)}</span>
+                              {isPartial && (
+                                <p className="text-[10px] font-mono text-[#F5A623] mt-0.5">
+                                  bal {formatCurrency(entry.net_pay - (entry.total_paid || 0))}
+                                </p>
                               )}
-                            </TableCell>
-                            <TableCell className="text-center">
-                              {entry.is_paid || entry.payment_status === "paid" ? (
-                                <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                                  <Check className="h-3 w-3 mr-1" />
-                                  Paid
-                                </Badge>
-                              ) : entry.payment_status === "partial" ? (
+                            </td>
+                            <td className="px-5 py-3 text-center">
+                              {isPaid ? (
+                                <span className="text-[11px] font-mono text-[#22C55E]">Paid</span>
+                              ) : isPartial ? (
                                 <div className="flex flex-col items-center gap-1">
-                                  <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 text-xs">
-                                    Partial
-                                  </Badge>
+                                  <span className="text-[11px] font-mono text-[#F5A623]">Partial</span>
                                   {selectedPeriod.status === "processing" && (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => openPayDialog(entry)}
-                                      disabled={payingEntryId !== null || payingBulk}
-                                      className="h-6 text-xs px-2"
-                                    >
+                                    <button onClick={() => openPayDialog(entry)} disabled={payingEntryId !== null || payingBulk} className="text-[10px] text-[#22C55E] hover:opacity-80 disabled:opacity-40">
                                       +Pay
-                                    </Button>
+                                    </button>
                                   )}
                                 </div>
                               ) : selectedPeriod.status === "processing" ? (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => openPayDialog(entry)}
-                                  disabled={payingEntryId !== null || payingBulk}
-                                  className="h-7 text-xs"
-                                >
-                                  <Banknote className="h-3 w-3 mr-1" />
+                                <button onClick={() => openPayDialog(entry)} disabled={payingEntryId !== null || payingBulk} className="text-[11px] text-[#22C55E] hover:opacity-80 disabled:opacity-40">
                                   Pay
-                                </Button>
+                                </button>
                               ) : (
-                                <Badge variant="outline" className="text-muted-foreground">
-                                  Pending
-                                </Badge>
+                                <span className="text-[11px] font-mono text-[#444]">Pending</span>
                               )}
-                            </TableCell>
-                          </TableRow>
+                            </td>
+                          </tr>
                         );
-                        })}
-                      </TableBody>
-                    </Table>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>No payroll entries yet</p>
-                      {selectedPeriod.status === "open" && (
-                        <p className="text-sm mt-2">
-                          Process payroll to generate entries
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </>
-            ) : (
-              <CardContent className="p-12 text-center">
-                <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No period selected</h3>
-                <p className="text-muted-foreground">
-                  Select a pay period to view details
-                </p>
-              </CardContent>
-            )}
-          </Card>
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Single Payment Dialog */}
-      <Dialog open={singlePayDialogOpen} onOpenChange={setSinglePayDialogOpen}>
-        <DialogContent className="max-w-sm">
+      {/* Create Period Dialog */}
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent className="max-w-sm bg-[#202224] border-[#34373c] text-[#d0d0d0]">
           <DialogHeader>
-            <DialogTitle>Record Payment</DialogTitle>
-            <DialogDescription>
-              {payingEntry?.worker?.first_name} {payingEntry?.worker?.last_name}
+            <DialogTitle className="text-[#d0d0d0] text-[15px]">Create Pay Period</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleCreatePeriod}>
+            <div className="space-y-3 py-2">
+              {[
+                { label: "Start Date", key: "start_date" },
+                { label: "End Date", key: "end_date" },
+              ].map(f => (
+                <div key={f.key} className="space-y-1">
+                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">{f.label}</p>
+                  <input type="date"
+                    className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors"
+                    value={(periodForm as any)[f.key]}
+                    onChange={e => setPeriodForm(p => ({ ...p, [f.key]: e.target.value }))}
+                    required
+                  />
+                </div>
+              ))}
+            </div>
+            <DialogFooter>
+              <button type="button" onClick={() => setCreateDialogOpen(false)} className="px-4 py-2 text-[12px] text-[#555] hover:text-[#aaa] transition-colors">Cancel</button>
+              <button type="submit" disabled={submitting} className="flex items-center gap-1.5 px-4 py-2 rounded bg-[#2d3035] border border-[#333] text-[12px] text-[#F5A623] hover:bg-[#353840] transition-colors disabled:opacity-40">
+                {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                Create
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Process Payroll Dialog */}
+      <Dialog open={processDialogOpen} onOpenChange={setProcessDialogOpen}>
+        <DialogContent className="max-w-sm bg-[#202224] border-[#34373c]">
+          <DialogHeader>
+            <DialogTitle className="text-[#d0d0d0] text-[15px]">Process Payroll</DialogTitle>
+            <DialogDescription className="text-[#555] text-[12px]">
+              Calculates pay for all workers from their time entries. Cannot be undone.
             </DialogDescription>
           </DialogHeader>
-          {payingEntry && (
-            <div className="space-y-4 py-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Net Pay</span>
-                <span className="font-medium">{formatCurrency(payingEntry.net_pay)}</span>
-              </div>
-              {(payingEntry.total_paid || 0) > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Already Paid</span>
-                  <span className="text-green-600">{formatCurrency(payingEntry.total_paid || 0)}</span>
-                </div>
-              )}
-              <div className="flex justify-between text-sm font-medium border-t pt-2">
-                <span>Balance Due</span>
-                <span>{formatCurrency(payingEntry.net_pay - (payingEntry.total_paid || 0))}</span>
-              </div>
+          <DialogFooter className="pt-4">
+            <button onClick={() => setProcessDialogOpen(false)} className="px-4 py-2 text-[12px] text-[#555] hover:text-[#aaa] transition-colors">Cancel</button>
+            <button onClick={handleProcessPayroll} disabled={submitting} className="flex items-center gap-1.5 px-4 py-2 rounded bg-[#2d3035] border border-[#333] text-[12px] text-[#F5A623] hover:bg-[#353840] transition-colors disabled:opacity-40">
+              {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Process
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-              <div className="space-y-2">
-                <Label htmlFor="pay_amount">Payment Amount</Label>
-                <Input
-                  id="pay_amount"
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  max={payingEntry.net_pay - (payingEntry.total_paid || 0)}
+      {/* Pay Selected Dialog */}
+      <Dialog open={payDialogOpen} onOpenChange={setPayDialogOpen}>
+        <DialogContent className="max-w-sm bg-[#202224] border-[#34373c]">
+          <DialogHeader>
+            <DialogTitle className="text-[#d0d0d0] text-[15px]">Confirm Bulk Payment</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-2">
+            <div className="flex justify-between">
+              <span className="text-[12px] text-[#666]">Workers</span>
+              <span className="text-[12px] text-[#aaa]">{selectedEntries.size}</span>
+            </div>
+            <div className="flex justify-between border-t border-[#2d3035] pt-2">
+              <span className="text-[12px] font-semibold text-[#d0d0d0]">Total</span>
+              <span className="text-[15px] font-mono font-semibold text-[#22C55E]">{formatCurrency(selectedTotal)}</span>
+            </div>
+          </div>
+          <DialogFooter>
+            <button onClick={() => setPayDialogOpen(false)} className="px-4 py-2 text-[12px] text-[#555] hover:text-[#aaa] transition-colors">Cancel</button>
+            <button onClick={handlePaySelected} disabled={payingBulk} className="flex items-center gap-1.5 px-4 py-2 rounded bg-[#2d3035] border border-[#333] text-[12px] text-[#22C55E] hover:bg-[#353840] transition-colors disabled:opacity-40">
+              {payingBulk && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Confirm Payment
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Single Pay Dialog */}
+      <Dialog open={singlePayDialogOpen} onOpenChange={setSinglePayDialogOpen}>
+        <DialogContent className="max-w-sm bg-[#202224] border-[#34373c]">
+          <DialogHeader>
+            <DialogTitle className="text-[#d0d0d0] text-[15px]">
+              Pay {payingEntry?.worker?.first_name} {payingEntry?.worker?.last_name}
+            </DialogTitle>
+          </DialogHeader>
+          {payingEntry && (
+            <div className="space-y-3 py-2">
+              <div className="rounded border border-[#2d3035] bg-[#18191b] px-3 py-2.5 space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-[11px] font-mono text-[#555]">Net Pay</span>
+                  <span className="text-[12px] font-mono text-[#aaa]">{formatCurrency(payingEntry.net_pay)}</span>
+                </div>
+                {(payingEntry.total_paid || 0) > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-[11px] font-mono text-[#555]">Paid so far</span>
+                    <span className="text-[12px] font-mono text-[#22C55E]">{formatCurrency(payingEntry.total_paid || 0)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between border-t border-[#292c31] pt-1.5">
+                  <span className="text-[11px] font-mono text-[#aaa] font-semibold">Balance</span>
+                  <span className="text-[13px] font-mono text-[#d0d0d0] font-semibold">{formatCurrency(payingEntry.net_pay - (payingEntry.total_paid || 0))}</span>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Amount</p>
+                <input type="number" step="0.01" min="0.01" max={payingEntry.net_pay - (payingEntry.total_paid || 0)}
+                  className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors"
                   value={payAmount}
-                  onChange={(e) => setPayAmount(e.target.value)}
-                  placeholder="0.00"
+                  onChange={e => setPayAmount(e.target.value)}
                 />
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="pay_method">Method</Label>
+              <div className="space-y-1">
+                <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Method</p>
                 <Select value={payMethod} onValueChange={setPayMethod}>
-                  <SelectTrigger id="pay_method">
+                  <SelectTrigger className="h-8 bg-[#292c31] border-[#3a3d42] text-[#aaa] text-[13px] focus:ring-0 focus:border-[#333]">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cash">Cash</SelectItem>
-                    <SelectItem value="check">Check</SelectItem>
-                    <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
+                  <SelectContent className="bg-[#202224] border-[#3a3d42]">
+                    {["cash","check","bank_transfer","other"].map(m => (
+                      <SelectItem key={m} value={m} className="text-[#aaa] focus:bg-[#292c31] focus:text-[#d0d0d0] capitalize">{m.replace("_", " ")}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSinglePayDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handlePaySingleEntry} disabled={payingEntryId !== null}>
-              {payingEntryId && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Record Payment
-            </Button>
+            <button onClick={() => setSinglePayDialogOpen(false)} className="px-4 py-2 text-[12px] text-[#555] hover:text-[#aaa] transition-colors">Cancel</button>
+            <button onClick={handlePaySingleEntry} disabled={payingEntryId !== null} className="flex items-center gap-1.5 px-4 py-2 rounded bg-[#2d3035] border border-[#333] text-[12px] text-[#22C55E] hover:bg-[#353840] transition-colors disabled:opacity-40">
+              {payingEntryId && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Record
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reopen Dialog */}
+      <Dialog open={reopenDialogOpen} onOpenChange={setReopenDialogOpen}>
+        <DialogContent className="max-w-sm bg-[#202224] border-[#34373c]">
+          <DialogHeader>
+            <DialogTitle className="text-[#F5A623] text-[15px]">Reopen Pay Period</DialogTitle>
+            <DialogDescription className="text-[#555] text-[12px]">
+              Deletes all payroll entries so you can correct timesheets and re-process.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2 space-y-2">
+            <p className="text-[11px] text-[#666] bg-[#F5A623]/5 border border-[#F5A623]/20 rounded px-3 py-2">
+              Only use if no actual payments have been made yet.
+            </p>
+            <div className="space-y-1">
+              <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Reason *</p>
+              <textarea rows={2} value={reopenReason} onChange={e => setReopenReason(e.target.value)} placeholder="e.g. Timesheet errors..."
+                className="w-full px-2.5 py-2 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#333] resize-none" />
+            </div>
+          </div>
+          <DialogFooter>
+            <button onClick={() => setReopenDialogOpen(false)} className="px-4 py-2 text-[12px] text-[#555] hover:text-[#aaa] transition-colors">Cancel</button>
+            <button onClick={handleReopenPeriod} disabled={submitting || !reopenReason.trim()} className="flex items-center gap-1.5 px-4 py-2 rounded bg-[#F5A623]/10 border border-[#F5A623]/30 text-[12px] text-[#F5A623] hover:bg-[#F5A623]/20 transition-colors disabled:opacity-40">
+              {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Reopen
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Void Dialog */}
+      <Dialog open={voidDialogOpen} onOpenChange={setVoidDialogOpen}>
+        <DialogContent className="max-w-sm bg-[#202224] border-[#34373c]">
+          <DialogHeader>
+            <DialogTitle className="text-[#EF4444] text-[15px]">Void Pay Period</DialogTitle>
+            <DialogDescription className="text-[#555] text-[12px]">
+              Marks this period as cancelled. Records are kept for audit purposes.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2 space-y-2">
+            <p className="text-[11px] text-[#666] bg-[#EF4444]/5 border border-[#EF4444]/20 rounded px-3 py-2">
+              This cannot be undone. Use adjustments in a new period to correct issues.
+            </p>
+            <div className="space-y-1">
+              <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Reason *</p>
+              <textarea rows={2} value={voidReason} onChange={e => setVoidReason(e.target.value)} placeholder="e.g. Duplicate, major errors..."
+                className="w-full px-2.5 py-2 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#333] resize-none" />
+            </div>
+          </div>
+          <DialogFooter>
+            <button onClick={() => setVoidDialogOpen(false)} className="px-4 py-2 text-[12px] text-[#555] hover:text-[#aaa] transition-colors">Cancel</button>
+            <button onClick={handleVoidPeriod} disabled={submitting || !voidReason.trim()} className="flex items-center gap-1.5 px-4 py-2 rounded bg-[#EF4444]/10 border border-[#EF4444]/30 text-[12px] text-[#EF4444] hover:bg-[#EF4444]/20 transition-colors disabled:opacity-40">
+              {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Void Period
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Adjustments List Dialog */}
+      <Dialog open={adjustmentsListOpen} onOpenChange={setAdjustmentsListOpen}>
+        <DialogContent className="max-w-2xl bg-[#202224] border-[#34373c]">
+          <DialogHeader>
+            <DialogTitle className="text-[#d0d0d0] text-[15px]">Payroll Adjustments</DialogTitle>
+            <DialogDescription className="text-[#555] text-[12px]">Applied in subsequent pay periods.</DialogDescription>
+          </DialogHeader>
+          <div className="py-2 space-y-3">
+            <button onClick={() => setAdjustmentDialogOpen(true)} className="text-[12px] text-[#F5A623] hover:opacity-80">
+              + Create Adjustment
+            </button>
+            {adjustments.length === 0 ? (
+              <p className="text-[13px] text-[#555] py-4 text-center">No adjustments yet</p>
+            ) : (
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-[#2d3035]">
+                    {["Worker","Type","Hours","Amount","Reason"].map(h => (
+                      <th key={h} className={cn("py-2.5 text-[10px] font-mono uppercase tracking-widest text-[#555]", h === "Reason" ? "text-left px-2" : "text-right px-2")}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#292c31]">
+                  {adjustments.map(adj => (
+                    <tr key={adj.id}>
+                      <td className="px-2 py-2.5 text-right text-[12px] text-[#aaa]">{adj.worker?.first_name} {adj.worker?.last_name}</td>
+                      <td className="px-2 py-2.5 text-right text-[11px] font-mono text-[#666] capitalize">{adj.adjustment_type}</td>
+                      <td className={cn("px-2 py-2.5 text-right text-[12px] font-mono", adj.hours_adjustment > 0 ? "text-[#22C55E]" : adj.hours_adjustment < 0 ? "text-[#EF4444]" : "text-[#444]")}>
+                        {adj.hours_adjustment !== 0 ? `${adj.hours_adjustment > 0 ? "+" : ""}${adj.hours_adjustment}h` : "—"}
+                      </td>
+                      <td className={cn("px-2 py-2.5 text-right text-[12px] font-mono", adj.amount_adjustment > 0 ? "text-[#22C55E]" : adj.amount_adjustment < 0 ? "text-[#EF4444]" : "text-[#444]")}>
+                        {adj.amount_adjustment !== 0 ? `${adj.amount_adjustment > 0 ? "+" : ""}${formatCurrency(adj.amount_adjustment)}` : "—"}
+                      </td>
+                      <td className="px-2 py-2.5 text-left text-[12px] text-[#666] max-w-xs truncate">{adj.reason}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+          <DialogFooter>
+            <button onClick={() => setAdjustmentsListOpen(false)} className="px-4 py-2 text-[12px] text-[#555] hover:text-[#aaa] transition-colors">Close</button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Adjustment Dialog */}
+      <Dialog open={adjustmentDialogOpen} onOpenChange={setAdjustmentDialogOpen}>
+        <DialogContent className="max-w-sm bg-[#202224] border-[#34373c]">
+          <DialogHeader>
+            <DialogTitle className="text-[#d0d0d0] text-[15px]">Create Adjustment</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1">
+              <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Worker *</p>
+              <Select value={adjustmentForm.worker_id} onValueChange={v => setAdjustmentForm(f => ({ ...f, worker_id: v }))}>
+                <SelectTrigger className="h-8 bg-[#292c31] border-[#3a3d42] text-[#aaa] text-[13px] focus:ring-0 focus:border-[#333]">
+                  <SelectValue placeholder="Select worker..." />
+                </SelectTrigger>
+                <SelectContent className="bg-[#202224] border-[#3a3d42]">
+                  {workers.map(w => (
+                    <SelectItem key={w.id} value={w.id} className="text-[#aaa] focus:bg-[#292c31] focus:text-[#d0d0d0]">{w.first_name} {w.last_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Type *</p>
+              <Select value={adjustmentForm.adjustment_type} onValueChange={v => setAdjustmentForm(f => ({ ...f, adjustment_type: v as PayrollAdjustmentType }))}>
+                <SelectTrigger className="h-8 bg-[#292c31] border-[#3a3d42] text-[#aaa] text-[13px] focus:ring-0 focus:border-[#333]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-[#202224] border-[#3a3d42]">
+                  {["correction","bonus","deduction","reversal","hours_correction"].map(t => (
+                    <SelectItem key={t} value={t} className="text-[#aaa] focus:bg-[#292c31] focus:text-[#d0d0d0] capitalize">{t.replace("_", " ")}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Hours Adj</p>
+                <input type="number" step="0.5"
+                  className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors"
+                  value={adjustmentForm.hours_adjustment}
+                  onChange={e => setAdjustmentForm(f => ({ ...f, hours_adjustment: e.target.value }))}
+                />
+                <p className="text-[9px] font-mono text-[#444]">Neg = reduction</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Amount Adj</p>
+                <input type="number" step="0.01"
+                  className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors"
+                  value={adjustmentForm.amount_adjustment}
+                  onChange={e => setAdjustmentForm(f => ({ ...f, amount_adjustment: e.target.value }))}
+                />
+                <p className="text-[9px] font-mono text-[#444]">Neg = deduction</p>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Reason *</p>
+              <textarea rows={2} value={adjustmentForm.reason} onChange={e => setAdjustmentForm(f => ({ ...f, reason: e.target.value }))} placeholder="Explain the adjustment..."
+                className="w-full px-2.5 py-2 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#333] resize-none" />
+            </div>
+          </div>
+          <DialogFooter>
+            <button onClick={() => setAdjustmentDialogOpen(false)} className="px-4 py-2 text-[12px] text-[#555] hover:text-[#aaa] transition-colors">Cancel</button>
+            <button onClick={handleCreateAdjustment} disabled={submitting || !adjustmentForm.worker_id || !adjustmentForm.reason.trim()} className="flex items-center gap-1.5 px-4 py-2 rounded bg-[#2d3035] border border-[#333] text-[12px] text-[#F5A623] hover:bg-[#353840] transition-colors disabled:opacity-40">
+              {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Create
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

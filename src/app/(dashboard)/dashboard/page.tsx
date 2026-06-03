@@ -1,470 +1,259 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Header } from "@/components/layout/header";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
-import { formatCurrency, formatDate, getProjectStatusColor } from "@/lib/utils";
-import { MobileTimeEntry } from "@/components/mobile/mobile-time-entry";
+import { cn } from "@/lib/utils";
 import {
   FolderKanban,
-  Users,
-  Package,
-  DollarSign,
-  TrendingUp,
-  AlertTriangle,
   Clock,
+  DollarSign,
   ArrowRight,
   Plus,
-  Zap,
-  Building2,
-  AlertCircle,
+  GanttChartSquare,
+  ScanLine,
+  Target,
+  Users,
 } from "lucide-react";
+import { ClaudeIcon } from "@/components/icons/claude-icon";
 import Link from "next/link";
-import type { Project, Worker, Material } from "@/types";
 
-interface DashboardStats {
-  activeProjects: number;
-  totalWorkers: number;
-  lowStockMaterials: number;
-  totalRevenue: number;
-  totalExpenses: number;
+interface Stat {
+  label: string;
+  value: string | number;
+  sub?: string;
+  accent?: boolean;
 }
 
+interface Project {
+  id: string;
+  name: string;
+  status: string;
+  location?: string;
+}
+
+interface Goal {
+  id: string;
+  title: string;
+  status: string;
+  progress: number;
+}
+
+const STATUS_DOT: Record<string, string> = {
+  active:      "bg-[#22C55E]",
+  in_progress: "bg-[#22C55E]",
+  not_started: "bg-[#3B82F6]",
+  completed:   "bg-[#404040]",
+  paused:      "bg-[#F5A623]",
+  on_hold:     "bg-[#F5A623]",
+  cancelled:   "bg-[#EF4444]",
+};
+
 export default function DashboardPage() {
-  const [stats, setStats] = useState<DashboardStats>({
-    activeProjects: 0,
-    totalWorkers: 0,
-    lowStockMaterials: 0,
-    totalRevenue: 0,
-    totalExpenses: 0,
-  });
-  const [recentProjects, setRecentProjects] = useState<Project[]>([]);
-  const [lowStockItems, setLowStockItems] = useState<Material[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { profile } = useAuth();
   const supabase = createClient();
-  const { profile, loading: authLoading } = useAuth();
+
+  const [stats, setStats] = useState<Stat[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const now = new Date();
+  const greeting = now.getHours() < 12 ? "Morning" : now.getHours() < 17 ? "Afternoon" : "Evening";
+  const dateStr = now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" }).toUpperCase();
 
   useEffect(() => {
-    // Wait for auth to finish loading
-    if (authLoading) return;
-    
-    // If profile exists but no company_id, stop loading and show message
-    if (profile && !profile.company_id) {
-      setLoading(false);
-      return;
-    }
-    
-    // If profile has company_id, fetch data
-    if (profile?.company_id) {
-      fetchDashboardData();
-    } else if (profile === null) {
-      // Profile loaded but is null (user not authenticated)
-      setLoading(false);
-    }
-  }, [profile?.company_id, profile, authLoading]);
+    if (!profile?.company_id) { setLoading(false); return; }
+    load();
+  }, [profile?.company_id]);
 
-  const fetchDashboardData = async () => {
-    if (!profile?.company_id) return;
-    
+  async function load() {
+    const cid = profile!.company_id;
     setLoading(true);
     try {
-      // Fetch active projects count, filtered by company_id
-      const { count: projectCount } = await supabase
-        .from("projects")
-        .select("*", { count: "exact", head: true })
-        .eq("company_id", profile.company_id)
-        .eq("status", "active");
+      const [
+        { count: activeJobs },
+        { count: activeCrew },
+        { data: recentProjects },
+        { data: recentGoals },
+        { data: weekPayroll },
+      ] = await Promise.all([
+        supabase.from("projects").select("*", { count: "exact", head: true }).eq("company_id", cid).in("status", ["active", "in_progress"]),
+        supabase.from("workers").select("*", { count: "exact", head: true }).eq("company_id", cid).eq("status", "active"),
+        supabase.from("projects").select("id,name,status,location").eq("company_id", cid).order("created_at", { ascending: false }).limit(6),
+        supabase.from("business_goals").select("id,title,status,progress").eq("company_id", cid).eq("status", "active").order("created_at", { ascending: false }).limit(4),
+        supabase.from("payroll_entries").select("net_pay").eq("company_id", cid).gte("created_at", new Date(now.getFullYear(), now.getMonth(), 1).toISOString()),
+      ]);
 
-      // Fetch active workers count
-      const { count: workerCount } = await supabase
-        .from("workers")
-        .select("*", { count: "exact", head: true })
-        .eq("company_id", profile.company_id)
-        .eq("status", "active");
+      const payrollTotal = weekPayroll?.reduce((s, r) => s + (r.net_pay || 0), 0) ?? 0;
 
-      // Fetch recent projects, filtered by company_id
-      const { data: projects } = await supabase
-        .from("projects")
-        .select("*")
-        .eq("company_id", profile.company_id)
-        .order("created_at", { ascending: false })
-        .limit(5);
-
-      // Fetch low stock materials, filtered by company_id
-      const { data: lowStock, count: lowStockCount } = await supabase
-        .from("materials")
-        .select("*", { count: "exact" })
-        .eq("company_id", profile.company_id)
-        .lte("quantity_in_stock", 10) // Simplified for now as RPC might not be available or filtered
-        .limit(5);
-
-      // Calculate revenue from contracts, filtered by company_id
-      const { data: revenueData } = await supabase
-        .from("projects")
-        .select("contract_value")
-        .eq("company_id", profile.company_id)
-        .in("status", ["active", "completed"]);
-
-      const totalRevenue = revenueData?.reduce((sum, p) => sum + (p.contract_value || 0), 0) || 0;
-
-      // Calculate actual expenses by summing all project costs from the view
-      const { data: projectCosts } = await supabase
-        .from("project_cost_summary")
-        .select("labor_cost, material_cost, equipment_cost, overhead_cost");
-
-      let laborCosts = 0;
-      let materialCosts = 0;
-      let equipmentCosts = 0;
-      let overheadCosts = 0;
-
-      if (projectCosts) {
-        projectCosts.forEach((project: any) => {
-          laborCosts += project.labor_cost || 0;
-          materialCosts += project.material_cost || 0;
-          equipmentCosts += project.equipment_cost || 0;
-          overheadCosts += project.overhead_cost || 0;
-        });
-      }
-
-      const totalExpenses = laborCosts + materialCosts + equipmentCosts + overheadCosts;
-
-      setStats({
-        activeProjects: projectCount || 0,
-        totalWorkers: workerCount || 0,
-        lowStockMaterials: lowStockCount || 0,
-        totalRevenue,
-        totalExpenses,
-      });
-
-      setRecentProjects(projects || []);
-      setLowStockItems(lowStock || []);
-    } catch (error) {
-      console.error("Error fetching dashboard data:", error);
+      setStats([
+        { label: "Active Jobs",  value: activeJobs ?? 0,   sub: "in progress" },
+        { label: "Crew",         value: activeCrew ?? 0,   sub: "on payroll" },
+        { label: "Payroll MTD",  value: `BSD $${payrollTotal.toLocaleString()}`, sub: "this month", accent: true },
+      ]);
+      setProjects(recentProjects ?? []);
+      setGoals(recentGoals ?? []);
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const statCards = [
-    {
-      title: "Active Projects",
-      value: stats.activeProjects,
-      icon: FolderKanban,
-      description: "Currently in progress",
-      color: "text-blue-600 dark:text-blue-400",
-      bgColor: "bg-blue-100 dark:bg-blue-950/50",
-    },
-    {
-      title: "Active Workers",
-      value: stats.totalWorkers,
-      icon: Users,
-      description: "On payroll",
-      color: "text-green-600 dark:text-green-400",
-      bgColor: "bg-green-100 dark:bg-green-950/50",
-    },
-    {
-      title: "Low Stock Items",
-      value: stats.lowStockMaterials,
-      icon: AlertTriangle,
-      description: "Need reordering",
-      color: "text-orange-600 dark:text-orange-400",
-      bgColor: "bg-orange-100 dark:bg-orange-950/50",
-    },
-    {
-      title: "Total Revenue",
-      value: formatCurrency(stats.totalRevenue),
-      icon: DollarSign,
-      description: "From contracts",
-      color: "text-emerald-600 dark:text-emerald-400",
-      bgColor: "bg-emerald-100 dark:bg-emerald-950/50",
-    },
+  const quickActions = [
+    { label: "New Job",      href: "/projects/new",  icon: FolderKanban },
+    { label: "Gantt",        href: "/gantt",          icon: GanttChartSquare },
+    { label: "Scan Receipt", href: "/receipts",       icon: ScanLine },
+    { label: "Log Time",     href: "/time-tracking",  icon: Clock },
   ];
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <Header
-        title="Dashboard"
-        description="Welcome to TropiTrack - Your construction management hub"
-      >
-        <div className="flex items-center gap-2">
-          <Link href="/time-tracking/quick">
-            <Button variant="default">
-              <Zap className="h-4 w-4 mr-2" />
-              Quick Time Entry
-            </Button>
-          </Link>
-          <Link href="/projects/new">
-            <Button variant="outline">
-              <Plus className="h-4 w-4 mr-2" />
-              New Project
-            </Button>
-          </Link>
+    <div className="flex flex-col h-full overflow-auto bg-[#18191b]">
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-[#34373c] flex-shrink-0">
+        <div>
+          <p className="text-[11px] font-mono text-[#666] uppercase tracking-widest">{dateStr}</p>
+          <h1 className="text-[16px] font-semibold text-[#d0d0d0] mt-0.5">
+            {greeting}, {profile?.full_name?.split(" ")[0] ?? "—"}
+          </h1>
         </div>
-      </Header>
+        <Link
+          href="/assistant"
+          className="flex items-center gap-1.5 text-[12px] font-medium text-[#777] hover:text-[#aaaaaa] transition-colors"
+        >
+          <ClaudeIcon className="h-3.5 w-3.5" />
+          <span>Ask Claude</span>
+        </Link>
+      </div>
 
-      <div className="flex-1 p-6 space-y-6">
-        {/* Show message if user doesn't have a company */}
-        {!loading && profile && !profile.company_id && (
-          <Card className="border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/20">
-            <CardContent className="pt-6">
-              <div className="flex items-start gap-4">
-                <div className="p-3 rounded-full bg-orange-100 dark:bg-orange-900/50">
-                  <AlertCircle className="h-6 w-6 text-orange-600 dark:text-orange-400" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold mb-2">Company Setup Required</h3>
-                  <p className="text-muted-foreground mb-4">
-                    You need to join or create a company to use TropiTrack. You can either join an existing company with a join code or create a new company.
+      <div className="flex-1 p-6 space-y-5">
+        {/* Stat row */}
+        <div className="grid grid-cols-3 gap-3">
+          {loading
+            ? Array(3).fill(0).map((_, i) => (
+                <div key={i} className="h-[76px] rounded bg-[#202224] animate-pulse" />
+              ))
+            : stats.map((s) => (
+                <div key={s.label} className="rounded border border-[#34373c] bg-[#202224] px-4 py-3.5">
+                  <p className="text-[11px] font-mono text-[#666] uppercase tracking-wider">{s.label}</p>
+                  <p className={cn(
+                    "text-[24px] font-semibold font-mono mt-1 leading-none",
+                    s.accent ? "text-[#F5A623]" : "text-[#d0d0d0]"
+                  )}>
+                    {s.value}
                   </p>
-                  <div className="flex gap-3">
-                    <Link href="/settings">
-                      <Button>
-                        <Building2 className="h-4 w-4 mr-2" />
-                        Go to Settings
-                      </Button>
-                    </Link>
-                    <Link href="/login?code=">
-                      <Button variant="outline">
-                        Join with Code
-                      </Button>
-                    </Link>
-                  </div>
+                  {s.sub && <p className="text-[11px] text-[#555] mt-1">{s.sub}</p>}
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Mobile Quick Time Entry - Only on mobile */}
-        <div className="md:hidden">
-          <MobileTimeEntry />
+              ))
+          }
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {statCards.map((stat) => (
-            <Card key={stat.title}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  {stat.title}
-                </CardTitle>
-                <div className={`p-2 rounded-lg ${stat.bgColor}`}>
-                  <stat.icon className={`h-4 w-4 ${stat.color}`} />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stat.value}</div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {stat.description}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {/* Main Content Grid */}
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Recent Projects */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Recent Projects</CardTitle>
-                <CardDescription>Latest construction projects</CardDescription>
-              </div>
-              <Link href="/projects">
-                <Button variant="ghost" size="sm">
-                  View All
-                  <ArrowRight className="h-4 w-4 ml-1" />
-                </Button>
+        {/* Quick actions */}
+        <div>
+          <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest mb-2">Quick actions</p>
+          <div className="grid grid-cols-4 gap-2">
+            {quickActions.map((a) => (
+              <Link
+                key={a.href}
+                href={a.href}
+                className="flex flex-col items-center justify-center gap-2 rounded border border-[#34373c] bg-[#202224] hover:bg-[#272a2c] hover:border-[#333] transition-colors py-4 text-[12px] font-medium text-[#888] hover:text-[#b8b8b8] group"
+              >
+                <a.icon className="h-4 w-4 text-[#555] group-hover:text-[#F5A623] transition-colors" />
+                {a.label}
               </Link>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="space-y-4">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-16 bg-muted animate-pulse rounded-lg" />
-                  ))}
-                </div>
-              ) : recentProjects.length > 0 ? (
-                <div className="space-y-4">
-                  {recentProjects.map((project) => (
-                    <Link
-                      key={project.id}
-                      href={`/projects/${project.id}`}
-                      className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent transition-colors"
-                    >
-                      <div className="space-y-1">
-                        <p className="font-medium">{project.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {project.client_name} - {project.location}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Badge className={getProjectStatusColor(project.status)}>
-                          {project.status.replace("_", " ")}
-                        </Badge>
-                        <span className="text-sm font-medium">
-                          {formatCurrency(project.budget)}
-                        </span>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <FolderKanban className="h-12 w-12 mx-auto text-blue-600 dark:text-blue-400 mb-4" />
-                  <p className="text-muted-foreground">No projects yet</p>
-                  <Link href="/projects/new">
-                    <Button className="mt-4">Create First Project</Button>
-                  </Link>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Quick Actions & Alerts */}
-          <div className="space-y-6">
-            {/* Quick Actions */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
-                <CardDescription>Common tasks at your fingertips</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-3">
-                  <Link href="/time-tracking">
-                    <Button variant="outline" className="w-full justify-start h-auto py-4">
-                      <Clock className="h-5 w-5 mr-3 text-blue-600 dark:text-blue-400" />
-                      <div className="text-left">
-                        <p className="font-medium">Log Time</p>
-                        <p className="text-xs text-muted-foreground">Enter worker hours</p>
-                      </div>
-                    </Button>
-                  </Link>
-                  <Link href="/materials">
-                    <Button variant="outline" className="w-full justify-start h-auto py-4">
-                      <Package className="h-5 w-5 mr-3 text-amber-600 dark:text-amber-400" />
-                      <div className="text-left">
-                        <p className="font-medium">Materials</p>
-                        <p className="text-xs text-muted-foreground">Manage inventory</p>
-                      </div>
-                    </Button>
-                  </Link>
-                  <Link href="/workers/new">
-                    <Button variant="outline" className="w-full justify-start h-auto py-4">
-                      <Users className="h-5 w-5 mr-3 text-green-600 dark:text-green-400" />
-                      <div className="text-left">
-                        <p className="font-medium">Add Worker</p>
-                        <p className="text-xs text-muted-foreground">New team member</p>
-                      </div>
-                    </Button>
-                  </Link>
-                  <Link href="/reports">
-                    <Button variant="outline" className="w-full justify-start h-auto py-4">
-                      <TrendingUp className="h-5 w-5 mr-3 text-purple-600 dark:text-purple-400" />
-                      <div className="text-left">
-                        <p className="font-medium">Reports</p>
-                        <p className="text-xs text-muted-foreground">View analytics</p>
-                      </div>
-                    </Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Low Stock Alerts */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-400" />
-                    Low Stock Alerts
-                  </CardTitle>
-                  <CardDescription>Materials below minimum level</CardDescription>
-                </div>
-                <Link href="/materials">
-                  <Button variant="ghost" size="sm">
-                    View All
-                    <ArrowRight className="h-4 w-4 ml-1" />
-                  </Button>
-                </Link>
-              </CardHeader>
-              <CardContent>
-                {lowStockItems.length > 0 ? (
-                  <div className="space-y-3">
-                    {lowStockItems.map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex items-center justify-between p-3 rounded-lg bg-orange-50 dark:bg-orange-950/50 border border-orange-100 dark:border-orange-900"
-                      >
-                        <div>
-                          <p className="font-medium text-sm">{item.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {item.quantity_in_stock} {item.unit} remaining
-                          </p>
-                        </div>
-                        <Badge variant="warning">
-                          Min: {item.minimum_stock_level}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-6">
-                    <Package className="h-10 w-10 mx-auto text-green-600 dark:text-green-400 mb-2" />
-                    <p className="text-sm text-muted-foreground">
-                      All materials are well stocked
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            ))}
           </div>
         </div>
 
-        {/* Financial Overview */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Financial Overview</CardTitle>
-            <CardDescription>Revenue vs Expenses snapshot</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-6 md:grid-cols-3">
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">Total Revenue</p>
-                <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                  {formatCurrency(stats.totalRevenue)}
-                </p>
-                <Progress value={100} className="h-2" />
-              </div>
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">Total Expenses</p>
-                <p className="text-2xl font-bold text-red-600 dark:text-red-400">
-                  {formatCurrency(stats.totalExpenses)}
-                </p>
-                <Progress
-                  value={(stats.totalExpenses / stats.totalRevenue) * 100 || 0}
-                  className="h-2"
-                />
-              </div>
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">Net Profit</p>
-                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                  {formatCurrency(stats.totalRevenue - stats.totalExpenses)}
-                </p>
-                <Progress
-                  value={((stats.totalRevenue - stats.totalExpenses) / stats.totalRevenue) * 100 || 0}
-                  className="h-2"
-                />
-              </div>
+        {/* Two-col grid */}
+        <div className="grid grid-cols-2 gap-4">
+          {/* Jobs */}
+          <div className="rounded border border-[#34373c] bg-[#202224]">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#222]">
+              <span className="text-[11px] font-mono text-[#666] uppercase tracking-widest">Jobs</span>
+              <Link href="/projects" className="flex items-center gap-1 text-[11px] text-[#666] hover:text-[#aaa] transition-colors">
+                All <ArrowRight className="h-3 w-3" />
+              </Link>
             </div>
-          </CardContent>
-        </Card>
+            <div className="divide-y divide-[#292c31]">
+              {loading ? (
+                Array(4).fill(0).map((_, i) => (
+                  <div key={i} className="px-4 py-3 h-10 animate-pulse" />
+                ))
+              ) : projects.length === 0 ? (
+                <div className="px-4 py-6 text-center">
+                  <p className="text-[12px] text-[#555]">No jobs yet</p>
+                  <Link href="/projects/new" className="inline-flex items-center gap-1 mt-2 text-[12px] text-[#F5A623] hover:opacity-80">
+                    <Plus className="h-3 w-3" /> Add first job
+                  </Link>
+                </div>
+              ) : (
+                projects.map((p) => (
+                  <Link
+                    key={p.id}
+                    href={`/projects/${p.id}`}
+                    className="flex items-center justify-between px-4 py-2.5 hover:bg-[#252729] transition-colors group"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className={cn("h-1.5 w-1.5 rounded-full flex-shrink-0", STATUS_DOT[p.status] ?? "bg-[#404040]")} />
+                      <span className="text-[13px] text-[#aaa] group-hover:text-[#c4c4c4] truncate transition-colors">{p.name}</span>
+                    </div>
+                    <span className="text-[11px] text-[#555] font-mono capitalize flex-shrink-0 ml-3">
+                      {p.status.replace("_", " ")}
+                    </span>
+                  </Link>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Goals */}
+          <div className="rounded border border-[#34373c] bg-[#202224]">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#222]">
+              <span className="text-[11px] font-mono text-[#666] uppercase tracking-widest">Goals</span>
+              <Link href="/goals" className="flex items-center gap-1 text-[11px] text-[#666] hover:text-[#aaa] transition-colors">
+                All <ArrowRight className="h-3 w-3" />
+              </Link>
+            </div>
+            <div className="divide-y divide-[#292c31]">
+              {loading ? (
+                Array(3).fill(0).map((_, i) => (
+                  <div key={i} className="px-4 py-3 h-14 animate-pulse" />
+                ))
+              ) : goals.length === 0 ? (
+                <div className="px-4 py-6 text-center">
+                  <p className="text-[12px] text-[#555]">No active goals</p>
+                  <Link href="/goals" className="inline-flex items-center gap-1 mt-2 text-[12px] text-[#F5A623] hover:opacity-80">
+                    <Plus className="h-3 w-3" /> Add a goal
+                  </Link>
+                </div>
+              ) : (
+                goals.map((g) => (
+                  <div key={g.id} className="px-4 py-3">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[13px] text-[#aaa] truncate">{g.title}</span>
+                      <span className="text-[11px] font-mono text-[#F5A623] ml-3 flex-shrink-0">{g.progress}%</span>
+                    </div>
+                    <div className="h-[2px] bg-[#222] rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-[#F5A623] rounded-full transition-all duration-500"
+                        style={{ width: `${g.progress}%` }}
+                      />
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="px-4 py-3 border-t border-[#222]">
+              <Link
+                href="/goals"
+                className="flex items-center gap-1.5 text-[12px] text-[#666] hover:text-[#aaa] transition-colors"
+              >
+                <Target className="h-3.5 w-3.5" />
+                Manage goals
+              </Link>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
