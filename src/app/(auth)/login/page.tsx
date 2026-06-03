@@ -10,7 +10,6 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
-import Image from "next/image";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 
 function LoginForm() {
@@ -108,17 +107,6 @@ function LoginForm() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 to-amber-50 dark:from-neutral-950 dark:to-neutral-900 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <div className="h-16 w-16 rounded-full bg-background flex items-center justify-center overflow-hidden">
-              <Image
-                src="/logo.png"
-                alt="TropiTrack Logo"
-                width={64}
-                height={64}
-                className="object-contain"
-              />
-            </div>
-          </div>
           <CardTitle className="text-2xl font-bold">TropiTrack v2</CardTitle>
           <CardDescription>
             Construction Project Management System

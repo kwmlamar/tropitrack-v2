@@ -564,7 +564,7 @@ export default function QuickTimeEntryPage() {
       seen.add(key);
     }
     if (inBatchDuplicates.length > 0) {
-      const names = [...new Set(inBatchDuplicates)].join(", ");
+      const names = inBatchDuplicates.filter((value, index, self) => self.indexOf(value) === index).join(", ");
       toast({
         title: "Duplicate worker",
         description: `${names} appear(s) more than once for the same project on this date. Remove the duplicate row or assign a different project.`,

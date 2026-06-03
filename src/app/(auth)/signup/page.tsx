@@ -11,7 +11,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Mail, AlertCircle, CheckCircle } from "lucide-react";
-import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 
@@ -313,17 +312,6 @@ function SignupForm() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 to-amber-50 dark:from-neutral-950 dark:to-neutral-900 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <div className="h-16 w-16 rounded-full bg-background flex items-center justify-center overflow-hidden">
-              <Image
-                src="/logo.png"
-                alt="TropiTrack Logo"
-                width={64}
-                height={64}
-                className="object-contain"
-              />
-            </div>
-          </div>
           <CardTitle className="text-2xl font-bold">TropiTrack v2</CardTitle>
           <CardDescription>
             {inviteToken && invitationValid
