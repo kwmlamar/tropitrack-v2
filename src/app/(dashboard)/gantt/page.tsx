@@ -37,7 +37,6 @@ interface Phase {
   actual_start: string | null;
   actual_end: string | null;
   progress: number;
-  crew_size: number | null;
   notes: string | null;
 }
 
@@ -48,7 +47,6 @@ interface EditingPhase {
   planned_start: string;
   planned_end: string;
   progress: number;
-  crew_size: string;
 }
 
 interface LaborRole {
@@ -138,12 +136,14 @@ function PhaseBar({
   totalDays,
   onClick,
   onCommitDates,
+  crewSummary,
 }: {
   phase: Phase;
   viewStart: Date;
   totalDays: number;
   onClick: () => void;
   onCommitDates: (phaseId: string, plannedStart: string, plannedEnd: string) => void;
+  crewSummary?: { peak: number; avg: number; mandays: number; distinctDays: number; hasData: boolean };
 }) {
   // Local override during drag — null when not dragging
   const [drag, setDrag] = useState<{
@@ -298,7 +298,12 @@ function PhaseBar({
         onPointerLeave={() => !drag && setHoverZone(null)}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerCancel}
-        title={`${phase.name} · ${phase.progress}% complete · Drag to reschedule`}
+        title={
+          `${phase.name} · ${phase.progress}% complete · Drag to reschedule` +
+          (crewSummary?.hasData
+            ? `\nPeak ${crewSummary.peak} crew · avg ${crewSummary.avg}/day · ${crewSummary.mandays} mandays across ${crewSummary.distinctDays} days`
+            : "")
+        }
       >
         {/* Planned bar (background) */}
         <div className="absolute inset-0 rounded bg-[#2d3035] border border-[#3a3d42]" />
@@ -320,7 +325,9 @@ function PhaseBar({
           <div className="absolute inset-0 flex items-center px-2 pointer-events-none">
             <span className="text-[11px] font-mono text-[#888] truncate">
               {phase.progress > 0 ? `${phase.progress}%` : "—"}
-              {phase.crew_size ? ` · ${phase.crew_size} crew` : ""}
+              {crewSummary?.hasData
+                ? ` · ${crewSummary.peak} peak · ${crewSummary.mandays} mandays`
+                : ""}
             </span>
           </div>
         )}
@@ -439,34 +446,19 @@ function EditPanel({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[11px] font-mono text-[#444] uppercase tracking-wider mb-1.5">
-                Progress — {form.progress}%
-              </label>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                step={5}
-                value={form.progress}
-                onChange={(e) => set("progress", Number(e.target.value))}
-                className="w-full accent-[#F5A623]"
-              />
-            </div>
-            <div>
-              <label className="block text-[11px] font-mono text-[#444] uppercase tracking-wider mb-1.5">
-                Crew size
-              </label>
-              <input
-                type="number"
-                min={0}
-                value={form.crew_size}
-                onChange={(e) => set("crew_size", e.target.value)}
-                className="w-full bg-[#18191b] border border-[#222] rounded px-3 py-2 text-[13px] text-[#d0d0d0] focus:outline-none focus:border-[#F5A623] transition-colors"
-                placeholder="0"
-              />
-            </div>
+          <div>
+            <label className="block text-[11px] font-mono text-[#444] uppercase tracking-wider mb-1.5">
+              Progress — {form.progress}%
+            </label>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={form.progress}
+              onChange={(e) => set("progress", Number(e.target.value))}
+              className="w-full accent-[#F5A623]"
+            />
           </div>
         </div>
 
@@ -688,6 +680,26 @@ export default function GanttPage() {
     return { labor, material, equipment, total: labor + material + equipment };
   }
 
+  // Derive a phase's crew picture from its task day-cells.
+  // peak = busiest single day, avg = mandays / days-with-work, mandays = sum.
+  function phaseCrew(phaseId: string) {
+    const tasks = tasksByPhase[phaseId] ?? [];
+    const dayTotals: Record<string, number> = {};
+    let mandays = 0;
+    for (const t of tasks) {
+      for (const [date, n] of Object.entries(t.daily_workers ?? {})) {
+        const v = Number(n) || 0;
+        dayTotals[date] = (dayTotals[date] ?? 0) + v;
+        mandays += v;
+      }
+    }
+    const dayValues = Object.values(dayTotals);
+    const peak = dayValues.length > 0 ? Math.max(...dayValues) : 0;
+    const distinctDays = dayValues.length;
+    const avg = distinctDays > 0 ? Math.round((mandays / distinctDays) * 10) / 10 : 0;
+    return { peak, avg, mandays, distinctDays, hasData: distinctDays > 0 };
+  }
+
   function estimateTotal() {
     let labor = 0, material = 0, equipment = 0;
     for (const ph of phases) {
@@ -706,7 +718,6 @@ export default function GanttPage() {
       planned_start: format(new Date(), "yyyy-MM-dd"),
       planned_end: format(addDays(new Date(), 14), "yyyy-MM-dd"),
       progress: 0,
-      crew_size: "",
     });
   }
 
@@ -718,7 +729,6 @@ export default function GanttPage() {
       planned_start: phase.planned_start ?? "",
       planned_end: phase.planned_end ?? "",
       progress: phase.progress,
-      crew_size: phase.crew_size?.toString() ?? "",
     });
   }
 
@@ -729,7 +739,6 @@ export default function GanttPage() {
       planned_start: form.planned_start || null,
       planned_end: form.planned_end || null,
       progress: form.progress,
-      crew_size: form.crew_size ? Number(form.crew_size) : null,
       order_index: form.id ? undefined : phases.length,
     };
 
@@ -1038,6 +1047,7 @@ export default function GanttPage() {
                           totalDays={totalDays}
                           onClick={() => openEdit(phase)}
                           onCommitDates={commitPhaseDates}
+                          crewSummary={phaseCrew(phase.id)}
                         />
                       </div>
                     </div>

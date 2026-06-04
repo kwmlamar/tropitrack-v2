@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
-import { X, Plus, Calendar, Users, Check } from "lucide-react";
+import { X, Plus, Calendar, Check } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -16,7 +16,6 @@ interface Phase {
   actual_start: string | null;
   actual_end: string | null;
   progress: number;
-  crew_size: number | null;
   notes: string | null;
 }
 
@@ -171,17 +170,9 @@ export function PhasePanel({
             {/* Meta */}
             <div className="px-5 py-4 border-b border-[#1e1e1e] space-y-3 flex-shrink-0">
               {/* Dates */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-[12px] text-[#666]">
-                  <Calendar className="h-3.5 w-3.5 text-[#444]" />
-                  <span>{fmt(phase.planned_start)} — {fmt(phase.planned_end)}</span>
-                </div>
-                {phase.crew_size && (
-                  <div className="flex items-center gap-1.5 text-[12px] text-[#666]">
-                    <Users className="h-3.5 w-3.5 text-[#444]" />
-                    <span>{phase.crew_size} crew</span>
-                  </div>
-                )}
+              <div className="flex items-center gap-1.5 text-[12px] text-[#666]">
+                <Calendar className="h-3.5 w-3.5 text-[#444]" />
+                <span>{fmt(phase.planned_start)} — {fmt(phase.planned_end)}</span>
               </div>
 
               {/* Progress */}

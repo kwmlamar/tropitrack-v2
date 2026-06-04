@@ -4,6 +4,37 @@
 
 @layer base {
   :root {
+    /* Bedrock light theme (Claude vibe: #fafafb page, #ffffff panels) */
+    --background: 210 20% 98%;
+    --foreground: 220 20% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 20% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 20% 12%;
+    --primary: 38 92% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 16% 95%;
+    --secondary-foreground: 220 20% 12%;
+    --muted: 210 16% 97%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 210 16% 95%;
+    --accent-foreground: 220 20% 12%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 38 92% 50%;
+    --radius: 0.375rem;
+
+    /* Bedrock custom tokens */
+    --bedrock-amber: 38 92% 50%;
+    --bedrock-green: 142 71% 45%;
+    --bedrock-red: 0 72% 51%;
+    --bedrock-surface: 0 0% 100%;
+    --bedrock-line: 214 32% 91%;
+  }
+
+  .dark {
     /* Bedrock dark-gray theme (#18191b page, #202224 panels) */
     --background: 220 5% 10%;
     --foreground: 0 0% 98%;
@@ -24,7 +55,6 @@
     --border: 220 4% 22%;
     --input: 220 4% 17%;
     --ring: 38 92% 50%;
-    --radius: 0.375rem;
 
     /* Bedrock custom tokens */
     --bedrock-amber: 38 92% 50%;
@@ -32,28 +62,6 @@
     --bedrock-red: 0 72% 51%;
     --bedrock-surface: 220 4% 13%;
     --bedrock-line: 220 4% 18%;
-  }
-
-  .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 7%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 7%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 38 92% 50%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 12%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 12%;
-    --muted-foreground: 215 20% 78%;
-    --accent: 0 0% 15%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 18%;
-    --input: 0 0% 13%;
-    --ring: 38 92% 50%;
   }
 }
 
@@ -70,19 +78,34 @@
 }
 
 /* Kill browser autofill blue */
-input:-webkit-autofill,
-input:-webkit-autofill:hover,
-input:-webkit-autofill:focus,
-input:-webkit-autofill:active {
-  -webkit-box-shadow: 0 0 0 100px #292c31 inset !important;
-  -webkit-text-fill-color: #aaa !important;
-  caret-color: #aaa;
+.dark input:-webkit-autofill,
+.dark input:-webkit-autofill:hover,
+.dark input:-webkit-autofill:focus,
+.dark input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 100px #202224 inset !important;
+  -webkit-text-fill-color: #fff !important;
+  caret-color: #fff;
+}
+
+html:not(.dark) input:-webkit-autofill,
+html:not(.dark) input:-webkit-autofill:hover,
+html:not(.dark) input:-webkit-autofill:focus,
+html:not(.dark) input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 100px #ffffff inset !important;
+  -webkit-text-fill-color: #1e293b !important;
+  caret-color: #1e293b;
 }
 
 /* Neutral date/time picker icon */
-input[type="date"]::-webkit-calendar-picker-indicator,
-input[type="time"]::-webkit-calendar-picker-indicator {
-  filter: invert(0.4);
+.dark input[type="date"]::-webkit-calendar-picker-indicator,
+.dark input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.8);
+  cursor: pointer;
+}
+
+html:not(.dark) input[type="date"]::-webkit-calendar-picker-indicator,
+html:not(.dark) input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: opacity(0.5);
   cursor: pointer;
 }
 
@@ -96,67 +119,144 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   background: transparent;
 }
 
-::-webkit-scrollbar-thumb {
+.dark ::-webkit-scrollbar-thumb {
   background: hsl(0 0% 20%);
   border-radius: 3px;
 }
 
-::-webkit-scrollbar-thumb:hover {
+.dark ::-webkit-scrollbar-thumb:hover {
   background: hsl(0 0% 28%);
 }
 
-/* Safe area insets for mobile */
+html:not(.dark) ::-webkit-scrollbar-thumb {
+  background: hsl(220 9% 82%);
+  border-radius: 3px;
+}
+
+html:not(.dark) ::-webkit-scrollbar-thumb:hover {
+  background: hsl(220 9% 72%);
+}
+
+/* Safe area insets for mobile and custom layer styles */
 @layer utilities {
   .safe-area-inset-bottom { padding-bottom: env(safe-area-inset-bottom); }
   .safe-area-inset-top    { padding-top: env(safe-area-inset-top); }
   .safe-area-inset-left   { padding-left: env(safe-area-inset-left); }
   .safe-area-inset-right  { padding-right: env(safe-area-inset-right); }
 
-  /* App-wide text brightness overrides to ensure premium readability and high contrast on dark panels */
-  .text-muted-foreground { color: hsl(215 20% 78%) !important; }
+  /* ==================== DARK MODE TEXT OVERRIDES ==================== */
+  .dark .text-muted-foreground { color: hsl(215 20% 78%) !important; }
   
-  /* Tailwind standard text colors overridden to be bright & shiny */
-  .text-gray-300, .text-slate-300, .text-zinc-300, .text-neutral-300 { color: #f8fafc !important; }
-  .text-gray-400, .text-slate-400, .text-zinc-400, .text-neutral-400 { color: #f1f5f9 !important; }
-  .text-gray-500, .text-slate-500, .text-zinc-500, .text-neutral-500 { color: #cbd5e1 !important; }
-  .text-gray-600, .text-slate-600, .text-zinc-600, .text-neutral-600 { color: #94a3b8 !important; }
-  .text-gray-700, .text-slate-700, .text-zinc-700, .text-neutral-700 { color: #cbd5e1 !important; }
-  .text-gray-800, .text-slate-800, .text-zinc-800, .text-neutral-800 { color: #94a3b8 !important; }
-  .text-gray-900, .text-slate-900, .text-zinc-900, .text-neutral-900 { color: #cbd5e1 !important; }
+  /* Tailwind standard text colors overridden to be bright & shiny in dark mode */
+  .dark .text-gray-300, .dark .text-slate-300, .dark .text-zinc-300, .dark .text-neutral-300 { color: #f8fafc !important; }
+  .dark .text-gray-400, .dark .text-slate-400, .dark .text-zinc-400, .dark .text-neutral-400 { color: #f1f5f9 !important; }
+  .dark .text-gray-500, .dark .text-slate-500, .dark .text-zinc-500, .dark .text-neutral-500 { color: #cbd5e1 !important; }
+  .dark .text-gray-600, .dark .text-slate-600, .dark .text-zinc-600, .dark .text-neutral-600 { color: #94a3b8 !important; }
+  .dark .text-gray-700, .dark .text-slate-700, .dark .text-zinc-700, .dark .text-neutral-700 { color: #cbd5e1 !important; }
+  .dark .text-gray-800, .dark .text-slate-800, .dark .text-zinc-800, .dark .text-neutral-800 { color: #94a3b8 !important; }
+  .dark .text-gray-900, .dark .text-slate-900, .dark .text-zinc-900, .dark .text-neutral-900 { color: #cbd5e1 !important; }
 
-  /* Custom hex text color overrides to guarantee high contrast and a premium glow */
-  .text-\[\#333\] { color: #cbd5e1 !important; } /* slate-300 */
-  .text-\[\#444\] { color: #e2e8f0 !important; } /* slate-200 */
-  .text-\[\#555\] { color: #f1f5f9 !important; } /* slate-100 */
-  .text-\[\#666\] { color: #f8fafc !important; } /* slate-50 */
-  .text-\[\#777\] { color: #ffffff !important; } /* pure white */
-  .text-\[\#888\] { color: #f1f5f9 !important; }
-  .text-\[\#999\] { color: #f8fafc !important; }
-  .text-\[\#aaa\] { color: #ffffff !important; }
-  .text-\[\#aaaaaa\] { color: #ffffff !important; }
-  .text-\[\#b0b0b0\] { color: #ffffff !important; }
-  .text-\[\#b8b8b8\] { color: #ffffff !important; }
-  .text-\[\#bbb\] { color: #ffffff !important; }
-  .text-\[\#bcbcbc\] { color: #ffffff !important; }
-  .text-\[\#c0c0c0\] { color: #ffffff !important; }
-  .text-\[\#c4c4c4\] { color: #ffffff !important; }
-  .text-\[\#c8c8c8\] { color: #ffffff !important; }
-  .text-\[\#cfcfcf\] { color: #ffffff !important; }
-  .text-\[\#d0d0d0\] { color: #ffffff !important; }
-  .text-\[\#d4d4d4\] { color: #ffffff !important; }
-  .text-\[\#d8d8d8\] { color: #ffffff !important; }
-  .text-\[\#ededed\] { color: #ffffff !important; }
+  /* Custom hex text color overrides in dark mode */
+  .dark .text-\[\#333\] { color: #cbd5e1 !important; }
+  .dark .text-\[\#444\] { color: #e2e8f0 !important; }
+  .dark .text-\[\#555\] { color: #f1f5f9 !important; }
+  .dark .text-\[\#666\] { color: #f8fafc !important; }
+  .dark .text-\[\#777\] { color: #ffffff !important; }
+  .dark .text-\[\#888\] { color: #f1f5f9 !important; }
+  .dark .text-\[\#999\] { color: #f8fafc !important; }
+  .dark .text-\[\#aaa\] { color: #ffffff !important; }
+  .dark .text-\[\#aaaaaa\] { color: #ffffff !important; }
+  .dark .text-\[\#b0b0b0\] { color: #ffffff !important; }
+  .dark .text-\[\#b8b8b8\] { color: #ffffff !important; }
+  .dark .text-\[\#bbb\] { color: #ffffff !important; }
+  .dark .text-\[\#bcbcbc\] { color: #ffffff !important; }
+  .dark .text-\[\#c0c0c0\] { color: #ffffff !important; }
+  .dark .text-\[\#c4c4c4\] { color: #ffffff !important; }
+  .dark .text-\[\#c8c8c8\] { color: #ffffff !important; }
+  .dark .text-\[\#cfcfcf\] { color: #ffffff !important; }
+  .dark .text-\[\#d0d0d0\] { color: #ffffff !important; }
+  .dark .text-\[\#d4d4d4\] { color: #ffffff !important; }
+  .dark .text-\[\#d8d8d8\] { color: #ffffff !important; }
+  .dark .text-\[\#ededed\] { color: #ffffff !important; }
   
-  /* Additional dark hex overrides */
-  .text-\[\#3a3d42\] { color: #cbd5e1 !important; }
-  .text-\[\#4a4d52\] { color: #94a3b8 !important; }
-  .text-\[\#3a3a3a\] { color: #a1a1aa !important; }
-  .text-\[\#2a2a2a\] { color: #94a3b8 !important; }
-  .text-[#2b2e33] { color: #64748b !important; }
-  .text-\[\#2d3035\] { color: #94a3b8 !important; }
+  .dark .text-\[\#3a3d42\] { color: #cbd5e1 !important; }
+  .dark .text-\[\#4a4d52\] { color: #94a3b8 !important; }
+  .dark .text-\[\#3a3a3a\] { color: #a1a1aa !important; }
+  .dark .text-\[\#2a2a2a\] { color: #94a3b8 !important; }
+  .dark .text-\[\#2d3035\] { color: #94a3b8 !important; }
+  .dark .text-[#2b2e33] { color: #64748b !important; }
+
+  /* ==================== LIGHT MODE TEXT OVERRIDES ==================== */
+  html:not(.dark) .text-\[\#aaa\], html:not(.dark) .text-\[\#aaaaaa\] { color: #52525b !important; }
+  html:not(.dark) .text-\[\#b0b0b0\], html:not(.dark) .text-\[\#b8b8b8\] { color: #71717a !important; }
+  html:not(.dark) .text-\[\#bbb\], html:not(.dark) .text-\[\#bcbcbc\] { color: #71717a !important; }
+  html:not(.dark) .text-\[\#c0c0c0\], html:not(.dark) .text-\[\#c4c4c4\], html:not(.dark) .text-\[\#c8c8c8\] { color: #18181b !important; }
+  html:not(.dark) .text-\[\#cfcfcf\], html:not(.dark) .text-\[\#d0d0d0\], html:not(.dark) .text-\[\#d4d4d4\], html:not(.dark) .text-\[\#d8d8d8\] { color: #18181b !important; }
+  html:not(.dark) .text-\[\#ededed\] { color: #27272a !important; }
+
+  /* ==================== LIGHT MODE BACKGROUND OVERRIDES ==================== */
+  html:not(.dark) .bg-\[\#0a0a0a\],
+  html:not(.dark) .bg-\[\#0e0e0e\],
+  html:not(.dark) .bg-\[\#0e0f11\],
+  html:not(.dark) .bg-\[\#0f0f0f\],
+  html:not(.dark) .bg-\[\#0f1011\],
+  html:not(.dark) .bg-\[\#121315\],
+  html:not(.dark) .bg-\[\#141517\],
+  html:not(.dark) .bg-\[\#15171a\],
+  html:not(.dark) .bg-\[\#161718\],
+  html:not(.dark) .bg-\[\#18191b\],
+  html:not(.dark) .bg-\[\#1a1b1d\],
+  html:not(.dark) .bg-\[\#1b1c1e\] {
+    background-color: #fafafb !important;
+  }
+
+  html:not(.dark) .bg-\[\#202224\],
+  html:not(.dark) .bg-\[\#292c31\],
+  html:not(.dark) .bg-\[\#272a2c\] {
+    background-color: #ffffff !important;
+  }
+
+  html:not(.dark) .bg-\[\#23252a\],
+  html:not(.dark) .bg-\[\#252729\] {
+    background-color: #f4f4f5 !important;
+  }
+
+  html:not(.dark) .bg-\[\#2d3035\],
+  html:not(.dark) .bg-\[\#34373c\],
+  html:not(.dark) .bg-\[\#353840\],
+  html:not(.dark) .bg-\[\#3a3d42\],
+  html:not(.dark) .bg-\[\#404040\],
+  html:not(.dark) .bg-\[\#1e1e1e\],
+  html:not(.dark) .bg-\[\#222\],
+  html:not(.dark) .bg-\[\#333\],
+  html:not(.dark) .bg-\[\#555\] {
+    background-color: #e4e4e7 !important;
+  }
+
+  /* ==================== LIGHT MODE BORDER OVERRIDES ==================== */
+  html:not(.dark) .border-\[\#18191b\],
+  html:not(.dark) .border-\[\#1b1c1e\],
+  html:not(.dark) .border-\[\#1e1e1e\],
+  html:not(.dark) .border-\[\#1f2125\],
+  html:not(.dark) .border-\[\#202224\],
+  html:not(.dark) .border-\[\#222\],
+  html:not(.dark) .border-\[\#23252a\],
+  html:not(.dark) .border-\[\#242424\],
+  html:not(.dark) .border-\[\#272a2c\],
+  html:not(.dark) .border-\[\#292c31\],
+  html:not(.dark) .border-\[\#2a2a2a\],
+  html:not(.dark) .border-\[\#2b2e33\],
+  html:not(.dark) .border-\[\#2d3035\],
+  html:not(.dark) .border-\[\#333\],
+  html:not(.dark) .border-\[\#34373c\],
+  html:not(.dark) .border-\[\#3a3d42\],
+  html:not(.dark) .border-\[\#444\],
+  html:not(.dark) .border-\[\#666\] {
+    border-color: #e4e4e7 !important;
+  }
 
   /* Premium Shiny & Glowing utilities */
-  .text-shiny {
+  .dark .text-shiny {
     background: linear-gradient(135deg, #ffffff 20%, #cbd5e1 50%, #ffffff 80%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -165,8 +265,21 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     text-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
   }
 
-  .text-glow {
+  html:not(.dark) .text-shiny {
+    background: linear-gradient(135deg, #0f172a 20%, #475569 50%, #0f172a 80%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-size: 200% auto;
+    animation: textShine 4s linear infinite;
+    text-shadow: 0 0 20px rgba(15, 23, 42, 0.05);
+  }
+
+  .dark .text-glow {
     text-shadow: 0 0 10px rgba(255, 255, 255, 0.25);
+  }
+
+  html:not(.dark) .text-glow {
+    text-shadow: 0 0 8px rgba(15, 23, 42, 0.08);
   }
 }
 
