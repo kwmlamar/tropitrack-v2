@@ -78,7 +78,7 @@ const COL_W = 40;  // px per day column
 const ROW_H = 36;  // px per phase row
 const TASK_H = 40; // px per task row
 const HEAD_H = 22; // px column-header row inside expanded phase
-const LABEL_W = 360; // px for left label column
+const LABEL_W = 390; // px for left label column
 
 // Amber heatmap intensities for worker counts 1..9+
 function heatmapStyle(count: number): { background: string; color: string } {
@@ -1064,7 +1064,7 @@ export default function GanttPage() {
                         >
                           <div
                             className="grid items-center gap-2 w-full"
-                            style={{ gridTemplateColumns: "1fr 72px 56px 60px 60px" }}
+                            style={{ gridTemplateColumns: "1fr 72px 56px 75px 75px" }}
                           >
                             <span>Task</span>
                             <span>Role</span>
@@ -1213,7 +1213,7 @@ function TaskRow({
       >
         <div
           className="grid items-center gap-2 w-full"
-          style={{ gridTemplateColumns: "1fr 72px 56px 60px 60px" }}
+          style={{ gridTemplateColumns: "1fr 72px 56px 75px 75px" }}
         >
           {/* Name */}
           <input
@@ -1339,7 +1339,7 @@ function MoneyCell({
         onChange={(e) => onLocal(Number(e.target.value) || 0)}
         onBlur={(e) => onSave(Number(e.target.value) || 0)}
         placeholder="0"
-        className="w-full bg-[#0f1011] border border-[#23252a] rounded-md pl-6 pr-2 py-1 h-7 text-[11px] font-mono tabular-nums text-right focus:outline-none focus:border-[#3a3d42] transition-colors"
+        className="w-full bg-[#0f1011] border border-[#23252a] rounded-md pl-5 pr-1.5 py-1 h-7 text-[11px] font-mono tabular-nums text-right focus:outline-none focus:border-[#3a3d42] transition-colors"
         style={{ color: hasValue ? "var(--foreground)" : "var(--muted-foreground)" }}
       />
     </div>

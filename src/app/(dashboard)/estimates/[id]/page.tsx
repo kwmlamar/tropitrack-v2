@@ -31,6 +31,16 @@ const STATUS_DOT: Record<string, string> = {
   expired:   "bg-[#F5A623]",
 };
 
+type EstimateSection = {
+  id: string;
+  estimate_id: string;
+  name: string;
+  order_index: number;
+  show_to_client: boolean;
+};
+
+type ViewMode = "internal" | "client";
+
 export default function EstimateDetailPage() {
   const params = useParams();
   const searchParams = useSearchParams();
@@ -43,6 +53,7 @@ export default function EstimateDetailPage() {
   const [loading, setLoading] = useState(true);
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   const [lineItems, setLineItems] = useState<EstimateLineItem[]>([]);
+  const [sections, setSections] = useState<EstimateSection[]>([]);
   const [showConvertDialog, setShowConvertDialog] = useState(false);
   const [converting, setConverting] = useState(false);
   const [projectName, setProjectName] = useState("");
@@ -50,6 +61,15 @@ export default function EstimateDetailPage() {
   const [showEmailDialog, setShowEmailDialog] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailForm, setEmailForm] = useState({ to_email: "", subject: "", message: "" });
+
+  // View mode synced to ?view=client | internal (default: internal)
+  const view: ViewMode = searchParams.get("view") === "client" ? "client" : "internal";
+  const setView = (next: ViewMode) => {
+    const sp = new URLSearchParams(searchParams.toString());
+    if (next === "internal") sp.delete("view");
+    else sp.set("view", next);
+    router.replace(`/estimates/${estimateId}${sp.toString() ? `?${sp.toString()}` : ""}`);
+  };
 
   useEffect(() => {
     fetchEstimateData();
@@ -59,13 +79,15 @@ export default function EstimateDetailPage() {
   const fetchEstimateData = async () => {
     setLoading(true);
     try {
-      const [estimateRes, itemsRes] = await Promise.all([
+      const [estimateRes, itemsRes, sectionsRes] = await Promise.all([
         supabase.from("estimates").select("*").eq("id", estimateId).single(),
         supabase.from("estimate_line_items").select("*").eq("estimate_id", estimateId).order("order_index"),
+        supabase.from("estimate_sections").select("*").eq("estimate_id", estimateId).order("order_index"),
       ]);
       if (estimateRes.error) throw estimateRes.error;
       setEstimate(estimateRes.data);
       setLineItems(itemsRes.data || []);
+      setSections((sectionsRes.data as EstimateSection[]) || []);
       setProjectName(estimateRes.data.title);
     } catch (error) {
       toast({ title: "Error", description: "Failed to load estimate", variant: "destructive" });
@@ -201,6 +223,33 @@ export default function EstimateDetailPage() {
 
         {/* Actions */}
         <div className="flex items-center gap-3 flex-shrink-0">
+          {/* Internal / Client view toggle */}
+          <div className="flex items-center bg-[#1a1b1d] border border-[#2b2e33] rounded p-[2px]">
+            <button
+              onClick={() => setView("internal")}
+              className={cn(
+                "px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider rounded transition-colors",
+                view === "internal"
+                  ? "bg-[#2d3035] text-[#d0d0d0]"
+                  : "text-[#555] hover:text-[#999]"
+              )}
+              title="Full breakdown — internal use only"
+            >
+              Internal
+            </button>
+            <button
+              onClick={() => setView("client")}
+              className={cn(
+                "px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider rounded transition-colors",
+                view === "client"
+                  ? "bg-[#2d3035] text-[#F5A623]"
+                  : "text-[#555] hover:text-[#999]"
+              )}
+              title="What the client sees — simplified, no internal cost detail"
+            >
+              Client
+            </button>
+          </div>
           <Link
             href={`/estimates/${estimateId}/builder`}
             className="text-[12px] text-[#666] hover:text-[#aaa] transition-colors"
@@ -323,14 +372,16 @@ export default function EstimateDetailPage() {
             <div className="px-4 py-4 space-y-2">
               {[
                 { label: "Subtotal", value: formatCurrency(estimate.subtotal || 0) },
-                estimate.overhead_amount > 0 && {
+                // Overhead + Profit are internal cost structure — never shown to client
+                view === "internal" && estimate.overhead_amount > 0 && {
                   label: `Overhead (${estimate.overhead_markup_percent}%)`,
                   value: formatCurrency(estimate.overhead_amount),
                 },
-                estimate.profit_amount > 0 && {
+                view === "internal" && estimate.profit_amount > 0 && {
                   label: `Profit (${estimate.profit_margin_percent}%)`,
                   value: formatCurrency(estimate.profit_amount),
                 },
+                // VAT shown in both views — client pays it
                 estimate.tax_amount > 0 && {
                   label: `VAT (${estimate.tax_rate}%)`,
                   value: formatCurrency(estimate.tax_amount),
@@ -353,49 +404,104 @@ export default function EstimateDetailPage() {
           </div>
         </div>
 
-        {/* Line items */}
-        <div className="rounded border border-[#34373c] bg-[#202224] overflow-hidden">
-          <div className="px-4 py-3 border-b border-[#2d3035] flex items-center justify-between">
-            <span className="text-[11px] font-mono text-[#666] uppercase tracking-widest">Line Items</span>
-            <span className="text-[11px] font-mono text-[#555]">{lineItems.length} items</span>
-          </div>
-          {lineItems.length === 0 ? (
-            <div className="py-10 text-center">
-              <p className="text-[13px] text-[#555]">No line items</p>
+        {/* Line items — different shape per view */}
+        {view === "internal" ? (
+          <div className="rounded border border-[#34373c] bg-[#202224] overflow-hidden">
+            <div className="px-4 py-3 border-b border-[#2d3035] flex items-center justify-between">
+              <span className="text-[11px] font-mono text-[#666] uppercase tracking-widest">Line Items</span>
+              <span className="text-[11px] font-mono text-[#555]">{lineItems.length} items</span>
             </div>
-          ) : (
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-[#292c31]">
-                  <th className="px-4 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555]">Type</th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555] w-[40%]">Description</th>
-                  <th className="px-4 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Qty</th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555]">Unit</th>
-                  <th className="px-4 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Rate</th>
-                  <th className="px-4 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Amount</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#292c31]">
-                {lineItems.map((item) => (
-                  <tr key={item.id} className="hover:bg-[#23252a] transition-colors">
-                    <td className="px-4 py-3">
-                      <span className="text-[10px] font-mono text-[#555] capitalize">{item.category}</span>
-                    </td>
-                    <td className="px-4 py-3 text-[13px] text-[#888]">{item.description}</td>
-                    <td className="px-4 py-3 text-right text-[12px] font-mono text-[#666]">{item.quantity}</td>
-                    <td className="px-4 py-3 text-[12px] font-mono text-[#555]">{item.unit || "—"}</td>
-                    <td className="px-4 py-3 text-right text-[12px] font-mono text-[#666]">
-                      {formatCurrency(item.unit_rate || 0)}
-                    </td>
-                    <td className="px-4 py-3 text-right text-[13px] font-mono text-[#aaa] font-semibold">
-                      {formatCurrency(item.amount)}
-                    </td>
+            {lineItems.length === 0 ? (
+              <div className="py-10 text-center">
+                <p className="text-[13px] text-[#555]">No line items</p>
+              </div>
+            ) : (
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-[#292c31]">
+                    <th className="px-4 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555]">Type</th>
+                    <th className="px-4 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555] w-[40%]">Description</th>
+                    <th className="px-4 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Qty</th>
+                    <th className="px-4 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555]">Unit</th>
+                    <th className="px-4 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Rate</th>
+                    <th className="px-4 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Amount</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+                </thead>
+                <tbody className="divide-y divide-[#292c31]">
+                  {lineItems.map((item) => (
+                    <tr key={item.id} className="hover:bg-[#23252a] transition-colors">
+                      <td className="px-4 py-3">
+                        <span className="text-[10px] font-mono text-[#555] capitalize">{item.category}</span>
+                      </td>
+                      <td className="px-4 py-3 text-[13px] text-[#888]">{item.description}</td>
+                      <td className="px-4 py-3 text-right text-[12px] font-mono text-[#666]">{item.quantity}</td>
+                      <td className="px-4 py-3 text-[12px] font-mono text-[#555]">{item.unit || "—"}</td>
+                      <td className="px-4 py-3 text-right text-[12px] font-mono text-[#666]">
+                        {formatCurrency(item.unit_rate || 0)}
+                      </td>
+                      <td className="px-4 py-3 text-right text-[13px] font-mono text-[#aaa] font-semibold">
+                        {formatCurrency(item.amount)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        ) : (
+          // ── Client view: scope-of-work sections with bottom-line subtotals ──
+          (() => {
+            const clientSections = sections.filter((s) => s.show_to_client);
+            const itemsBySection: Record<string, EstimateLineItem[]> = {};
+            for (const it of lineItems) {
+              const k = (it as EstimateLineItem & { section_id?: string }).section_id ?? "_loose";
+              (itemsBySection[k] ??= []).push(it);
+            }
+            const sectionTotal = (sectionId: string) =>
+              (itemsBySection[sectionId] ?? [])
+                .filter((it) => (it as EstimateLineItem & { show_to_client?: boolean }).show_to_client !== false)
+                .reduce((s, it) => s + Number(it.amount || 0), 0);
+
+            return (
+              <div className="rounded border border-[#34373c] bg-[#202224] overflow-hidden">
+                <div className="px-4 py-3 border-b border-[#2d3035] flex items-center justify-between">
+                  <span className="text-[11px] font-mono text-[#F5A623]/80 uppercase tracking-widest">
+                    Scope of Work
+                  </span>
+                  <span className="text-[11px] font-mono text-[#555]">{clientSections.length} sections</span>
+                </div>
+                {clientSections.length === 0 ? (
+                  <div className="py-10 text-center">
+                    <p className="text-[13px] text-[#555]">Nothing visible to client yet</p>
+                    <p className="text-[11px] text-[#3a3d42] mt-1.5">
+                      Toggle sections / line items to “show to client” in the builder
+                    </p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-[#292c31]">
+                    {clientSections.map((sec) => {
+                      const total = sectionTotal(sec.id);
+                      return (
+                        <div key={sec.id} className="flex items-center justify-between px-4 py-3.5 hover:bg-[#23252a] transition-colors">
+                          <span className="text-[13px] text-[#c4c4c4] font-medium">{sec.name}</span>
+                          <span className="text-[13px] font-mono text-[#aaa] font-semibold tabular-nums">
+                            {formatCurrency(total)}
+                          </span>
+                        </div>
+                      );
+                    })}
+                    <div className="flex items-center justify-between px-4 py-3.5 bg-[#1b1c1e]">
+                      <span className="text-[12px] font-semibold text-[#d0d0d0]">Project Total</span>
+                      <span className="text-[15px] font-semibold font-mono text-[#F5A623] tabular-nums">
+                        {formatCurrency(estimate.total_amount)}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()
+        )}
 
         {/* Terms */}
         {(estimate.terms_and_conditions || estimate.description) && (
