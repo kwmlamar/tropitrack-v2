@@ -938,7 +938,7 @@ export default function GanttPage() {
                 <div className="flex h-6">
                   {weeks.flatMap((w) => w.days).map((day, i) => {
                     const isToday = format(day, "yyyy-MM-dd") === format(today, "yyyy-MM-dd");
-                    const isWeekend = [0, 6].includes(day.getDay());
+                    const isWeekend = day.getDay() === 0;
                     return (
                       <div
                         key={i}
@@ -949,8 +949,8 @@ export default function GanttPage() {
                         style={{ width: COL_W }}
                       >
                         <span className={cn(
-                          "text-[9px] font-mono",
-                          isToday ? "text-[#F5A623]" : isWeekend ? "text-[#3a3d42]" : "text-[#3a3d42]"
+                          "text-[9px] font-mono font-medium",
+                          isToday ? "text-[#F5A623] font-semibold" : "text-zinc-700 dark:text-zinc-300"
                         )}>
                           {format(day, "d")}
                         </span>
@@ -1002,7 +1002,7 @@ export default function GanttPage() {
                         </button>
                         <button
                           onClick={() => toggleExpand(phase.id)}
-                          className="text-[13px] text-[#777] hover:text-[#b8b8b8] truncate flex-1 text-left transition-colors min-w-0"
+                          className="text-[13px] font-semibold text-zinc-800 dark:text-zinc-100 hover:text-[#F5A623] dark:hover:text-[#F5A623] truncate flex-1 text-left transition-colors min-w-0"
                         >
                           {phase.name}
                         </button>
@@ -1016,14 +1016,14 @@ export default function GanttPage() {
                         )}
                         <button
                           onClick={() => addTask(phase)}
-                          className="opacity-0 group-hover:opacity-100 text-[#333] hover:text-[#F5A623] transition-all flex-shrink-0"
+                          className="opacity-30 group-hover:opacity-100 text-muted-foreground hover:text-[#F5A623] transition-all flex-shrink-0"
                           title="Add task"
                         >
                           <Plus className="h-3 w-3" />
                         </button>
                         <button
                           onClick={() => openEdit(phase)}
-                          className="opacity-0 group-hover:opacity-100 text-[#333] hover:text-[#666] transition-all flex-shrink-0"
+                          className="opacity-30 group-hover:opacity-100 text-muted-foreground hover:text-foreground transition-all flex-shrink-0"
                           title="Edit phase"
                         >
                           <Pencil className="h-3 w-3" />
@@ -1033,14 +1033,14 @@ export default function GanttPage() {
                       <div className="relative flex-1" style={{ width: totalDays * COL_W }}>
                         {weeks.flatMap((w) => w.days).map((day, i) => {
                           const isToday = format(day, "yyyy-MM-dd") === format(today, "yyyy-MM-dd");
-                          const isWeekend = [0, 6].includes(day.getDay());
+                          const isWeekend = day.getDay() === 0;
                           return (isToday || isWeekend) ? (
                             <div
-                              key={i}
+                              key={`bg-${i}`}
                               className={cn(
-                              "absolute inset-y-0 border-r border-[#1f2125]/30",
-                              isToday ? "bg-[#F5A623]/5 border-l border-[#F5A623]/20" : "bg-[#161718]"
-                            )}
+                                "absolute inset-y-0 border-r border-[#1f2125]/30",
+                                isToday ? "bg-[#F5A623]/5 border-l border-[#F5A623]/20" : "bg-[#161718]"
+                              )}
                               style={{ left: i * COL_W, width: COL_W }}
                             />
                           ) : null;
@@ -1285,7 +1285,7 @@ function TaskRow({
         {/* Weekend / today background */}
         {weeks.flatMap((w) => w.days).map((day, i) => {
           const isToday = format(day, "yyyy-MM-dd") === format(today, "yyyy-MM-dd");
-          const isWeekend = [0, 6].includes(day.getDay());
+          const isWeekend = day.getDay() === 0;
           return (isToday || isWeekend) ? (
             <div
               key={`bg-${i}`}
@@ -1418,7 +1418,7 @@ function DailyCell({
           style={style}
           aria-label={`Workers on ${dateKey}: ${workers || "none"}`}
         >
-          {workers > 0 ? workers : <span className="text-[#2b2e33]">·</span>}
+          {workers > 0 ? workers : <span className="text-zinc-300 dark:text-zinc-700">·</span>}
         </button>
       )}
     </div>
