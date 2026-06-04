@@ -1208,7 +1208,7 @@ function TaskRow({
 
       {/* Label area — single line, 5-column grid */}
       <div
-        className="flex-shrink-0 pl-7 pr-2 border-r border-[#1f2125] flex items-center"
+        className="flex-shrink-0 pl-7 pr-2 border-r border-[#1f2125] flex items-center relative"
         style={{ width: LABEL_W }}
       >
         <div
@@ -1266,10 +1266,10 @@ function TaskRow({
           />
         </div>
 
-        {/* Delete (overlay on hover, doesn't take grid space) */}
+        {/* Delete button: positioned on the far left, always slightly visible (low opacity) and highlighting on hover */}
         <button
           onClick={onDelete}
-          className="opacity-0 group-hover:opacity-100 absolute right-1 top-1.5 text-[#333] hover:text-[#EF4444] transition-all"
+          className="absolute left-1 top-1/2 -translate-y-1/2 w-[18px] h-[18px] flex items-center justify-center rounded-md bg-background border border-border/20 text-muted-foreground/50 hover:text-red-500 hover:border-red-500/30 hover:bg-red-500/10 transition-all z-10 shadow-sm"
           title="Delete task"
         >
           <X className="h-2.5 w-2.5" />
