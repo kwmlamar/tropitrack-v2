@@ -6,19 +6,19 @@
   :root {
     /* Bedrock dark-gray theme (#18191b page, #202224 panels) */
     --background: 220 5% 10%;
-    --foreground: 0 0% 95%;
+    --foreground: 0 0% 98%;
     --card: 220 4% 13%;
-    --card-foreground: 0 0% 95%;
+    --card-foreground: 0 0% 98%;
     --popover: 220 4% 13%;
-    --popover-foreground: 0 0% 95%;
+    --popover-foreground: 0 0% 98%;
     --primary: 38 92% 50%;
     --primary-foreground: 0 0% 9%;
     --secondary: 220 4% 16%;
-    --secondary-foreground: 0 0% 95%;
+    --secondary-foreground: 0 0% 98%;
     --muted: 220 4% 16%;
-    --muted-foreground: 0 0% 80%;
+    --muted-foreground: 215 20% 78%;
     --accent: 220 4% 19%;
-    --accent-foreground: 0 0% 95%;
+    --accent-foreground: 0 0% 98%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
     --border: 220 4% 22%;
@@ -36,19 +36,19 @@
 
   .dark {
     --background: 0 0% 3.9%;
-    --foreground: 0 0% 96%;
+    --foreground: 0 0% 98%;
     --card: 0 0% 7%;
-    --card-foreground: 0 0% 96%;
+    --card-foreground: 0 0% 98%;
     --popover: 0 0% 7%;
-    --popover-foreground: 0 0% 96%;
+    --popover-foreground: 0 0% 98%;
     --primary: 38 92% 50%;
     --primary-foreground: 0 0% 9%;
     --secondary: 0 0% 12%;
-    --secondary-foreground: 0 0% 96%;
+    --secondary-foreground: 0 0% 98%;
     --muted: 0 0% 12%;
-    --muted-foreground: 0 0% 80%;
+    --muted-foreground: 215 20% 78%;
     --accent: 0 0% 15%;
-    --accent-foreground: 0 0% 96%;
+    --accent-foreground: 0 0% 98%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
     --border: 0 0% 18%;
@@ -63,6 +63,9 @@
   }
   body {
     @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 }
 
@@ -110,13 +113,67 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   .safe-area-inset-right  { padding-right: env(safe-area-inset-right); }
 
   /* App-wide text brightness overrides to ensure premium readability and high contrast on dark panels */
-  .text-\[\#555\] { color: #9ba1a6 !important; }
-  .text-\[\#666\] { color: #b0b4ba !important; }
-  .text-\[\#777\] { color: #d1d5db !important; }
-  .text-\[\#aaa\] { color: #f3f4f6 !important; }
-  .text-\[\#3a3d42\] { color: #b0b4ba !important; }
-  .text-\[\#444\] { color: #9ca3af !important; }
-  .text-\[\#333\] { color: #8e9297 !important; }
+  .text-muted-foreground { color: hsl(215 20% 78%) !important; }
+  
+  /* Tailwind standard text colors overridden to be bright & shiny */
+  .text-gray-300, .text-slate-300, .text-zinc-300, .text-neutral-300 { color: #f8fafc !important; }
+  .text-gray-400, .text-slate-400, .text-zinc-400, .text-neutral-400 { color: #f1f5f9 !important; }
+  .text-gray-500, .text-slate-500, .text-zinc-500, .text-neutral-500 { color: #cbd5e1 !important; }
+  .text-gray-600, .text-slate-600, .text-zinc-600, .text-neutral-600 { color: #94a3b8 !important; }
+  .text-gray-700, .text-slate-700, .text-zinc-700, .text-neutral-700 { color: #cbd5e1 !important; }
+  .text-gray-800, .text-slate-800, .text-zinc-800, .text-neutral-800 { color: #94a3b8 !important; }
+  .text-gray-900, .text-slate-900, .text-zinc-900, .text-neutral-900 { color: #cbd5e1 !important; }
+
+  /* Custom hex text color overrides to guarantee high contrast and a premium glow */
+  .text-\[\#333\] { color: #cbd5e1 !important; } /* slate-300 */
+  .text-\[\#444\] { color: #e2e8f0 !important; } /* slate-200 */
+  .text-\[\#555\] { color: #f1f5f9 !important; } /* slate-100 */
+  .text-\[\#666\] { color: #f8fafc !important; } /* slate-50 */
+  .text-\[\#777\] { color: #ffffff !important; } /* pure white */
+  .text-\[\#888\] { color: #f1f5f9 !important; }
+  .text-\[\#999\] { color: #f8fafc !important; }
+  .text-\[\#aaa\] { color: #ffffff !important; }
+  .text-\[\#aaaaaa\] { color: #ffffff !important; }
+  .text-\[\#b0b0b0\] { color: #ffffff !important; }
+  .text-\[\#b8b8b8\] { color: #ffffff !important; }
+  .text-\[\#bbb\] { color: #ffffff !important; }
+  .text-\[\#bcbcbc\] { color: #ffffff !important; }
+  .text-\[\#c0c0c0\] { color: #ffffff !important; }
+  .text-\[\#c4c4c4\] { color: #ffffff !important; }
+  .text-\[\#c8c8c8\] { color: #ffffff !important; }
+  .text-\[\#cfcfcf\] { color: #ffffff !important; }
+  .text-\[\#d0d0d0\] { color: #ffffff !important; }
+  .text-\[\#d4d4d4\] { color: #ffffff !important; }
+  .text-\[\#d8d8d8\] { color: #ffffff !important; }
+  .text-\[\#ededed\] { color: #ffffff !important; }
+  
+  /* Additional dark hex overrides */
+  .text-\[\#3a3d42\] { color: #cbd5e1 !important; }
+  .text-\[\#4a4d52\] { color: #94a3b8 !important; }
+  .text-\[\#3a3a3a\] { color: #a1a1aa !important; }
+  .text-\[\#2a2a2a\] { color: #94a3b8 !important; }
+  .text-[#2b2e33] { color: #64748b !important; }
+  .text-\[\#2d3035\] { color: #94a3b8 !important; }
+
+  /* Premium Shiny & Glowing utilities */
+  .text-shiny {
+    background: linear-gradient(135deg, #ffffff 20%, #cbd5e1 50%, #ffffff 80%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-size: 200% auto;
+    animation: textShine 4s linear infinite;
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+  }
+
+  .text-glow {
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.25);
+  }
+}
+
+@keyframes textShine {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 @media print {
