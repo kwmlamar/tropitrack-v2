@@ -512,7 +512,7 @@ export default function ClaudePage() {
       {!railOpen && (
         <button
           onClick={() => setRailOpen(true)}
-          className="absolute top-3 left-3 z-20 flex items-center gap-1.5 px-2 py-1 text-[10px] font-mono text-[#555] uppercase tracking-wider border border-[#2b2e33] rounded hover:text-[#aaa] hover:border-[#3a3d42] transition-colors bg-[#18191b]/80 backdrop-blur"
+          className="absolute top-3 left-3 z-20 flex items-center gap-1.5 px-2 py-1 text-[10px] font-mono text-muted-foreground uppercase tracking-wider border border-border rounded hover:text-foreground hover:border-muted-foreground transition-colors bg-background/80 backdrop-blur"
           title="Show threads"
         >
           <PanelLeftOpen className="h-3 w-3" />
