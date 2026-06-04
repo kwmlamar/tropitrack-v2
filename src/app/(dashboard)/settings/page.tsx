@@ -1,18 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Header } from "@/components/layout/header";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { createClient } from "@/lib/supabase/client";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { getInitials } from "@/lib/utils";
+import { getInitials, cn } from "@/lib/utils";
 import {
   User,
   Building2,
@@ -48,6 +40,8 @@ export default function SettingsPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [companyLoading, setCompanyLoading] = useState(false);
   const supabase = createClient();
+
+  const [activeTab, setActiveTab] = useState("profile");
 
   const [profileForm, setProfileForm] = useState({
     full_name: profile?.full_name || "",
@@ -168,6 +162,16 @@ export default function SettingsPage() {
     loadCompanyData();
     loadNotificationPrefs();
   }, [profile?.id, profile?.company_id]);
+
+  // Sync profileForm with profile data when it loads
+  useEffect(() => {
+    if (profile) {
+      setProfileForm({
+        full_name: profile.full_name || "",
+        phone: profile.phone || "",
+      });
+    }
+  }, [profile]);
 
   const handleAiPreferencesUpdate = async () => {
     if (!profile?.id) return;
@@ -367,812 +371,671 @@ export default function SettingsPage() {
     }
   };
 
+  const tabs = [
+    { id: "profile", name: "Profile", icon: User },
+    { id: "security", name: "Security", icon: Shield },
+    { id: "appearance", name: "Appearance", icon: Palette },
+    { id: "company", name: "Company", icon: Building2 },
+    { id: "payroll", name: "Payroll", icon: Wallet },
+    { id: "notifications", name: "Notifications", icon: Bell },
+    { id: "ai", name: "AI Settings", icon: Sparkles },
+  ];
+
   return (
-    <div className="flex flex-col min-h-screen">
-      <Header title="Settings" description="Manage your account and preferences" />
+    <div className="flex flex-col h-full overflow-auto bg-[#18191b]">
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-[#34373c] flex-shrink-0">
+        <div>
+          <p className="text-[11px] font-mono text-[#666] uppercase tracking-widest">Settings</p>
+          <h1 className="text-[16px] font-semibold text-[#d0d0d0] mt-0.5">Account & Preferences</h1>
+        </div>
+      </div>
 
-      <div className="flex-1 p-6">
-        <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="profile" className="flex items-center gap-2">
-              <User className="h-4 w-4" />
-              Profile
-            </TabsTrigger>
-            <TabsTrigger value="security" className="flex items-center gap-2">
-              <Shield className="h-4 w-4" />
-              Security
-            </TabsTrigger>
-            <TabsTrigger value="appearance" className="flex items-center gap-2">
-              <Palette className="h-4 w-4" />
-              Appearance
-            </TabsTrigger>
-            <TabsTrigger value="company" className="flex items-center gap-2">
-              <Building2 className="h-4 w-4" />
-              Company
-            </TabsTrigger>
-            <TabsTrigger value="payroll" className="flex items-center gap-2">
-              <Wallet className="h-4 w-4" />
-              Payroll
-            </TabsTrigger>
-            <TabsTrigger value="notifications" className="flex items-center gap-2">
-              <Bell className="h-4 w-4" />
-              Notifications
-            </TabsTrigger>
-            <TabsTrigger value="ai" className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4" />
-              AI Settings
-            </TabsTrigger>
-          </TabsList>
+      <div className="flex-1 p-6 space-y-5">
+        {/* Navigation Tabs */}
+        <div className="flex items-center gap-1 border-b border-[#34373c] pb-2 flex-wrap">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={cn(
+                  "px-3 py-1.5 rounded text-[10px] font-mono uppercase tracking-wider transition-colors flex items-center gap-2",
+                  isActive
+                    ? "bg-[#2d3035] text-[#F5A623] border border-[#333]"
+                    : "text-[#555] hover:text-[#999]"
+                )}
+              >
+                <Icon className={cn("h-3.5 w-3.5", isActive ? "text-[#F5A623]" : "text-[#555]")} />
+                {tab.name}
+              </button>
+            );
+          })}
+        </div>
 
-          <TabsContent value="profile">
-            <Card>
-              <CardHeader>
-                <CardTitle>Profile Information</CardTitle>
-                <CardDescription>
-                  Update your personal details and contact information
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleProfileUpdate} className="space-y-6">
-                  <div className="flex items-center gap-6">
-                    <Avatar className="h-20 w-20">
-                      <AvatarImage src={profile?.avatar_url || ""} />
-                      <AvatarFallback className="text-xl">
-                        {profile?.full_name ? getInitials(profile.full_name) : "U"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <h3 className="font-semibold">{profile?.full_name}</h3>
-                      <p className="text-sm text-muted-foreground">{profile?.email}</p>
-                      <p className="text-sm text-muted-foreground capitalize">
-                        {profile?.role?.replace("_", " ")}
-                      </p>
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="full_name">Full Name</Label>
-                      <Input
-                        id="full_name"
-                        value={profileForm.full_name}
-                        onChange={(e) =>
-                          setProfileForm({ ...profileForm, full_name: e.target.value })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
-                      <Input
-                        id="email"
-                        value={profile?.email || ""}
-                        disabled
-                        className="bg-muted"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Email cannot be changed
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">Phone</Label>
-                      <Input
-                        id="phone"
-                        placeholder="(242) 555-1234"
-                        value={profileForm.phone}
-                        onChange={(e) =>
-                          setProfileForm({ ...profileForm, phone: e.target.value })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="role">Role</Label>
-                      <Input
-                        id="role"
-                        value={profile?.role?.replace("_", " ") || ""}
-                        disabled
-                        className="bg-muted capitalize"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end">
-                    <Button type="submit" disabled={loading}>
-                      {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                      Save Changes
-                    </Button>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="security">
-            <Card>
-              <CardHeader>
-                <CardTitle>Change Password</CardTitle>
-                <CardDescription>
-                  Update your password to keep your account secure
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handlePasswordUpdate} className="space-y-4 max-w-md">
-                  <div className="space-y-2">
-                    <Label htmlFor="new_password">New Password</Label>
-                    <Input
-                      id="new_password"
-                      type="password"
-                      placeholder="Enter new password"
-                      value={passwordForm.new_password}
-                      onChange={(e) =>
-                        setPasswordForm({ ...passwordForm, new_password: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="confirm_password">Confirm New Password</Label>
-                    <Input
-                      id="confirm_password"
-                      type="password"
-                      placeholder="Confirm new password"
-                      value={passwordForm.confirm_password}
-                      onChange={(e) =>
-                        setPasswordForm({ ...passwordForm, confirm_password: e.target.value })
-                      }
-                    />
-                  </div>
-                  <Button type="submit" disabled={loading}>
-                    {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                    Update Password
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="appearance">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Palette className="h-5 w-5 text-primary" />
-                  Appearance
-                </CardTitle>
-                <CardDescription>
-                  Customize how TropiTrack looks on your device
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div>
-                  <h3 className="text-sm font-medium mb-4">Theme</h3>
-                  <div className="grid gap-4 sm:grid-cols-3 max-w-lg">
-                    <button
-                      onClick={() => setTheme("light")}
-                      className={`flex flex-col items-center gap-3 p-4 rounded-lg border-2 transition-all ${
-                        theme === "light"
-                          ? "border-primary bg-primary/5"
-                          : "border-border hover:border-primary/50"
-                      }`}
-                    >
-                      <div className="p-3 rounded-full bg-amber-100 dark:bg-amber-900/30">
-                        <Sun className="h-6 w-6 text-amber-600 dark:text-amber-400" />
-                      </div>
-                      <span className="font-medium">Light</span>
-                      <span className="text-xs text-muted-foreground text-center">
-                        Bright and clear
-                      </span>
-                    </button>
-
-                    <button
-                      onClick={() => setTheme("dark")}
-                      className={`flex flex-col items-center gap-3 p-4 rounded-lg border-2 transition-all ${
-                        theme === "dark"
-                          ? "border-primary bg-primary/5"
-                          : "border-border hover:border-primary/50"
-                      }`}
-                    >
-                      <div className="p-3 rounded-full bg-neutral-100 dark:bg-neutral-800">
-                        <Moon className="h-6 w-6 text-neutral-600 dark:text-neutral-300" />
-                      </div>
-                      <span className="font-medium">Dark</span>
-                      <span className="text-xs text-muted-foreground text-center">
-                        Easy on the eyes
-                      </span>
-                    </button>
-
-                    <button
-                      onClick={() => setTheme("system")}
-                      className={`flex flex-col items-center gap-3 p-4 rounded-lg border-2 transition-all ${
-                        theme === "system"
-                          ? "border-primary bg-primary/5"
-                          : "border-border hover:border-primary/50"
-                      }`}
-                    >
-                      <div className="p-3 rounded-full bg-blue-100 dark:bg-blue-900/30">
-                        <Monitor className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                      </div>
-                      <span className="font-medium">System</span>
-                      <span className="text-xs text-muted-foreground text-center">
-                        Match your device
-                      </span>
-                    </button>
-                  </div>
-                </div>
-
-                <Separator />
-
-                <div className="bg-muted/50 rounded-lg p-4">
-                  <div className="flex gap-3">
-                    <Info className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
-                    <div className="text-sm text-muted-foreground">
-                      <p className="font-medium mb-1">About System Theme</p>
-                      <p>When set to System, TropiTrack will automatically switch between
-                      light and dark modes based on your device&apos;s display settings.</p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="company">
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Company Information</CardTitle>
-                  <CardDescription>
-                    Update your company details that appear on invoices and estimates
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleCompanyUpdate} className="space-y-6">
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="company_name">Company Name</Label>
-                        <Input
-                          id="company_name"
-                          placeholder="Your Company Ltd."
-                          value={companyForm.name}
-                          onChange={(e) =>
-                            setCompanyForm({ ...companyForm, name: e.target.value })
-                          }
-                          disabled={companyLoading}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="company_email">Company Email</Label>
-                        <Input
-                          id="company_email"
-                          type="email"
-                          placeholder="info@yourcompany.com"
-                          value={companyForm.email}
-                          onChange={(e) =>
-                            setCompanyForm({ ...companyForm, email: e.target.value })
-                          }
-                          disabled={companyLoading}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="company_phone">Company Phone</Label>
-                        <Input
-                          id="company_phone"
-                          placeholder="(242) 555-1234"
-                          value={companyForm.phone}
-                          onChange={(e) =>
-                            setCompanyForm({ ...companyForm, phone: e.target.value })
-                          }
-                          disabled={companyLoading}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="city">City</Label>
-                        <Input
-                          id="city"
-                          placeholder="Nassau"
-                          value={companyForm.city}
-                          onChange={(e) =>
-                            setCompanyForm({ ...companyForm, city: e.target.value })
-                          }
-                          disabled={companyLoading}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="company_address">Business Address</Label>
-                      <Input
-                        id="company_address"
-                        placeholder="123 Main Street"
-                        value={companyForm.address}
-                        onChange={(e) =>
-                          setCompanyForm({ ...companyForm, address: e.target.value })
-                        }
-                        disabled={companyLoading}
-                      />
-                    </div>
-
-                    <Separator />
-
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="vat_number">VAT/Tax ID Number <span className="text-muted-foreground">(Optional)</span></Label>
-                        <Input
-                          id="vat_number"
-                          placeholder="VAT-XXXXXX"
-                          value={companyForm.vat_number}
-                          onChange={(e) =>
-                            setCompanyForm({ ...companyForm, vat_number: e.target.value })
-                          }
-                          disabled={companyLoading}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="business_number">Business Registration Number <span className="text-muted-foreground">(Optional)</span></Label>
-                        <Input
-                          id="business_number"
-                          placeholder="BRN-XXXXXX"
-                          value={companyForm.business_registration}
-                          onChange={(e) =>
-                            setCompanyForm({ ...companyForm, business_registration: e.target.value })
-                          }
-                          disabled={companyLoading}
-                        />
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="currency">Currency</Label>
-                        <Input
-                          id="currency"
-                          value="BSD (Bahamian Dollar)"
-                          disabled
-                          className="bg-muted"
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Currency settings cannot be changed
-                        </p>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="timezone">Timezone</Label>
-                        <Input
-                          id="timezone"
-                          value="America/Nassau (EST)"
-                          disabled
-                          className="bg-muted"
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Timezone settings cannot be changed
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-end">
-                      <Button type="submit" disabled={companyLoading}>
-                        {companyLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                        Save Company Settings
-                      </Button>
-                    </div>
-                  </form>
-                </CardContent>
-              </Card>
-
-              {/* Quick Links Card */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Additional Settings</CardTitle>
-                  <CardDescription>
-                    Manage team members and payment information
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-4 md:grid-cols-2">
-                  <Button
-                    variant="outline"
-                    className="justify-start h-auto py-4"
-                    onClick={() => router.push("/settings/team")}
-                  >
-                    <div className="flex items-center gap-3 w-full">
-                      <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-950/50">
-                        <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                      </div>
-                      <div className="text-left">
-                        <p className="font-semibold">Team Management</p>
-                        <p className="text-sm text-muted-foreground">
-                          Invite and manage team members
-                        </p>
-                      </div>
-                    </div>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="justify-start h-auto py-4"
-                    onClick={() => router.push("/settings/payment")}
-                  >
-                    <div className="flex items-center gap-3 w-full">
-                      <div className="p-2 rounded-lg bg-green-100 dark:bg-green-950/50">
-                        <Wallet className="h-5 w-5 text-green-600 dark:text-green-400" />
-                      </div>
-                      <div className="text-left">
-                        <p className="font-semibold">Payment Instructions</p>
-                        <p className="text-sm text-muted-foreground">
-                          Configure invoice payment details
-                        </p>
-                      </div>
-                    </div>
-                  </Button>
-                </CardContent>
-              </Card>
+        {/* Tab Contents */}
+        {activeTab === "profile" && (
+          <div className="rounded border border-[#34373c] bg-[#202224] p-5 space-y-6 max-w-4xl">
+            <div>
+              <h2 className="text-[14px] font-semibold text-[#d0d0d0] uppercase tracking-wider font-mono">Profile Information</h2>
+              <p className="text-[11px] text-[#555] mt-1">Update your personal details and contact information</p>
             </div>
-          </TabsContent>
 
-          <TabsContent value="payroll">
-            <Card>
-              <CardHeader>
-                <CardTitle>Payroll Settings</CardTitle>
-                <CardDescription>
-                  National Insurance Board (NIB) deduction rates and payroll configurations
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* NIB Information Section */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <Wallet className="h-5 w-5 text-primary" />
-                    NIB (National Insurance Board) Contributions
-                  </h3>
+            <div className="flex items-center gap-5">
+              <div className="h-14 w-14 rounded-full bg-[#3a3d42] flex items-center justify-center text-[16px] font-mono font-semibold text-[#aaa] flex-shrink-0">
+                {profile?.full_name ? getInitials(profile.full_name) : "U"}
+              </div>
+              <div>
+                <h3 className="font-semibold text-[14px] text-[#d0d0d0]">{profile?.full_name}</h3>
+                <p className="text-[12px] text-[#888]">{profile?.email}</p>
+                <p className="text-[11px] text-[#555] capitalize font-mono mt-0.5">
+                  {profile?.role?.replace("_", " ")}
+                </p>
+              </div>
+            </div>
 
-                  <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 rounded-lg p-4 mb-4">
-                    <div className="flex gap-3">
-                      <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-                      <div className="text-sm text-blue-800 dark:text-blue-200">
-                        <p className="font-medium mb-1">Mandatory Payroll Deductions</p>
-                        <p>NIB contributions are mandatory for all employed persons in The Bahamas.
-                        The rates below are set by law and apply to all workers.</p>
-                      </div>
-                    </div>
+            <div className="border-b border-[#2d3035]" />
+
+            <form onSubmit={handleProfileUpdate} className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-1">
+                  <label htmlFor="full_name" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">Full Name</label>
+                  <input
+                    id="full_name"
+                    value={profileForm.full_name}
+                    onChange={(e) =>
+                      setProfileForm({ ...profileForm, full_name: e.target.value })
+                    }
+                    className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors placeholder:text-[#444]"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="email" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">Email</label>
+                  <input
+                    id="email"
+                    value={profile?.email || ""}
+                    disabled
+                    className="w-full h-8 px-2.5 rounded bg-[#202224] border border-[#3a3d42]/30 text-[13px] text-[#555] cursor-not-allowed outline-none"
+                  />
+                  <p className="text-[10px] text-[#444] font-mono mt-1">
+                    Email cannot be changed
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="phone" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">Phone</label>
+                  <input
+                    id="phone"
+                    placeholder="(242) 555-1234"
+                    value={profileForm.phone}
+                    onChange={(e) =>
+                      setProfileForm({ ...profileForm, phone: e.target.value })
+                    }
+                    className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors placeholder:text-[#444]"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="role" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">Role</label>
+                  <input
+                    id="role"
+                    value={profile?.role?.replace("_", " ") || ""}
+                    disabled
+                    className="w-full h-8 px-2.5 rounded bg-[#202224] border border-[#3a3d42]/30 text-[13px] text-[#555] cursor-not-allowed outline-none capitalize"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded bg-[#2d3035] border border-[#333] text-[12px] font-medium text-[#F5A623] hover:bg-[#353840] transition-colors disabled:opacity-40"
+                >
+                  {loading && <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />}
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {activeTab === "security" && (
+          <div className="rounded border border-[#34373c] bg-[#202224] p-5 space-y-6 max-w-xl">
+            <div>
+              <h2 className="text-[14px] font-semibold text-[#d0d0d0] uppercase tracking-wider font-mono">Change Password</h2>
+              <p className="text-[11px] text-[#555] mt-1">Update your password to keep your account secure</p>
+            </div>
+
+            <form onSubmit={handlePasswordUpdate} className="space-y-4">
+              <div className="space-y-1">
+                <label htmlFor="new_password" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">New Password</label>
+                <input
+                  id="new_password"
+                  type="password"
+                  placeholder="Enter new password"
+                  value={passwordForm.new_password}
+                  onChange={(e) =>
+                    setPasswordForm({ ...passwordForm, new_password: e.target.value })
+                  }
+                  className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors placeholder:text-[#444]"
+                />
+              </div>
+              <div className="space-y-1">
+                <label htmlFor="confirm_password" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">Confirm New Password</label>
+                <input
+                  id="confirm_password"
+                  type="password"
+                  placeholder="Confirm new password"
+                  value={passwordForm.confirm_password}
+                  onChange={(e) =>
+                    setPasswordForm({ ...passwordForm, confirm_password: e.target.value })
+                  }
+                  className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors placeholder:text-[#444]"
+                />
+              </div>
+
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded bg-[#2d3035] border border-[#333] text-[12px] font-medium text-[#F5A623] hover:bg-[#353840] transition-colors disabled:opacity-40"
+                >
+                  {loading && <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />}
+                  Update Password
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {activeTab === "appearance" && (
+          <div className="rounded border border-[#34373c] bg-[#202224] p-5 space-y-6 max-w-4xl">
+            <div>
+              <h2 className="text-[14px] font-semibold text-[#d0d0d0] uppercase tracking-wider font-mono">Appearance</h2>
+              <p className="text-[11px] text-[#555] mt-1">Customize how Bedrock looks on your device</p>
+            </div>
+
+            <div>
+              <h3 className="text-[11px] font-mono text-[#555] uppercase tracking-widest mb-3">Theme Selection</h3>
+              <div className="grid gap-3 sm:grid-cols-3 max-w-lg">
+                <button
+                  onClick={() => setTheme("light")}
+                  className={cn(
+                    "flex flex-col items-center gap-2 p-4 rounded border transition-all text-center",
+                    theme === "light"
+                      ? "border-[#F5A623] bg-[#F5A623]/10 dark:bg-[#2d3035]/30 text-[#F5A623]"
+                      : "border-[#34373c] bg-[#202224] hover:bg-[#2d3035] hover:border-[#34373c] dark:hover:bg-[#272a2c] dark:hover:border-[#333] text-[#888] hover:text-[#b8b8b8]"
+                  )}
+                >
+                  <div className="p-2.5 rounded-full bg-[#18191b] mb-1">
+                    <Sun className="h-5 w-5 text-amber-500" />
                   </div>
+                  <span className="font-medium text-[13px]">Light</span>
+                  <span className="text-[10px] opacity-75">Bright and clear</span>
+                </button>
 
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <div className="bg-muted/50 rounded-lg p-4 text-center">
-                      <p className="text-sm text-muted-foreground mb-1">Employee Contribution</p>
-                      <p className="text-2xl font-bold text-primary">4.65%</p>
-                      <p className="text-xs text-muted-foreground mt-1">Deducted from gross wages</p>
-                    </div>
-                    <div className="bg-muted/50 rounded-lg p-4 text-center">
-                      <p className="text-sm text-muted-foreground mb-1">Employer Contribution</p>
-                      <p className="text-2xl font-bold text-primary">6.65%</p>
-                      <p className="text-xs text-muted-foreground mt-1">Paid by employer</p>
-                    </div>
-                    <div className="bg-muted/50 rounded-lg p-4 text-center">
-                      <p className="text-sm text-muted-foreground mb-1">Weekly Max Insurable</p>
-                      <p className="text-2xl font-bold text-primary">$550</p>
-                      <p className="text-xs text-muted-foreground mt-1">Maximum weekly wages</p>
-                    </div>
+                <button
+                  onClick={() => setTheme("dark")}
+                  className={cn(
+                    "flex flex-col items-center gap-2 p-4 rounded border transition-all text-center",
+                    theme === "dark"
+                      ? "border-[#F5A623] bg-[#F5A623]/10 dark:bg-[#2d3035]/30 text-[#F5A623]"
+                      : "border-[#34373c] bg-[#202224] hover:bg-[#2d3035] hover:border-[#34373c] dark:hover:bg-[#272a2c] dark:hover:border-[#333] text-[#888] hover:text-[#b8b8b8]"
+                  )}
+                >
+                  <div className="p-2.5 rounded-full bg-[#18191b] mb-1">
+                    <Moon className="h-5 w-5 text-indigo-400" />
+                  </div>
+                  <span className="font-medium text-[13px]">Dark</span>
+                  <span className="text-[10px] opacity-75">Easy on the eyes</span>
+                </button>
+
+                <button
+                  onClick={() => setTheme("system")}
+                  className={cn(
+                    "flex flex-col items-center gap-2 p-4 rounded border transition-all text-center",
+                    theme === "system"
+                      ? "border-[#F5A623] bg-[#F5A623]/10 dark:bg-[#2d3035]/30 text-[#F5A623]"
+                      : "border-[#34373c] bg-[#202224] hover:bg-[#2d3035] hover:border-[#34373c] dark:hover:bg-[#272a2c] dark:hover:border-[#333] text-[#888] hover:text-[#b8b8b8]"
+                  )}
+                >
+                  <div className="p-2.5 rounded-full bg-[#18191b] mb-1">
+                    <Monitor className="h-5 w-5 text-blue-400" />
+                  </div>
+                  <span className="font-medium text-[13px]">System</span>
+                  <span className="text-[10px] opacity-75">Match device settings</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="border-b border-[#2d3035]" />
+
+            <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 rounded p-4 max-w-lg flex gap-3">
+              <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+              <div className="text-[12px] text-blue-800 dark:text-blue-200">
+                <p className="font-semibold text-blue-900 dark:text-blue-100 mb-0.5">About System Theme</p>
+                <p>When set to System, Bedrock will automatically switch between light and dark modes based on your device display settings.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "company" && (
+          <div className="space-y-5 max-w-4xl">
+            <div className="rounded border border-[#34373c] bg-[#202224] p-5 space-y-6">
+              <div>
+                <h2 className="text-[14px] font-semibold text-[#d0d0d0] uppercase tracking-wider font-mono">Company Information</h2>
+                <p className="text-[11px] text-[#555] mt-1">Update your company details that appear on invoices and estimates</p>
+              </div>
+
+              <form onSubmit={handleCompanyUpdate} className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-1">
+                    <label htmlFor="company_name" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">Company Name</label>
+                    <input
+                      id="company_name"
+                      placeholder="Your Company Ltd."
+                      value={companyForm.name}
+                      onChange={(e) =>
+                        setCompanyForm({ ...companyForm, name: e.target.value })
+                      }
+                      disabled={companyLoading}
+                      className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors placeholder:text-[#444]"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label htmlFor="company_email" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">Company Email</label>
+                    <input
+                      id="company_email"
+                      type="email"
+                      placeholder="info@yourcompany.com"
+                      value={companyForm.email}
+                      onChange={(e) =>
+                        setCompanyForm({ ...companyForm, email: e.target.value })
+                      }
+                      disabled={companyLoading}
+                      className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors placeholder:text-[#444]"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label htmlFor="company_phone" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">Company Phone</label>
+                    <input
+                      id="company_phone"
+                      placeholder="(242) 555-1234"
+                      value={companyForm.phone}
+                      onChange={(e) =>
+                        setCompanyForm({ ...companyForm, phone: e.target.value })
+                      }
+                      disabled={companyLoading}
+                      className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors placeholder:text-[#444]"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label htmlFor="city" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">City</label>
+                    <input
+                      id="city"
+                      placeholder="Nassau"
+                      value={companyForm.city}
+                      onChange={(e) =>
+                        setCompanyForm({ ...companyForm, city: e.target.value })
+                      }
+                      disabled={companyLoading}
+                      className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors placeholder:text-[#444]"
+                    />
                   </div>
                 </div>
 
-                <Separator />
+                <div className="space-y-1">
+                  <label htmlFor="company_address" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">Business Address</label>
+                  <input
+                    id="company_address"
+                    placeholder="123 Main Street"
+                    value={companyForm.address}
+                    onChange={(e) =>
+                      setCompanyForm({ ...companyForm, address: e.target.value })
+                    }
+                    disabled={companyLoading}
+                    className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors placeholder:text-[#444]"
+                  />
+                </div>
 
-                {/* How NIB is calculated */}
-                <div>
-                  <h4 className="font-medium mb-3">How NIB Deductions Are Calculated</h4>
-                  <div className="space-y-3 text-sm text-muted-foreground">
-                    <div className="flex items-start gap-2">
-                      <span className="bg-primary/10 text-primary rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5 text-xs font-medium">1</span>
-                      <p>Calculate gross wages for the pay period (regular hours × rate + overtime hours × OT rate)</p>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="bg-primary/10 text-primary rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5 text-xs font-medium">2</span>
-                      <p>Cap weekly wages at $550 for NIB calculation purposes</p>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="bg-primary/10 text-primary rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5 text-xs font-medium">3</span>
-                      <p>Employee deduction: Capped wages × 4.65% (deducted from paycheck)</p>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="bg-primary/10 text-primary rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5 text-xs font-medium">4</span>
-                      <p>Employer contribution: Capped wages × 6.65% (company expense, not deducted)</p>
-                    </div>
+                <div className="border-b border-[#2d3035]" />
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-1">
+                    <label htmlFor="vat_number" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">VAT/Tax ID Number <span className="text-[#444] font-normal font-sans">(Optional)</span></label>
+                    <input
+                      id="vat_number"
+                      placeholder="VAT-XXXXXX"
+                      value={companyForm.vat_number}
+                      onChange={(e) =>
+                        setCompanyForm({ ...companyForm, vat_number: e.target.value })
+                      }
+                      disabled={companyLoading}
+                      className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors placeholder:text-[#444]"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label htmlFor="business_number" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">Business Registration Number <span className="text-[#444] font-normal font-sans">(Optional)</span></label>
+                    <input
+                      id="business_number"
+                      placeholder="BRN-XXXXXX"
+                      value={companyForm.business_registration}
+                      onChange={(e) =>
+                        setCompanyForm({ ...companyForm, business_registration: e.target.value })
+                      }
+                      disabled={companyLoading}
+                      className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors placeholder:text-[#444]"
+                    />
                   </div>
                 </div>
 
-                <Separator />
+                <div className="border-b border-[#2d3035]" />
 
-                {/* Worker NIB Settings Note */}
-                <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-lg p-4">
-                  <div className="flex gap-3">
-                    <Info className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-                    <div className="text-sm text-amber-800 dark:text-amber-200">
-                      <p className="font-medium mb-1">Per-Worker NIB Settings</p>
-                      <p>NIB deductions can be enabled or disabled for individual workers in their profile.
-                      Go to Workers → Edit Worker to manage NIB settings and enter their NIB number.</p>
-                    </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-1">
+                    <label htmlFor="currency" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">Currency</label>
+                    <input
+                      id="currency"
+                      value="BSD (Bahamian Dollar)"
+                      disabled
+                      className="w-full h-8 px-2.5 rounded bg-[#202224] border border-[#3a3d42]/30 text-[13px] text-[#555] cursor-not-allowed outline-none"
+                    />
+                    <p className="text-[10px] text-[#444] font-mono">Currency settings cannot be changed</p>
+                  </div>
+                  <div className="space-y-1">
+                    <label htmlFor="timezone" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">Timezone</label>
+                    <input
+                      id="timezone"
+                      value="America/Nassau (EST)"
+                      disabled
+                      className="w-full h-8 px-2.5 rounded bg-[#202224] border border-[#3a3d42]/30 text-[13px] text-[#555] cursor-not-allowed outline-none"
+                    />
+                    <p className="text-[10px] text-[#444] font-mono">Timezone settings cannot be changed</p>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
 
-          <TabsContent value="notifications">
-            <Card>
-              <CardHeader>
-                <CardTitle>Notification Preferences</CardTitle>
-                <CardDescription>
-                  Choose what notifications you want to receive
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between py-3 border-b">
-                    <div>
-                      <p className="font-medium">Low Stock Alerts</p>
-                      <p className="text-sm text-muted-foreground">
-                        Get notified when materials fall below minimum levels
-                      </p>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={notificationPrefs.low_stock_alerts}
-                      onChange={(e) =>
-                        setNotificationPrefs({
-                          ...notificationPrefs,
-                          low_stock_alerts: e.target.checked,
-                        })
-                      }
-                      className="h-5 w-5"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between py-3 border-b">
-                    <div>
-                      <p className="font-medium">Milestone Reminders</p>
-                      <p className="text-sm text-muted-foreground">
-                        Reminders for upcoming project milestones
-                      </p>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={notificationPrefs.milestone_reminders}
-                      onChange={(e) =>
-                        setNotificationPrefs({
-                          ...notificationPrefs,
-                          milestone_reminders: e.target.checked,
-                        })
-                      }
-                      className="h-5 w-5"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between py-3 border-b">
-                    <div>
-                      <p className="font-medium">Payroll Reminders</p>
-                      <p className="text-sm text-muted-foreground">
-                        Notifications for pay period deadlines
-                      </p>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={notificationPrefs.payroll_reminders}
-                      onChange={(e) =>
-                        setNotificationPrefs({
-                          ...notificationPrefs,
-                          payroll_reminders: e.target.checked,
-                        })
-                      }
-                      className="h-5 w-5"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between py-3 border-b">
-                    <div>
-                      <p className="font-medium">Budget Alerts</p>
-                      <p className="text-sm text-muted-foreground">
-                        Warnings when projects approach budget limits
-                      </p>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={notificationPrefs.budget_alerts}
-                      onChange={(e) =>
-                        setNotificationPrefs({
-                          ...notificationPrefs,
-                          budget_alerts: e.target.checked,
-                        })
-                      }
-                      className="h-5 w-5"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between py-3 border-b">
-                    <div>
-                      <p className="font-medium">Invoice Overdue Alerts</p>
-                      <p className="text-sm text-muted-foreground">
-                        Get notified when invoices become overdue
-                      </p>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={notificationPrefs.invoice_overdue_alerts}
-                      onChange={(e) =>
-                        setNotificationPrefs({
-                          ...notificationPrefs,
-                          invoice_overdue_alerts: e.target.checked,
-                        })
-                      }
-                      className="h-5 w-5"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between py-3 border-b">
-                    <div>
-                      <p className="font-medium">Estimate Expiring Alerts</p>
-                      <p className="text-sm text-muted-foreground">
-                        Reminders when estimates are about to expire
-                      </p>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={notificationPrefs.estimate_expiring_alerts}
-                      onChange={(e) =>
-                        setNotificationPrefs({
-                          ...notificationPrefs,
-                          estimate_expiring_alerts: e.target.checked,
-                        })
-                      }
-                      className="h-5 w-5"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between py-3 border-b">
-                    <div>
-                      <p className="font-medium">Team Notifications</p>
-                      <p className="text-sm text-muted-foreground">
-                        Updates about team invitations and changes
-                      </p>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={notificationPrefs.team_notifications}
-                      onChange={(e) =>
-                        setNotificationPrefs({
-                          ...notificationPrefs,
-                          team_notifications: e.target.checked,
-                        })
-                      }
-                      className="h-5 w-5"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between py-3">
-                    <div>
-                      <p className="font-medium">Payment Notifications</p>
-                      <p className="text-sm text-muted-foreground">
-                        Alerts when payments are received
-                      </p>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={notificationPrefs.payment_notifications}
-                      onChange={(e) =>
-                        setNotificationPrefs({
-                          ...notificationPrefs,
-                          payment_notifications: e.target.checked,
-                        })
-                      }
-                      className="h-5 w-5"
-                    />
-                  </div>
-                  <Button onClick={handleNotificationPrefsUpdate} disabled={notificationLoading}>
-                    {notificationLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                    Save Preferences
-                  </Button>
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="submit"
+                    disabled={companyLoading}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded bg-[#2d3035] border border-[#333] text-[12px] font-medium text-[#F5A623] hover:bg-[#353840] transition-colors disabled:opacity-40"
+                  >
+                    {companyLoading && <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />}
+                    Save Company Settings
+                  </button>
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+              </form>
+            </div>
 
-          <TabsContent value="ai">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-primary" />
-                  AI Features
-                </CardTitle>
-                <CardDescription>
-                  Configure AI-powered search and content generation
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6 max-w-md">
-                  <div className="space-y-3">
-                    <Label htmlFor="ai_tone">Default Writing Tone</Label>
-                    <Select
-                      value={aiPreferences.tone}
-                      onValueChange={(value: AITone) =>
-                        setAiPreferences({ ...aiPreferences, tone: value })
-                      }
-                    >
-                      <SelectTrigger id="ai_tone">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="professional">
-                          Professional - Formal business language
-                        </SelectItem>
-                        <SelectItem value="concise">
-                          Concise - Brief and to-the-point
-                        </SelectItem>
-                        <SelectItem value="detailed">
-                          Detailed - Comprehensive with technical details
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">
-                      This affects how AI generates descriptions for estimates, invoices, and other content
+            <div className="rounded border border-[#34373c] bg-[#202224] p-5 space-y-4">
+              <div>
+                <h3 className="text-[13px] font-semibold text-[#d0d0d0] uppercase tracking-wider font-mono">Additional Settings</h3>
+                <p className="text-[11px] text-[#555] mt-1">Manage team members and invoice payment configurations</p>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <button
+                  className="flex items-center gap-3 w-full p-4 rounded border border-[#34373c] bg-[#202224] hover:bg-[#2d3035] hover:border-[#34373c] dark:hover:bg-[#272a2c] dark:hover:border-[#333] text-left transition-colors group"
+                  onClick={() => router.push("/settings/team")}
+                >
+                  <div className="p-2 rounded bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/30">
+                    <Users className="h-4 w-4" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-[13px] text-[#d0d0d0] group-hover:text-white transition-colors">Team Management</p>
+                    <p className="text-[11px] text-[#555] mt-0.5">Invite and manage team members</p>
+                  </div>
+                </button>
+
+                <button
+                  className="flex items-center gap-3 w-full p-4 rounded border border-[#34373c] bg-[#202224] hover:bg-[#2d3035] hover:border-[#34373c] dark:hover:bg-[#272a2c] dark:hover:border-[#333] text-left transition-colors group"
+                  onClick={() => router.push("/settings/payment")}
+                >
+                  <div className="p-2 rounded bg-green-50 dark:bg-green-950/40 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-900/30">
+                    <Wallet className="h-4 w-4" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-[13px] text-[#d0d0d0] group-hover:text-white transition-colors">Payment Instructions</p>
+                    <p className="text-[11px] text-[#555] mt-0.5">Configure invoice payment details</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "payroll" && (
+          <div className="rounded border border-[#34373c] bg-[#202224] p-5 space-y-6 max-w-4xl">
+            <div>
+              <h2 className="text-[14px] font-semibold text-[#d0d0d0] uppercase tracking-wider font-mono">Payroll Settings</h2>
+              <p className="text-[11px] text-[#555] mt-1">National Insurance Board (NIB) deduction rates and payroll configurations</p>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-[12px] font-semibold text-[#d0d0d0] uppercase tracking-wider font-mono flex items-center gap-2">
+                <Wallet className="h-4 w-4 text-[#F5A623]" />
+                NIB (National Insurance Board) Contributions
+              </h3>
+
+              <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 rounded p-4 flex gap-3">
+                <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                <div className="text-[12px] text-blue-800 dark:text-blue-200">
+                  <p className="font-semibold text-blue-900 dark:text-blue-100 mb-0.5">Mandatory Payroll Deductions</p>
+                  <p>NIB contributions are mandatory for all employed persons in The Bahamas. The rates below are set by law and apply to all workers.</p>
+                </div>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-3">
+                <div className="bg-[#18191b] border border-[#34373c] rounded p-4 text-center">
+                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-wider">Employee Contribution</p>
+                  <p className="text-2xl font-bold font-mono text-[#F5A623] mt-1">4.65%</p>
+                  <p className="text-[10px] text-[#555] mt-1">Deducted from gross wages</p>
+                </div>
+                <div className="bg-[#18191b] border border-[#34373c] rounded p-4 text-center">
+                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-wider">Employer Contribution</p>
+                  <p className="text-2xl font-bold font-mono text-[#F5A623] mt-1">6.65%</p>
+                  <p className="text-[10px] text-[#555] mt-1">Paid by employer</p>
+                </div>
+                <div className="bg-[#18191b] border border-[#34373c] rounded p-4 text-center">
+                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-wider">Weekly Max Insurable</p>
+                  <p className="text-2xl font-bold font-mono text-[#F5A623] mt-1">$550</p>
+                  <p className="text-[10px] text-[#555] mt-1">Maximum weekly wages capped</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-b border-[#2d3035]" />
+
+            <div>
+              <h4 className="text-[11px] font-mono text-[#555] uppercase tracking-widest mb-3">How NIB Deductions Are Calculated</h4>
+              <div className="space-y-3 text-[12px] text-[#aaa]">
+                <div className="flex items-start gap-2">
+                  <span className="bg-[#2d3035] text-[#F5A623] border border-[#333] rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5 text-[10px] font-mono font-medium">1</span>
+                  <p className="pt-0.5">Calculate gross wages for the pay period (regular hours × rate + overtime hours × OT rate)</p>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="bg-[#2d3035] text-[#F5A623] border border-[#333] rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5 text-[10px] font-mono font-medium">2</span>
+                  <p className="pt-0.5">Cap weekly wages at $550 for NIB calculation purposes</p>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="bg-[#2d3035] text-[#F5A623] border border-[#333] rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5 text-[10px] font-mono font-medium">3</span>
+                  <p className="pt-0.5">Employee deduction: Capped wages × 4.65% (deducted from paycheck)</p>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="bg-[#2d3035] text-[#F5A623] border border-[#333] rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5 text-[10px] font-mono font-medium">4</span>
+                  <p className="pt-0.5">Employer contribution: Capped wages × 6.65% (company expense, not deducted)</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-b border-[#2d3035]" />
+
+            <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded p-4 flex gap-3">
+              <Info className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+              <div className="text-[12px] text-amber-800 dark:text-amber-200">
+                <p className="font-semibold text-amber-900 dark:text-amber-100 mb-0.5">Per-Worker NIB Settings</p>
+                <p>NIB deductions can be enabled or disabled for individual workers in their profile. Go to Crew → Edit Worker to manage NIB settings and enter their NIB number.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "notifications" && (
+          <div className="rounded border border-[#34373c] bg-[#202224] p-5 space-y-6 max-w-2xl">
+            <div>
+              <h2 className="text-[14px] font-semibold text-[#d0d0d0] uppercase tracking-wider font-mono">Notification Preferences</h2>
+              <p className="text-[11px] text-[#555] mt-1">Choose what notifications you want to receive</p>
+            </div>
+
+            <div className="space-y-2">
+              {[
+                { key: "low_stock_alerts", label: "Low Stock Alerts", desc: "Get notified when materials fall below minimum levels" },
+                { key: "milestone_reminders", label: "Milestone Reminders", desc: "Reminders for upcoming project milestones" },
+                { key: "payroll_reminders", label: "Payroll Reminders", desc: "Notifications for pay period deadlines" },
+                { key: "budget_alerts", label: "Budget Alerts", desc: "Warnings when projects approach budget limits" },
+                { key: "invoice_overdue_alerts", label: "Invoice Overdue Alerts", desc: "Get notified when invoices become overdue" },
+                { key: "estimate_expiring_alerts", label: "Estimate Expiring Alerts", desc: "Reminders when estimates are about to expire" },
+                { key: "team_notifications", label: "Team Notifications", desc: "Updates about team invitations and changes" },
+                { key: "payment_notifications", label: "Payment Notifications", desc: "Alerts when payments are received" },
+              ].map((item) => (
+                <div key={item.key} className="flex items-center justify-between py-3 border-b border-[#2d3035] last:border-0">
+                  <div>
+                    <p className="font-medium text-[13px] text-[#d0d0d0]">{item.label}</p>
+                    <p className="text-[11px] text-[#555]">{item.desc}</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={notificationPrefs[item.key as keyof typeof notificationPrefs]}
+                    onChange={(e) =>
+                      setNotificationPrefs({
+                        ...notificationPrefs,
+                        [item.key]: e.target.checked,
+                      })
+                    }
+                    className="h-4 w-4 rounded bg-[#292c31] border-[#3a3d42] text-[#F5A623] focus:ring-0 focus:ring-offset-0"
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div className="pt-2">
+              <button
+                onClick={handleNotificationPrefsUpdate}
+                disabled={notificationLoading}
+                className="flex items-center gap-1.5 px-4 py-2 rounded bg-[#2d3035] border border-[#333] text-[12px] font-medium text-[#F5A623] hover:bg-[#353840] transition-colors disabled:opacity-40"
+              >
+                {notificationLoading && <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />}
+                Save Preferences
+              </button>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "ai" && (
+          <div className="rounded border border-[#34373c] bg-[#202224] p-5 space-y-6 max-w-2xl">
+            <div>
+              <h2 className="text-[14px] font-semibold text-[#d0d0d0] uppercase tracking-wider font-mono">AI Features</h2>
+              <p className="text-[11px] text-[#555] mt-1">Configure AI-powered search and content generation</p>
+            </div>
+
+            <div className="space-y-4 max-w-md">
+              <div className="space-y-1.5">
+                <label htmlFor="ai_tone" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">Default Writing Tone</label>
+                <Select
+                  value={aiPreferences.tone}
+                  onValueChange={(value: AITone) =>
+                    setAiPreferences({ ...aiPreferences, tone: value })
+                  }
+                >
+                  <SelectTrigger id="ai_tone" className="h-8 bg-[#292c31] border-[#3a3d42] text-[#aaa] text-[13px] focus:ring-0 focus:border-[#333]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#202224] border-[#3a3d42]">
+                    <SelectItem value="professional" className="text-[#aaa] focus:bg-[#292c31] focus:text-[#d0d0d0]">
+                      Professional - Formal business language
+                    </SelectItem>
+                    <SelectItem value="concise" className="text-[#aaa] focus:bg-[#292c31] focus:text-[#d0d0d0]">
+                      Concise - Brief and to-the-point
+                    </SelectItem>
+                    <SelectItem value="detailed" className="text-[#aaa] focus:bg-[#292c31] focus:text-[#d0d0d0]">
+                      Detailed - Comprehensive with technical details
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-[10px] text-[#444] font-mono mt-1">
+                  This affects how AI generates descriptions for estimates, invoices, and other content
+                </p>
+              </div>
+
+              <div className="border-b border-[#2d3035]" />
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-[13px] text-[#d0d0d0]">Smart Search History</p>
+                    <p className="text-[11px] text-[#555]">
+                      Save your search queries for quick access
                     </p>
                   </div>
-
-                  <Separator />
-
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">Smart Search History</p>
-                        <p className="text-sm text-muted-foreground">
-                          Save your search queries for quick access
-                        </p>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={aiPreferences.search_history_enabled}
-                        onChange={(e) =>
-                          setAiPreferences({
-                            ...aiPreferences,
-                            search_history_enabled: e.target.checked,
-                          })
-                        }
-                        className="h-5 w-5"
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">Auto-Draft Descriptions</p>
-                        <p className="text-sm text-muted-foreground">
-                          Show AI generation button on description fields
-                        </p>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={aiPreferences.auto_draft_enabled}
-                        onChange={(e) =>
-                          setAiPreferences({
-                            ...aiPreferences,
-                            auto_draft_enabled: e.target.checked,
-                          })
-                        }
-                        className="h-5 w-5"
-                      />
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <div className="bg-muted/50 rounded-lg p-4">
-                    <p className="text-sm font-medium mb-2">Usage Limits</p>
-                    <div className="text-sm text-muted-foreground space-y-1">
-                      <p>Smart searches: 50 per day</p>
-                      <p>Content generations: 100 per day</p>
-                    </div>
-                  </div>
-
-                  <Button onClick={handleAiPreferencesUpdate} disabled={aiLoading}>
-                    {aiLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                    Save AI Settings
-                  </Button>
+                  <input
+                    type="checkbox"
+                    checked={aiPreferences.search_history_enabled}
+                    onChange={(e) =>
+                      setAiPreferences({
+                        ...aiPreferences,
+                        search_history_enabled: e.target.checked,
+                      })
+                    }
+                    className="h-4 w-4 rounded bg-[#292c31] border-[#3a3d42] text-[#F5A623] focus:ring-0 focus:ring-offset-0"
+                  />
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-[13px] text-[#d0d0d0]">Auto-Draft Descriptions</p>
+                    <p className="text-[11px] text-[#555]">
+                      Show AI generation button on description fields
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={aiPreferences.auto_draft_enabled}
+                    onChange={(e) =>
+                      setAiPreferences({
+                        ...aiPreferences,
+                        auto_draft_enabled: e.target.checked,
+                      })
+                    }
+                    className="h-4 w-4 rounded bg-[#292c31] border-[#3a3d42] text-[#F5A623] focus:ring-0 focus:ring-offset-0"
+                  />
+                </div>
+              </div>
+
+              <div className="border-b border-[#2d3035]" />
+
+              <div className="bg-[#18191b] border border-[#34373c] rounded p-4 space-y-1">
+                <p className="text-[11px] font-mono text-[#555] uppercase tracking-wider">Usage Limits</p>
+                <div className="text-[12px] text-[#aaa] space-y-0.5 pt-1">
+                  <p>Smart searches: 50 per day</p>
+                  <p>Content generations: 100 per day</p>
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <button
+                  onClick={handleAiPreferencesUpdate}
+                  disabled={aiLoading}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded bg-[#2d3035] border border-[#333] text-[12px] font-medium text-[#F5A623] hover:bg-[#353840] transition-colors disabled:opacity-40"
+                >
+                  {aiLoading && <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />}
+                  Save AI Settings
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

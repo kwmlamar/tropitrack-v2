@@ -7,11 +7,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Header } from "@/components/layout/header";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/hooks/use-toast";
@@ -24,8 +19,11 @@ import {
   FileText,
   Eye,
   CheckCircle2,
+  Loader2,
+  ArrowLeft,
 } from "lucide-react";
 import type { DocumentTemplate } from "@/types";
+import { cn } from "@/lib/utils";
 
 export default function TemplatesSettingsPage() {
   const router = useRouter();
@@ -36,6 +34,7 @@ export default function TemplatesSettingsPage() {
   const [estimateTemplates, setEstimateTemplates] = useState<DocumentTemplate[]>([]);
   const [invoiceTemplates, setInvoiceTemplates] = useState<DocumentTemplate[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("estimates");
 
   useEffect(() => {
     if (profile?.company_id) {
@@ -171,107 +170,128 @@ export default function TemplatesSettingsPage() {
   };
 
   const TemplateCard = ({ template }: { template: DocumentTemplate }) => (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <CardTitle className="text-base">{template.name}</CardTitle>
-              {template.is_default && (
-                <Badge variant="default" className="gap-1">
-                  <Star className="h-3 w-3" />
-                  Default
-                </Badge>
-              )}
-            </div>
-            <CardDescription className="mt-1">
-              {getTemplateDescription(template)}
-            </CardDescription>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => router.push(`/settings/templates/${template.id}/edit`)}
-          >
-            <Edit className="h-4 w-4 mr-1" />
-            Edit
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => router.push(`/settings/templates/${template.id}/preview`)}
-          >
-            <Eye className="h-4 w-4 mr-1" />
-            Preview
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleDuplicate(template)}
-          >
-            <Copy className="h-4 w-4 mr-1" />
-            Duplicate
-          </Button>
-          {!template.is_default && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleSetDefault(template.id, template.type)}
-              >
-                <CheckCircle2 className="h-4 w-4 mr-1" />
-                Set Default
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleDelete(template.id, template.name)}
-                className="text-destructive hover:text-destructive"
-              >
-                <Trash2 className="h-4 w-4 mr-1" />
-                Delete
-              </Button>
-            </>
+    <div className="rounded border border-[#34373c] bg-[#202224] p-5 space-y-4 flex flex-col justify-between">
+      <div className="space-y-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          <h3 className="font-semibold text-[13px] text-[#d0d0d0]">{template.name}</h3>
+          {template.is_default && (
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-mono bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-500 border border-amber-200 dark:border-amber-500/25">
+              <Star className="h-2.5 w-2.5 mr-1 fill-amber-500/30" />
+              Default
+            </span>
           )}
         </div>
-      </CardContent>
-    </Card>
+        <p className="text-[11px] text-[#555]">
+          {getTemplateDescription(template)}
+        </p>
+      </div>
+
+      <div className="flex flex-wrap gap-2 pt-2">
+        <button
+          onClick={() => router.push(`/settings/templates/${template.id}/edit`)}
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded border border-[#34373c] bg-[#202224] hover:bg-[#2d3035] hover:border-[#34373c] dark:hover:bg-[#272a2c] dark:hover:border-[#333] text-[11px] font-medium text-[#888] hover:text-[#b8b8b8] transition-colors"
+        >
+          <Edit className="h-3 w-3" />
+          Edit
+        </button>
+        <button
+          onClick={() => router.push(`/settings/templates/${template.id}/edit`)}
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded border border-[#34373c] bg-[#202224] hover:bg-[#2d3035] hover:border-[#34373c] dark:hover:bg-[#272a2c] dark:hover:border-[#333] text-[11px] font-medium text-[#888] hover:text-[#b8b8b8] transition-colors"
+        >
+          <Eye className="h-3 w-3" />
+          Preview
+        </button>
+        <button
+          onClick={() => handleDuplicate(template)}
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded border border-[#34373c] bg-[#202224] hover:bg-[#2d3035] hover:border-[#34373c] dark:hover:bg-[#272a2c] dark:hover:border-[#333] text-[11px] font-medium text-[#888] hover:text-[#b8b8b8] transition-colors"
+        >
+          <Copy className="h-3 w-3" />
+          Duplicate
+        </button>
+        {!template.is_default && (
+          <>
+            <button
+              onClick={() => handleSetDefault(template.id, template.type)}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded border border-[#34373c] bg-[#202224] hover:bg-[#2d3035] hover:border-[#34373c] dark:hover:bg-[#272a2c] dark:hover:border-[#333] text-[11px] font-medium text-[#888] hover:text-[#b8b8b8] transition-colors"
+            >
+              <CheckCircle2 className="h-3 w-3 text-green-500" />
+              Set Default
+            </button>
+            <button
+              onClick={() => handleDelete(template.id, template.name)}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded border border-[#34373c] bg-[#202224] hover:bg-red-500/10 hover:border-red-500/20 text-[11px] font-medium text-[#555] hover:text-red-400 transition-colors"
+            >
+              <Trash2 className="h-3 w-3" />
+              Delete
+            </button>
+          </>
+        )}
+      </div>
+    </div>
   );
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <Header
-        title="Document Templates"
-        description="Customize how estimates and invoices appear to your clients"
-      >
-        <Button onClick={() => router.push("/settings/templates/new")}>
-          <Plus className="h-4 w-4 mr-2" />
+    <div className="flex flex-col h-full overflow-auto bg-[#18191b]">
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-[#34373c] flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => router.push("/settings")}
+            className="text-[#555] hover:text-[#aaa] transition-colors"
+            title="Back to Settings"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+          <div>
+            <p className="text-[11px] font-mono text-[#666] uppercase tracking-widest">Settings</p>
+            <h1 className="text-[16px] font-semibold text-[#d0d0d0] mt-0.5">Document Templates</h1>
+          </div>
+        </div>
+        <button
+          onClick={() => router.push("/settings/templates/new")}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#2d3035] border border-[#333] text-[11px] font-mono uppercase tracking-wider text-[#F5A623] hover:bg-[#353840] transition-colors"
+        >
+          <Plus className="h-3.5 w-3.5" />
           Create Template
-        </Button>
-      </Header>
+        </button>
+      </div>
 
-      <div className="flex-1 p-6">
-        <Tabs defaultValue="estimates" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="estimates" className="gap-2">
-              <FileText className="h-4 w-4" />
-              Estimates ({estimateTemplates.length})
-            </TabsTrigger>
-            <TabsTrigger value="invoices" className="gap-2">
-              <FileText className="h-4 w-4" />
-              Invoices ({invoiceTemplates.length})
-            </TabsTrigger>
-          </TabsList>
+      <div className="flex-1 p-6 space-y-5">
+        {/* Navigation Tabs */}
+        <div className="flex items-center gap-1 border-b border-[#34373c] pb-2 flex-wrap">
+          <button
+            onClick={() => setActiveTab("estimates")}
+            className={cn(
+              "px-3 py-1.5 rounded text-[10px] font-mono uppercase tracking-wider transition-colors flex items-center gap-2",
+              activeTab === "estimates"
+                ? "bg-[#2d3035] text-[#F5A623] border border-[#333]"
+                : "text-[#555] hover:text-[#999]"
+            )}
+          >
+            <FileText className="h-3.5 w-3.5" />
+            Estimates ({estimateTemplates.length})
+          </button>
+          <button
+            onClick={() => setActiveTab("invoices")}
+            className={cn(
+              "px-3 py-1.5 rounded text-[10px] font-mono uppercase tracking-wider transition-colors flex items-center gap-2",
+              activeTab === "invoices"
+                ? "bg-[#2d3035] text-[#F5A623] border border-[#333]"
+                : "text-[#555] hover:text-[#999]"
+            )}
+          >
+            <FileText className="h-3.5 w-3.5" />
+            Invoices ({invoiceTemplates.length})
+          </button>
+        </div>
 
-          <TabsContent value="estimates" className="space-y-4">
+        {/* Tab Contents */}
+        {activeTab === "estimates" && (
+          <div className="space-y-4">
             {loading ? (
               <div className="grid gap-4 md:grid-cols-2">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-40 bg-muted animate-pulse rounded-lg" />
+                {[1, 2].map((i) => (
+                  <div key={i} className="h-32 bg-[#202224] border border-[#34373c] rounded animate-pulse" />
                 ))}
               </div>
             ) : estimateTemplates.length > 0 ? (
@@ -281,27 +301,28 @@ export default function TemplatesSettingsPage() {
                 ))}
               </div>
             ) : (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No estimate templates</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Create your first template to get started
-                  </p>
-                  <Button onClick={() => router.push("/settings/templates/new?type=estimate")}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Estimate Template
-                  </Button>
-                </CardContent>
-              </Card>
+              <div className="rounded border border-[#34373c] bg-[#202224] p-8 text-center flex flex-col items-center justify-center">
+                <FileText className="h-10 w-10 text-[#444] mb-3" />
+                <h3 className="text-[13px] font-semibold text-[#d0d0d0] uppercase tracking-wider font-mono">No estimate templates</h3>
+                <p className="text-[11px] text-[#555] mt-1 mb-4">Create your first template to get started</p>
+                <button
+                  onClick={() => router.push("/settings/templates/new?type=estimate")}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded bg-[#2d3035] border border-[#333] text-[12px] font-medium text-[#F5A623] hover:bg-[#353840] transition-colors"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Create Estimate Template
+                </button>
+              </div>
             )}
-          </TabsContent>
+          </div>
+        )}
 
-          <TabsContent value="invoices" className="space-y-4">
+        {activeTab === "invoices" && (
+          <div className="space-y-4">
             {loading ? (
               <div className="grid gap-4 md:grid-cols-2">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-40 bg-muted animate-pulse rounded-lg" />
+                {[1, 2].map((i) => (
+                  <div key={i} className="h-32 bg-[#202224] border border-[#34373c] rounded animate-pulse" />
                 ))}
               </div>
             ) : invoiceTemplates.length > 0 ? (
@@ -311,22 +332,21 @@ export default function TemplatesSettingsPage() {
                 ))}
               </div>
             ) : (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No invoice templates</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Create your first template to get started
-                  </p>
-                  <Button onClick={() => router.push("/settings/templates/new?type=invoice")}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Invoice Template
-                  </Button>
-                </CardContent>
-              </Card>
+              <div className="rounded border border-[#34373c] bg-[#202224] p-8 text-center flex flex-col items-center justify-center">
+                <FileText className="h-10 w-10 text-[#444] mb-3" />
+                <h3 className="text-[13px] font-semibold text-[#d0d0d0] uppercase tracking-wider font-mono">No invoice templates</h3>
+                <p className="text-[11px] text-[#555] mt-1 mb-4">Create your first template to get started</p>
+                <button
+                  onClick={() => router.push("/settings/templates/new?type=invoice")}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded bg-[#2d3035] border border-[#333] text-[12px] font-medium text-[#F5A623] hover:bg-[#353840] transition-colors"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Create Invoice Template
+                </button>
+              </div>
             )}
-          </TabsContent>
-        </Tabs>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -2,13 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Header } from "@/components/layout/header";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { createClient } from "@/lib/supabase/client";
@@ -20,9 +13,10 @@ import {
   Smartphone,
   AlertCircle,
   Eye,
+  EyeOff,
 } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import type { PaymentInstructionsFormData } from "@/types";
+import { formatCurrency } from "@/lib/utils";
 
 export default function PaymentInstructionsPage() {
   const router = useRouter();
@@ -142,20 +136,25 @@ export default function PaymentInstructionsPage() {
 
   if (!profile?.company_id) {
     return (
-      <div className="flex flex-col min-h-screen">
-        <Header title="Payment Instructions" description="Configure payment details">
-          <Button variant="outline" onClick={() => router.push("/settings")}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
+      <div className="flex flex-col h-full overflow-auto bg-[#18191b]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#34373c] flex-shrink-0">
+          <div>
+            <p className="text-[11px] font-mono text-[#666] uppercase tracking-widest">Settings</p>
+            <h1 className="text-[16px] font-semibold text-[#d0d0d0] mt-0.5">Payment Instructions</h1>
+          </div>
+          <button
+            onClick={() => router.push("/settings")}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-[#34373c] bg-[#202224] hover:bg-[#272a2c] hover:border-[#333] text-[11px] font-medium text-[#888] hover:text-[#b8b8b8] transition-colors"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
             Back to Settings
-          </Button>
-        </Header>
+          </button>
+        </div>
         <div className="flex-1 p-6">
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              You need to be part of a company to manage payment instructions.
-            </AlertDescription>
-          </Alert>
+          <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 rounded p-4 flex gap-3 text-[12px] text-red-800 dark:text-red-200">
+            <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+            <div>You need to be part of a company to manage payment instructions.</div>
+          </div>
         </div>
       </div>
     );
@@ -163,175 +162,180 @@ export default function PaymentInstructionsPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col min-h-screen">
-        <Header title="Payment Instructions" description="Loading...">
-          <Button variant="outline" onClick={() => router.push("/settings")}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
+      <div className="flex flex-col h-full overflow-auto bg-[#18191b]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#34373c] flex-shrink-0">
+          <div>
+            <p className="text-[11px] font-mono text-[#666] uppercase tracking-widest">Settings</p>
+            <h1 className="text-[16px] font-semibold text-[#d0d0d0] mt-0.5">Payment Instructions</h1>
+          </div>
+          <button
+            onClick={() => router.push("/settings")}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-[#34373c] bg-[#202224] hover:bg-[#272a2c] hover:border-[#333] text-[11px] font-medium text-[#888] hover:text-[#b8b8b8] transition-colors"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
             Back to Settings
-          </Button>
-        </Header>
+          </button>
+        </div>
         <div className="flex-1 p-6 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <Loader2 className="h-8 w-8 animate-spin text-[#F5A623]" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <Header
-        title="Payment Instructions"
-        description="Configure how customers should pay you"
-      >
-        <Button variant="outline" onClick={() => router.push("/settings")}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
+    <div className="flex flex-col h-full overflow-auto bg-[#18191b]">
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-[#34373c] flex-shrink-0">
+        <div>
+          <p className="text-[11px] font-mono text-[#666] uppercase tracking-widest">Settings</p>
+          <h1 className="text-[16px] font-semibold text-[#d0d0d0] mt-0.5">Payment Instructions</h1>
+        </div>
+        <button
+          onClick={() => router.push("/settings")}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-[#34373c] bg-[#202224] hover:bg-[#2d3035] hover:border-[#34373c] dark:hover:bg-[#272a2c] dark:hover:border-[#333] text-[11px] font-medium text-[#888] hover:text-[#b8b8b8] transition-colors"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
           Back to Settings
-        </Button>
-      </Header>
+        </button>
+      </div>
 
       <div className="flex-1 p-6">
-        <div className="max-w-4xl mx-auto space-y-6">
-          <Alert className="bg-blue-50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-900">
-            <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-            <AlertDescription className="text-blue-900 dark:text-blue-100">
-              These payment details will appear on all invoices. All fields are optional.
-            </AlertDescription>
-          </Alert>
+        <div className="max-w-4xl mx-auto space-y-5">
+          <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 rounded p-4 flex gap-3 text-[12px] text-blue-800 dark:text-blue-200">
+            <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+            <div>These payment details will appear on all invoices. All fields are optional.</div>
+          </div>
 
-          <form onSubmit={handleSave} className="space-y-6">
+          <form onSubmit={handleSave} className="space-y-5">
             {/* Bank Transfer Details */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CreditCard className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            <div className="rounded border border-[#34373c] bg-[#202224] p-5 space-y-4">
+              <div>
+                <h2 className="text-[13px] font-semibold text-[#d0d0d0] uppercase tracking-wider font-mono flex items-center gap-2">
+                  <CreditCard className="h-4 w-4 text-blue-400" />
                   Bank Transfer Details
-                </CardTitle>
-                <CardDescription>
-                  Bank account information for receiving customer payments
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="bank_name">Bank Name</Label>
-                    <Input
-                      id="bank_name"
-                      placeholder="First Caribbean International Bank"
-                      value={formData.payment_bank_name}
-                      onChange={(e) =>
-                        setFormData({ ...formData, payment_bank_name: e.target.value })
-                      }
-                      disabled={saving}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="account_name">Account Name</Label>
-                    <Input
-                      id="account_name"
-                      placeholder="TropiTech Solutions"
-                      value={formData.payment_account_name}
-                      onChange={(e) =>
-                        setFormData({ ...formData, payment_account_name: e.target.value })
-                      }
-                      disabled={saving}
-                    />
-                  </div>
-                </div>
+                </h2>
+                <p className="text-[11px] text-[#555] mt-1">Bank account information for receiving customer payments</p>
+              </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="account_number">Account Number</Label>
-                  <Input
-                    id="account_number"
-                    placeholder="XXXX-XXXX-XXXX"
-                    value={formData.payment_account_number}
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-1">
+                  <label htmlFor="bank_name" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">Bank Name</label>
+                  <input
+                    id="bank_name"
+                    placeholder="First Caribbean International Bank"
+                    value={formData.payment_bank_name}
                     onChange={(e) =>
-                      setFormData({ ...formData, payment_account_number: e.target.value })
+                      setFormData({ ...formData, payment_bank_name: e.target.value })
                     }
                     disabled={saving}
+                    className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors placeholder:text-[#444] disabled:opacity-50"
                   />
                 </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="routing_number">
-                      Routing/Transit Number <span className="text-muted-foreground">(Optional)</span>
-                    </Label>
-                    <Input
-                      id="routing_number"
-                      placeholder="123456789"
-                      value={formData.payment_routing_number}
-                      onChange={(e) =>
-                        setFormData({ ...formData, payment_routing_number: e.target.value })
-                      }
-                      disabled={saving}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="swift_code">
-                      SWIFT/BIC Code <span className="text-muted-foreground">(Optional)</span>
-                    </Label>
-                    <Input
-                      id="swift_code"
-                      placeholder="FCIBBS12"
-                      value={formData.payment_swift_code}
-                      onChange={(e) =>
-                        setFormData({ ...formData, payment_swift_code: e.target.value })
-                      }
-                      disabled={saving}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      For international wire transfers
-                    </p>
-                  </div>
+                <div className="space-y-1">
+                  <label htmlFor="account_name" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">Account Name</label>
+                  <input
+                    id="account_name"
+                    placeholder="TropiTech Solutions"
+                    value={formData.payment_account_name}
+                    onChange={(e) =>
+                      setFormData({ ...formData, payment_account_name: e.target.value })
+                    }
+                    disabled={saving}
+                    className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors placeholder:text-[#444] disabled:opacity-50"
+                  />
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+
+              <div className="space-y-1">
+                <label htmlFor="account_number" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">Account Number</label>
+                <input
+                  id="account_number"
+                  placeholder="XXXX-XXXX-XXXX"
+                  value={formData.payment_account_number}
+                  onChange={(e) =>
+                    setFormData({ ...formData, payment_account_number: e.target.value })
+                  }
+                  disabled={saving}
+                  className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors placeholder:text-[#444] disabled:opacity-50"
+                />
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-1">
+                  <label htmlFor="routing_number" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">
+                    Routing/Transit Number <span className="text-[#444] font-normal font-sans">(Optional)</span>
+                  </label>
+                  <input
+                    id="routing_number"
+                    placeholder="123456789"
+                    value={formData.payment_routing_number}
+                    onChange={(e) =>
+                      setFormData({ ...formData, payment_routing_number: e.target.value })
+                    }
+                    disabled={saving}
+                    className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors placeholder:text-[#444] disabled:opacity-50"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="swift_code" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">
+                    SWIFT/BIC Code <span className="text-[#444] font-normal font-sans">(Optional)</span>
+                  </label>
+                  <input
+                    id="swift_code"
+                    placeholder="FCIBBS12"
+                    value={formData.payment_swift_code}
+                    onChange={(e) =>
+                      setFormData({ ...formData, payment_swift_code: e.target.value })
+                    }
+                    disabled={saving}
+                    className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors placeholder:text-[#444] disabled:opacity-50"
+                  />
+                  <p className="text-[10px] text-[#555] font-mono">For international wire transfers</p>
+                </div>
+              </div>
+            </div>
 
             {/* Mobile Payment */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Smartphone className="h-5 w-5 text-green-600 dark:text-green-400" />
-                  Mobile Payment <span className="text-sm text-muted-foreground font-normal">(Optional)</span>
-                </CardTitle>
-                <CardDescription>
-                  Mobile money or digital wallet information
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="mobile_money">Mobile Money/Digital Wallet</Label>
-                  <Input
-                    id="mobile_money"
-                    placeholder="242-555-0123"
-                    value={formData.payment_mobile_money}
-                    onChange={(e) =>
-                      setFormData({ ...formData, payment_mobile_money: e.target.value })
-                    }
-                    disabled={saving}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    e.g., Island Pay, mobile banking number, or digital wallet ID
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="rounded border border-[#34373c] bg-[#202224] p-5 space-y-4">
+              <div>
+                <h2 className="text-[13px] font-semibold text-[#d0d0d0] uppercase tracking-wider font-mono flex items-center gap-2">
+                  <Smartphone className="h-4 w-4 text-green-400" />
+                  Mobile Payment <span className="text-[#444] font-normal font-sans uppercase tracking-normal"> (Optional)</span>
+                </h2>
+                <p className="text-[11px] text-[#555] mt-1">Mobile money or digital wallet information</p>
+              </div>
+
+              <div className="space-y-1">
+                <label htmlFor="mobile_money" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">Mobile Money/Digital Wallet</label>
+                <input
+                  id="mobile_money"
+                  placeholder="242-555-0123"
+                  value={formData.payment_mobile_money}
+                  onChange={(e) =>
+                    setFormData({ ...formData, payment_mobile_money: e.target.value })
+                  }
+                  disabled={saving}
+                  className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors placeholder:text-[#444] disabled:opacity-50"
+                />
+                <p className="text-[10px] text-[#555] font-mono">e.g., Island Pay, mobile banking number, or digital wallet ID</p>
+              </div>
+            </div>
 
             {/* Additional Instructions */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Wallet className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                  Additional Instructions <span className="text-sm text-muted-foreground font-normal">(Optional)</span>
-                </CardTitle>
-                <CardDescription>
-                  Custom payment instructions or notes for customers
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="instructions">Payment Instructions</Label>
-                  <Textarea
+            <div className="rounded border border-[#34373c] bg-[#202224] p-5 space-y-4">
+              <div>
+                <h2 className="text-[13px] font-semibold text-[#d0d0d0] uppercase tracking-wider font-mono flex items-center gap-2">
+                  <Wallet className="h-4 w-4 text-purple-400" />
+                  Additional Instructions <span className="text-[#444] font-normal font-sans uppercase tracking-normal"> (Optional)</span>
+                </h2>
+                <p className="text-[11px] text-[#555] mt-1">Custom payment instructions or notes for customers</p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <label htmlFor="instructions" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">Payment Instructions</label>
+                  <textarea
                     id="instructions"
                     placeholder="Please include invoice number in payment reference. Payment due within 30 days."
                     value={formData.payment_instructions}
@@ -340,12 +344,13 @@ export default function PaymentInstructionsPage() {
                     }
                     disabled={saving}
                     rows={4}
+                    className="w-full px-2.5 py-2 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors placeholder:text-[#444] disabled:opacity-50 resize-y"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="notes">Internal Notes</Label>
-                  <Textarea
+                <div className="space-y-1">
+                  <label htmlFor="notes" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">Internal Notes</label>
+                  <textarea
                     id="notes"
                     placeholder="Internal notes (not shown on invoices)"
                     value={formData.payment_notes}
@@ -354,119 +359,108 @@ export default function PaymentInstructionsPage() {
                     }
                     disabled={saving}
                     rows={3}
+                    className="w-full px-2.5 py-2 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors placeholder:text-[#444] disabled:opacity-50 resize-y"
                   />
-                  <p className="text-xs text-muted-foreground">
-                    These notes are for internal use only and will not appear on invoices
-                  </p>
+                  <p className="text-[10px] text-[#555] font-mono">These notes are for internal use only and will not appear on invoices</p>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
             {/* Preview Section */}
             {showPreview && (
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="flex items-center gap-2">
-                        <Eye className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-                        Preview on Invoice
-                      </CardTitle>
-                      <CardDescription>
-                        How payment instructions will appear to customers
-                      </CardDescription>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowPreview(false)}
-                    >
-                      Hide Preview
-                    </Button>
+              <div className="rounded border border-[#34373c] bg-[#202224] p-5 space-y-4">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div>
+                    <h2 className="text-[13px] font-semibold text-[#d0d0d0] uppercase tracking-wider font-mono flex items-center gap-2">
+                      <Eye className="h-4 w-4 text-indigo-400" />
+                      Preview on Invoice
+                    </h2>
+                    <p className="text-[11px] text-[#555] mt-1">How payment instructions will appear to customers</p>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="border-2 border-dashed rounded-lg p-6 bg-muted/50">
-                    {hasAnyPaymentInfo ? (
-                      <div className="space-y-3">
-                        <h4 className="font-semibold text-lg">Payment Instructions</h4>
-                        <p className="text-sm">Please make payment to:</p>
+                  <button
+                    type="button"
+                    onClick={() => setShowPreview(false)}
+                    className="flex items-center gap-1 text-[11px] text-[#666] hover:text-[#aaa] transition-colors"
+                  >
+                    <EyeOff className="h-3 w-3" /> Hide Preview
+                  </button>
+                </div>
 
-                        {formData.payment_bank_name && (
-                          <div className="space-y-1 text-sm">
-                            <p><strong>Bank:</strong> {formData.payment_bank_name}</p>
-                            {formData.payment_account_name && (
-                              <p><strong>Account Name:</strong> {formData.payment_account_name}</p>
-                            )}
-                            {formData.payment_account_number && (
-                              <p><strong>Account Number:</strong> {formData.payment_account_number}</p>
-                            )}
-                            {formData.payment_routing_number && (
-                              <p><strong>Routing Number:</strong> {formData.payment_routing_number}</p>
-                            )}
-                            {formData.payment_swift_code && (
-                              <p><strong>SWIFT Code:</strong> {formData.payment_swift_code}</p>
-                            )}
-                          </div>
-                        )}
+                <div className="border border-dashed border-[#34373c] rounded p-5 bg-[#18191b] space-y-3">
+                  {hasAnyPaymentInfo ? (
+                    <div className="space-y-3 text-[13px] text-[#aaa]">
+                      <h4 className="font-semibold text-[14px] text-[#d0d0d0] font-mono uppercase tracking-wider">Payment Instructions</h4>
+                      <p>Please make payment to:</p>
 
-                        {formData.payment_mobile_money && (
-                          <p className="text-sm">
-                            <strong>Or via Mobile Payment:</strong> {formData.payment_mobile_money}
-                          </p>
-                        )}
+                      {formData.payment_bank_name && (
+                        <div className="space-y-1 bg-[#202224] p-3 rounded border border-[#34373c] font-mono text-[12px] text-slate-600 dark:text-slate-400">
+                          <p><strong className="text-slate-700 dark:text-slate-500">Bank:</strong> {formData.payment_bank_name}</p>
+                          {formData.payment_account_name && (
+                            <p><strong className="text-slate-700 dark:text-slate-500">Account Name:</strong> {formData.payment_account_name}</p>
+                          )}
+                          {formData.payment_account_number && (
+                            <p><strong className="text-slate-700 dark:text-slate-500">Account Number:</strong> {formData.payment_account_number}</p>
+                          )}
+                          {formData.payment_routing_number && (
+                            <p><strong className="text-slate-700 dark:text-slate-500">Routing Number:</strong> {formData.payment_routing_number}</p>
+                          )}
+                          {formData.payment_swift_code && (
+                            <p><strong className="text-slate-700 dark:text-slate-500">SWIFT Code:</strong> {formData.payment_swift_code}</p>
+                          )}
+                        </div>
+                      )}
 
-                        {formData.payment_instructions && (
-                          <p className="text-sm mt-4 pt-4 border-t">
-                            {formData.payment_instructions}
-                          </p>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <p>No payment instructions configured yet.</p>
-                        <p className="text-sm mt-2">
-                          Fill in the form above to see a preview.
+                      {formData.payment_mobile_money && (
+                        <p className="bg-[#202224] p-3 rounded border border-[#34373c] font-mono text-[12px] text-slate-600 dark:text-slate-400">
+                          <strong className="text-slate-700 dark:text-slate-500">Or via Mobile Payment:</strong> {formData.payment_mobile_money}
                         </p>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+                      )}
+
+                      {formData.payment_instructions && (
+                        <div className="border-t border-[#34373c] pt-3 text-[12px] text-[#777] italic">
+                          {formData.payment_instructions}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 text-[#555] text-[12px]">
+                      <p>No payment instructions configured yet.</p>
+                      <p className="text-[10px] mt-1 font-mono">Fill in the form above to see a preview.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
 
             {!showPreview && (
-              <Button
+              <button
                 type="button"
-                variant="outline"
                 onClick={() => setShowPreview(true)}
-                className="w-full"
+                className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded border border-[#34373c] bg-[#202224] hover:bg-[#2d3035] hover:border-[#34373c] dark:hover:bg-[#272a2c] text-[11px] font-mono uppercase tracking-wider text-[#888] hover:text-[#b8b8b8] transition-colors"
               >
-                <Eye className="h-4 w-4 mr-2" />
+                <Eye className="h-3.5 w-3.5" />
                 Show Preview
-              </Button>
+              </button>
             )}
 
             {/* Action Buttons */}
             <div className="flex gap-4">
-              <Button
+              <button
                 type="button"
-                variant="outline"
                 onClick={handleReset}
                 disabled={saving}
-                className="flex-1"
+                className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 rounded border border-[#34373c] bg-[#202224] hover:bg-[#2d3035] hover:border-[#34373c] dark:hover:bg-[#272a2c] dark:hover:border-[#333] text-[12px] font-medium text-[#888] hover:text-[#b8b8b8] transition-colors"
               >
                 Cancel
-              </Button>
-              <Button
+              </button>
+              <button
                 type="submit"
                 disabled={saving}
-                className="flex-1"
+                className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 rounded bg-[#2d3035] border border-[#333] text-[12px] font-medium text-[#F5A623] hover:bg-[#353840] transition-colors disabled:opacity-40"
               >
-                {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                {saving && <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />}
                 Save Payment Instructions
-              </Button>
+              </button>
             </div>
           </form>
         </div>

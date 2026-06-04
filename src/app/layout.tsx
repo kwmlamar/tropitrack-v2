@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
+import { IBM_Plex_Sans, IBM_Plex_Mono, Fraunces } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -15,6 +15,15 @@ const ibmPlexMono = IBM_Plex_Mono({
   subsets: ["latin"],
   weight: ["400", "500", "600"],
   variable: "--font-mono",
+});
+
+// Display serif for client-facing document surfaces (estimate preview, invoices, etc.)
+// Fraunces — warm, optical-sized; gives the company wordmark a Caribbean-print-shop feel
+// rather than corporate-bank.
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-display",
 });
 
 // Get the base URL from environment or use a default
@@ -69,7 +78,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${ibmPlexSans.variable} ${ibmPlexMono.variable} font-sans`}>
+      <body className={`${ibmPlexSans.variable} ${ibmPlexMono.variable} ${fraunces.variable} font-sans`}>
         <ThemeProvider defaultTheme="dark" storageKey="bedrock-theme">
           <ThemeColorMeta />
           {children}

@@ -105,7 +105,7 @@ export function EstimateForm({ estimate, lineItems = [], mode }: EstimateFormPro
     lineItems.length > 0
       ? lineItems.map((item) => ({
           id: item.id,
-          category: item.category,
+          category: item.category ?? "other",
           description: item.description,
           quantity: item.quantity,
           unit: item.unit || "",
@@ -294,7 +294,7 @@ export function EstimateForm({ estimate, lineItems = [], mode }: EstimateFormPro
 
           return {
             estimate_id: newEstimate.id,
-            category: item.category,
+            category: item.category ?? "other",
             description: item.description,
             quantity: item.entry_mode === "lump_sum" ? null : item.quantity,
             unit: item.entry_mode === "lump_sum" ? null : (item.unit || null),
@@ -357,7 +357,7 @@ export function EstimateForm({ estimate, lineItems = [], mode }: EstimateFormPro
 
           return {
             estimate_id: estimate!.id,
-            category: item.category,
+            category: item.category ?? "other",
             description: item.description,
             quantity: item.entry_mode === "lump_sum" ? null : item.quantity,
             unit: item.entry_mode === "lump_sum" ? null : (item.unit || null),
@@ -517,7 +517,7 @@ export function EstimateForm({ estimate, lineItems = [], mode }: EstimateFormPro
                 client_name: formData.client_name,
                 project_type: "Construction",
                 line_items: items.map((item) => ({
-                  category: item.category,
+                  category: item.category ?? "other",
                   description: item.description,
                   quantity: item.quantity,
                   unit: item.unit,

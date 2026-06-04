@@ -1,0 +1,143 @@
+-- ============================================================
+-- Issue #1: task-attached line items + labor formula
+-- ============================================================
+-- Reshapes the estimate model so:
+--   estimates → estimate_categories → estimate_tasks → estimate_line_items
+-- and labor cost falls out of (man_days × labor_sell_rate_per_day).
+--
+-- Drops the unused estimate_sections / section_tasks tables introduced by
+-- 20260603_single_source_gantt (the live builder never wired up to them).
+-- Scheduling fields move onto estimate_categories so the existing builder
+-- code keeps its grouping concept.
+--
+-- Backfill strategy: any orphan estimate_line_items get parented to a
+-- synthetic "General" estimate_task under their existing category.
+-- ============================================================
+
+-- ─── 1. Drop the dead single-source-gantt artifacts ──────────────────────────
+-- These tables exist from 20260603_single_source_gantt but the live UI uses
+-- estimate_categories instead. Per user: "we never really used the estimate
+-- things you see there now, most of it is test data."
+DROP TRIGGER IF EXISTS trg_ensure_project_estimate ON public.projects;
+DROP FUNCTION IF EXISTS public.ensure_project_estimate() CASCADE;
+
+DROP TABLE IF EXISTS public.section_tasks CASCADE;
+DROP TABLE IF EXISTS public.estimate_sections CASCADE;
+
+-- ─── 2. Add scheduling fields to estimate_categories ─────────────────────────
+ALTER TABLE public.estimate_categories
+  ADD COLUMN IF NOT EXISTS planned_start date,
+  ADD COLUMN IF NOT EXISTS planned_end   date,
+  ADD COLUMN IF NOT EXISTS actual_start  date,
+  ADD COLUMN IF NOT EXISTS actual_end    date,
+  ADD COLUMN IF NOT EXISTS progress      integer NOT NULL DEFAULT 0 CHECK (progress BETWEEN 0 AND 100),
+  ADD COLUMN IF NOT EXISTS crew_size     integer,
+  ADD COLUMN IF NOT EXISTS notes         text;
+
+-- ─── 3. Add labor sell rate to estimates ─────────────────────────────────────
+-- ODS uses a single blended rate; SaaS customers with role-based rates can
+-- leave this null and fall back to labor_roles (introduced in a future slice).
+ALTER TABLE public.estimates
+  ADD COLUMN IF NOT EXISTS labor_sell_rate_per_day numeric(10,2);
+
+-- ─── 4. Create estimate_tasks (parented to estimate_categories) ──────────────
+CREATE TABLE IF NOT EXISTS public.estimate_tasks (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  category_id     uuid NOT NULL REFERENCES public.estimate_categories(id) ON DELETE CASCADE,
+  name            text NOT NULL,
+  description     text,
+  crew_size       integer NOT NULL DEFAULT 1 CHECK (crew_size > 0),
+  man_days        numeric(10,2) NOT NULL DEFAULT 0 CHECK (man_days >= 0),
+  labor_sell_rate_per_day numeric(10,2),  -- per-task override; falls back to estimate.labor_sell_rate_per_day
+  planned_start   date,
+  planned_end     date,
+  actual_start    date,
+  actual_end      date,
+  progress        integer NOT NULL DEFAULT 0 CHECK (progress BETWEEN 0 AND 100),
+  display_order   integer NOT NULL DEFAULT 0,
+  notes           text,
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  updated_at      timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_estimate_tasks_category ON public.estimate_tasks(category_id);
+CREATE INDEX IF NOT EXISTS idx_estimate_tasks_order ON public.estimate_tasks(category_id, display_order);
+
+ALTER TABLE public.estimate_tasks ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view estimate tasks for their company"
+  ON public.estimate_tasks FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1
+      FROM public.estimate_categories ec
+      JOIN public.estimates e ON e.id = ec.estimate_id
+      JOIN public.profiles p ON p.company_id = e.company_id
+      WHERE ec.id = estimate_tasks.category_id AND p.id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can manage estimate tasks for their company"
+  ON public.estimate_tasks FOR ALL
+  USING (
+    EXISTS (
+      SELECT 1
+      FROM public.estimate_categories ec
+      JOIN public.estimates e ON e.id = ec.estimate_id
+      JOIN public.profiles p ON p.company_id = e.company_id
+      WHERE ec.id = estimate_tasks.category_id AND p.id = auth.uid()
+    )
+  );
+
+CREATE TRIGGER set_updated_at_estimate_tasks
+  BEFORE UPDATE ON public.estimate_tasks
+  FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+COMMENT ON TABLE public.estimate_tasks IS
+  'Work tasks within a category. Labor cost = man_days * COALESCE(estimate_tasks.labor_sell_rate_per_day, estimates.labor_sell_rate_per_day).';
+
+-- ─── 5. Add task_id FK on estimate_line_items ────────────────────────────────
+ALTER TABLE public.estimate_line_items
+  ADD COLUMN IF NOT EXISTS task_id uuid REFERENCES public.estimate_tasks(id) ON DELETE CASCADE;
+
+CREATE INDEX IF NOT EXISTS idx_estimate_line_items_task ON public.estimate_line_items(task_id);
+
+-- ─── 6. Backfill: synthetic "General" task per category for orphan line items ─
+-- For every category that has line items but no tasks, create one "General"
+-- task and reparent all of that category's line items to it.
+DO $$
+DECLARE
+  cat record;
+  new_task_id uuid;
+BEGIN
+  FOR cat IN
+    SELECT DISTINCT ec.id AS category_id
+    FROM public.estimate_categories ec
+    JOIN public.estimate_line_items eli ON eli.category_id = ec.id
+    WHERE NOT EXISTS (
+      SELECT 1 FROM public.estimate_tasks et WHERE et.category_id = ec.id
+    )
+  LOOP
+    INSERT INTO public.estimate_tasks (category_id, name, crew_size, man_days, display_order)
+    VALUES (cat.category_id, 'General', 1, 0, 0)
+    RETURNING id INTO new_task_id;
+
+    UPDATE public.estimate_line_items
+    SET task_id = new_task_id
+    WHERE category_id = cat.category_id AND task_id IS NULL;
+  END LOOP;
+END $$;
+
+-- ─── 7. Verify no orphan line items remain ───────────────────────────────────
+DO $$
+DECLARE
+  orphan_count integer;
+BEGIN
+  SELECT count(*) INTO orphan_count
+  FROM public.estimate_line_items eli
+  WHERE eli.category_id IS NOT NULL AND eli.task_id IS NULL;
+
+  IF orphan_count > 0 THEN
+    RAISE EXCEPTION 'Backfill incomplete: % line items still missing task_id', orphan_count;
+  END IF;
+END $$;

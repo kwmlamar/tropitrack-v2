@@ -51,7 +51,7 @@ export function LineItemGrouping({
   const [newGroupName, setNewGroupName] = useState("");
 
   // Get unique categories from items
-  const categories = Array.from(new Set(items.map((item) => item.category)));
+  const categories = Array.from(new Set(items.map((item) => item.category ?? "other")));
 
   // Get unique phases if phase-based grouping
   const phases = ["Foundation", "Framing", "Rough-In", "Finishing", "Final"];
@@ -95,7 +95,7 @@ export function LineItemGrouping({
 
     if (groupBy === "category") {
       return categories.reduce((groups, category) => {
-        groups[category] = items.filter((item) => item.category === category);
+        groups[category] = items.filter((item) => (item.category ?? "other") === category);
         return groups;
       }, {} as Record<string, LineItemWithGroup[]>);
     }

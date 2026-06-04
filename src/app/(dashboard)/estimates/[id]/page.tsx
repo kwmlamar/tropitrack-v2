@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -19,8 +20,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2 } from "lucide-react";
-import type { Estimate, EstimateLineItem, EstimateStatus } from "@/types";
+import { Loader2, Edit2, Layers, FileText, RefreshCw, Mail, Check, X, ArrowRight, Briefcase } from "lucide-react";
+import {
+  computeLaborCost,
+  computeSectionMaterialCost,
+  computeSectionMaterialSell,
+  type Estimate,
+  type EstimateLineItem,
+  type EstimateSectionMaterial,
+  type EstimateStatus,
+} from "@/types";
+import { canSeeCosts } from "@/lib/permissions";
 
 const STATUS_DOT: Record<string, string> = {
   draft:     "bg-[#555]",
@@ -48,12 +58,16 @@ export default function EstimateDetailPage() {
   const estimateId = params.id as string;
   const { toast } = useToast();
   const { profile } = useAuth();
+  // Cost-side gate — admins / PMs / owners see cost+markup; workers see sell only.
+  // See src/lib/permissions.ts and project_bedrock_materials_calc_design.md.
+  const costsVisible = canSeeCosts(profile);
   const supabase = createClient();
 
   const [loading, setLoading] = useState(true);
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   const [lineItems, setLineItems] = useState<EstimateLineItem[]>([]);
   const [sections, setSections] = useState<EstimateSection[]>([]);
+  const [sectionMaterials, setSectionMaterials] = useState<EstimateSectionMaterial[]>([]);
   const [showConvertDialog, setShowConvertDialog] = useState(false);
   const [converting, setConverting] = useState(false);
   const [projectName, setProjectName] = useState("");
@@ -62,14 +76,20 @@ export default function EstimateDetailPage() {
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailForm, setEmailForm] = useState({ to_email: "", subject: "", message: "" });
 
-  // View mode synced to ?view=client | internal (default: internal)
-  const view: ViewMode = searchParams.get("view") === "client" ? "client" : "internal";
+  // View mode synced to ?view=client | internal (default: internal for cost-visible users; forced 'client' otherwise).
+  // Workers/foremen never see the internal cost-side view per the locked design.
+  const rawView: ViewMode = searchParams.get("view") === "client" ? "client" : "internal";
+  const view: ViewMode = canSeeCosts(profile) ? rawView : "client";
   const setView = (next: ViewMode) => {
     const sp = new URLSearchParams(searchParams.toString());
     if (next === "internal") sp.delete("view");
     else sp.set("view", next);
     router.replace(`/estimates/${estimateId}${sp.toString() ? `?${sp.toString()}` : ""}`);
   };
+
+  // Internal view always renders the SummaryView (rollup + inline Gantt).
+  // The per-task man-days breakdown that previously sat behind a Detail toggle
+  // now lives on /estimates/[id]/builder, the dedicated editor.
 
   useEffect(() => {
     fetchEstimateData();
@@ -79,20 +99,89 @@ export default function EstimateDetailPage() {
   const fetchEstimateData = async () => {
     setLoading(true);
     try {
-      const [estimateRes, itemsRes, sectionsRes] = await Promise.all([
+      const [estimateRes, itemsRes, sectionsRes, matsRes] = await Promise.all([
         supabase.from("estimates").select("*").eq("id", estimateId).single(),
         supabase.from("estimate_line_items").select("*").eq("estimate_id", estimateId).order("order_index"),
         supabase.from("estimate_sections").select("*").eq("estimate_id", estimateId).order("order_index"),
+        // Takeoff materials (Option C — materials live here, not on tasks)
+        supabase.from("estimate_section_materials").select("*").order("order_index"),
       ]);
       if (estimateRes.error) throw estimateRes.error;
       setEstimate(estimateRes.data);
       setLineItems(itemsRes.data || []);
-      setSections((sectionsRes.data as EstimateSection[]) || []);
+      const secs = (sectionsRes.data as EstimateSection[]) || [];
+      setSections(secs);
+      // Scope takeoffs to this estimate's sections
+      const secIds = new Set(secs.map((s) => s.id));
+      setSectionMaterials(((matsRes.data as EstimateSectionMaterial[]) || []).filter((m) => secIds.has(m.section_id)));
       setProjectName(estimateRes.data.title);
     } catch (error) {
       toast({ title: "Error", description: "Failed to load estimate", variant: "destructive" });
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Refresh-prices was a per-task material refresh. Option C moved materials to
+  // /materials (takeoff). If catalog-refresh is needed it should live there.
+
+  /**
+   * Shift a line item's planned_start, planned_end, and daily_workers keys by `deltaDays`.
+   * Optimistic local update, then persist via Supabase. Revert on failure.
+   * Never writes to `amount` / `unit_rate` — those are GENERATED columns.
+   */
+  const shiftIsoDate = (iso: string, deltaDays: number): string => {
+    const dt = new Date(iso + "T00:00:00Z");
+    dt.setUTCDate(dt.getUTCDate() + deltaDays);
+    return dt.toISOString().slice(0, 10);
+  };
+
+  const handleRescheduleLine = async (item: EstimateLineItem, deltaDays: number) => {
+    if (deltaDays === 0) return;
+    if (!estimate || (estimate as unknown as { is_locked?: boolean }).is_locked || estimate.status !== "draft") return;
+
+    const newStart = item.planned_start ? shiftIsoDate(item.planned_start, deltaDays) : null;
+    const newEnd = item.planned_end
+      ? shiftIsoDate(item.planned_end, deltaDays)
+      : newStart;
+
+    let newDaily: Record<string, number> | undefined = undefined;
+    if (item.daily_workers && Object.keys(item.daily_workers).length > 0) {
+      newDaily = {};
+      for (const [k, v] of Object.entries(item.daily_workers)) {
+        if (v == null || v === 0) continue;
+        newDaily[shiftIsoDate(k, deltaDays)] = v as number;
+      }
+    }
+
+    const prevSnapshot = item;
+    setLineItems((prev) =>
+      prev.map((li) =>
+        li.id === item.id
+          ? {
+              ...li,
+              planned_start: newStart,
+              planned_end: newEnd,
+              ...(newDaily ? { daily_workers: newDaily } : {}),
+            }
+          : li,
+      ),
+    );
+
+    const updatePayload: Record<string, unknown> = {
+      planned_start: newStart,
+      planned_end: newEnd,
+    };
+    if (newDaily) updatePayload.daily_workers = newDaily;
+
+    const { error } = await supabase
+      .from("estimate_line_items")
+      .update(updatePayload)
+      .eq("id", item.id);
+
+    if (error) {
+      setLineItems((prev) => prev.map((li) => (li.id === item.id ? prevSnapshot : li)));
+      toast({ title: "Reschedule failed", description: error.message, variant: "destructive" });
     }
   };
 
@@ -222,93 +311,131 @@ export default function EstimateDetailPage() {
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-3 flex-shrink-0">
-          {/* Internal / Client view toggle */}
-          <div className="flex items-center bg-[#1a1b1d] border border-[#2b2e33] rounded p-[2px]">
-            <button
-              onClick={() => setView("internal")}
-              className={cn(
-                "px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider rounded transition-colors",
-                view === "internal"
-                  ? "bg-[#2d3035] text-[#d0d0d0]"
-                  : "text-[#555] hover:text-[#999]"
-              )}
-              title="Full breakdown — internal use only"
-            >
-              Internal
-            </button>
-            <button
-              onClick={() => setView("client")}
-              className={cn(
-                "px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider rounded transition-colors",
-                view === "client"
-                  ? "bg-[#2d3035] text-[#F5A623]"
-                  : "text-[#555] hover:text-[#999]"
-              )}
-              title="What the client sees — simplified, no internal cost detail"
-            >
-              Client
-            </button>
+        <div className="flex items-center gap-4 flex-shrink-0">
+          {/* Toggles Group — only the Internal/Client toggle remains; per-task detail
+              lives on /builder. */}
+          <div className="flex items-center gap-2">
+            {costsVisible && (
+              <div className="flex items-center bg-[#1a1b1d] border border-[#2b2e33] rounded p-[2px]">
+                <button
+                  onClick={() => setView("internal")}
+                  className={cn(
+                    "px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider rounded transition-colors",
+                    view === "internal"
+                      ? "bg-[#2d3035] text-[#d0d0d0]"
+                      : "text-[#555] hover:text-[#999]"
+                  )}
+                  title="Full breakdown — internal use only"
+                >
+                  Internal
+                </button>
+                <button
+                  onClick={() => setView("client")}
+                  className={cn(
+                    "px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider rounded transition-colors",
+                    view === "client"
+                      ? "bg-[#2d3035] text-[#F5A623]"
+                      : "text-[#555] hover:text-[#999]"
+                  )}
+                  title="What the client sees — simplified, no internal cost detail"
+                >
+                  Client
+                </button>
+              </div>
+            )}
           </div>
-          <Link
-            href={`/estimates/${estimateId}/builder`}
-            className="text-[12px] text-[#666] hover:text-[#aaa] transition-colors"
-          >
-            Edit
-          </Link>
-          <Link
-            href={`/estimates/${estimateId}/preview`}
-            className="text-[12px] text-[#666] hover:text-[#aaa] transition-colors"
-          >
-            Preview PDF
-          </Link>
-          {estimate.status === "draft" && (
-            <button
-              onClick={() => {
-                setEmailForm({
-                  to_email: estimate.client_email || "",
-                  subject: `Estimate ${estimate.estimate_number}`,
-                  message: "",
-                });
-                setShowEmailDialog(true);
-              }}
-              className="text-[12px] text-[#3B82F6] hover:opacity-80 transition-opacity"
-            >
-              Send email
-            </button>
+
+          {/* Separator */}
+          {(view === "internal" || costsVisible) && (
+            <div className="h-4 w-px bg-[#34373c] flex-shrink-0" />
           )}
-          {estimate.status === "sent" && (
-            <>
-              <button
-                onClick={() => handleStatusChange("approved")}
-                className="text-[12px] text-[#22C55E] hover:opacity-80 transition-opacity"
-              >
-                Approve
-              </button>
-              <button
-                onClick={() => handleStatusChange("rejected")}
-                className="text-[12px] text-[#EF4444] hover:opacity-80 transition-opacity"
-              >
-                Reject
-              </button>
-            </>
-          )}
-          {estimate.status === "approved" && !estimate.project_id && (
-            <button
-              onClick={() => setShowConvertDialog(true)}
-              className="text-[12px] text-[#F5A623] hover:opacity-80 transition-opacity"
-            >
-              Convert to job
-            </button>
-          )}
-          {estimate.project_id && (
+
+          {/* Secondary Actions Group */}
+          <div className="flex items-center gap-2">
             <Link
-              href={`/projects/${estimate.project_id}`}
-              className="text-[12px] text-[#A855F7] hover:opacity-80 transition-opacity"
+              href={`/estimates/${estimateId}/builder`}
+              className="px-3 py-1.5 text-[11px] font-mono font-medium border border-[#34373c] bg-[#202224] text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-[#272a2c] dark:hover:bg-[#272a2c] hover:border-slate-300 dark:hover:border-slate-700 rounded transition-all flex items-center gap-1.5"
             >
-              View job →
+              <Edit2 className="h-3 w-3" />
+              <span>Edit</span>
             </Link>
-          )}
+            {costsVisible && (
+              <Link
+                href={`/estimates/${estimateId}/materials`}
+                className="px-3 py-1.5 text-[11px] font-mono font-medium border border-[#34373c] bg-[#202224] text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-[#272a2c] dark:hover:bg-[#272a2c] hover:border-slate-300 dark:hover:border-slate-700 rounded transition-all flex items-center gap-1.5"
+                title="Materials & Equipment cost / markup / sell breakdown — internal only"
+              >
+                <Layers className="h-3 w-3" />
+                <span>Materials</span>
+              </Link>
+            )}
+            <Link
+              href={`/estimates/${estimateId}/preview`}
+              className="px-3 py-1.5 text-[11px] font-mono font-medium border border-[#34373c] bg-[#202224] text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-[#272a2c] dark:hover:bg-[#272a2c] hover:border-slate-300 dark:hover:border-slate-700 rounded transition-all flex items-center gap-1.5"
+            >
+              <FileText className="h-3 w-3" />
+              <span>Preview PDF</span>
+            </Link>
+          </div>
+
+          {/* Separator */}
+          <div className="h-4 w-px bg-[#34373c] flex-shrink-0" />
+
+          {/* Workflow/Primary Actions Group */}
+          <div className="flex items-center gap-2">
+            {estimate.status === "draft" && (
+              <button
+                onClick={() => {
+                  setEmailForm({
+                    to_email: estimate.client_email || "",
+                    subject: `Estimate ${estimate.estimate_number}`,
+                    message: "",
+                  });
+                  setShowEmailDialog(true);
+                }}
+                className="px-3 py-1.5 text-[11px] font-mono font-medium border border-blue-500/20 dark:border-blue-500/30 bg-blue-50/50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-500/20 rounded transition-colors flex items-center gap-1.5"
+              >
+                <Mail className="h-3.5 w-3.5" />
+                <span>Send email</span>
+              </button>
+            )}
+            {estimate.status === "sent" && (
+              <>
+                <button
+                  onClick={() => handleStatusChange("approved")}
+                  className="px-3 py-1.5 text-[11px] font-mono font-medium border border-emerald-500/20 dark:border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 rounded transition-colors flex items-center gap-1.5"
+                >
+                  <Check className="h-3.5 w-3.5" />
+                  <span>Approve</span>
+                </button>
+                <button
+                  onClick={() => handleStatusChange("rejected")}
+                  className="px-3 py-1.5 text-[11px] font-mono font-medium border border-rose-500/20 dark:border-rose-500/30 bg-rose-50/50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-500/20 rounded transition-colors flex items-center gap-1.5"
+                >
+                  <X className="h-3.5 w-3.5" />
+                  <span>Reject</span>
+                </button>
+              </>
+            )}
+            {estimate.status === "approved" && !estimate.project_id && (
+              <button
+                onClick={() => setShowConvertDialog(true)}
+                className="px-3 py-1.5 text-[11px] font-mono font-medium border border-amber-500/20 dark:border-amber-500/30 bg-amber-50/50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/20 rounded transition-colors flex items-center gap-1.5"
+              >
+                <Briefcase className="h-3.5 w-3.5" />
+                <span>Convert to job</span>
+              </button>
+            )}
+            {estimate.project_id && (
+              <Link
+                href={`/projects/${estimate.project_id}`}
+                className="px-3 py-1.5 text-[11px] font-mono font-medium border border-purple-500/20 dark:border-purple-500/30 bg-purple-50/50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-500/20 rounded transition-colors flex items-center gap-1.5"
+              >
+                <span>View job</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            )}
+          </div>
         </div>
       </div>
 
@@ -406,48 +533,14 @@ export default function EstimateDetailPage() {
 
         {/* Line items — different shape per view */}
         {view === "internal" ? (
-          <div className="rounded border border-[#34373c] bg-[#202224] overflow-hidden">
-            <div className="px-4 py-3 border-b border-[#2d3035] flex items-center justify-between">
-              <span className="text-[11px] font-mono text-[#666] uppercase tracking-widest">Line Items</span>
-              <span className="text-[11px] font-mono text-[#555]">{lineItems.length} items</span>
-            </div>
-            {lineItems.length === 0 ? (
-              <div className="py-10 text-center">
-                <p className="text-[13px] text-[#555]">No line items</p>
-              </div>
-            ) : (
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-[#292c31]">
-                    <th className="px-4 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555]">Type</th>
-                    <th className="px-4 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555] w-[40%]">Description</th>
-                    <th className="px-4 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Qty</th>
-                    <th className="px-4 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555]">Unit</th>
-                    <th className="px-4 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Rate</th>
-                    <th className="px-4 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Amount</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#292c31]">
-                  {lineItems.map((item) => (
-                    <tr key={item.id} className="hover:bg-[#23252a] transition-colors">
-                      <td className="px-4 py-3">
-                        <span className="text-[10px] font-mono text-[#555] capitalize">{item.category}</span>
-                      </td>
-                      <td className="px-4 py-3 text-[13px] text-[#888]">{item.description}</td>
-                      <td className="px-4 py-3 text-right text-[12px] font-mono text-[#666]">{item.quantity}</td>
-                      <td className="px-4 py-3 text-[12px] font-mono text-[#555]">{item.unit || "—"}</td>
-                      <td className="px-4 py-3 text-right text-[12px] font-mono text-[#666]">
-                        {formatCurrency(item.unit_rate || 0)}
-                      </td>
-                      <td className="px-4 py-3 text-right text-[13px] font-mono text-[#aaa] font-semibold">
-                        {formatCurrency(item.amount)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
+          <SummaryView
+            estimate={estimate}
+            sections={sections}
+            lineItems={lineItems}
+            sectionMaterials={sectionMaterials}
+            onReschedule={handleRescheduleLine}
+            disabled={(estimate as unknown as { is_locked?: boolean }).is_locked || estimate.status !== "draft"}
+          />
         ) : (
           // ── Client view: scope-of-work sections with bottom-line subtotals ──
           (() => {
@@ -653,6 +746,373 @@ export default function EstimateDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// ─── Summary View (issue #4) ─────────────────────────────────────────────────
+//
+// "Estimate Version 2" layout: section → task hierarchy with Labor / Material /
+// Equipment / Total columns, plus an inline Gantt day-grid to the right showing
+// crew_size per calendar day for each task. Day cells come from line.daily_workers
+// (jsonb keyed by ISO date) when present; otherwise we lay down a uniform crew
+// across `crew_days` days starting at planned_start.
+
+type SummaryViewProps = {
+  estimate: Estimate;
+  sections: EstimateSection[];
+  lineItems: EstimateLineItem[];
+  /** Takeoff-level materials (Option C — materials live here, not on tasks). */
+  sectionMaterials: EstimateSectionMaterial[];
+  onReschedule: (item: EstimateLineItem, deltaDays: number) => void | Promise<void>;
+  disabled: boolean;
+};
+
+type DragState = {
+  itemId: string;
+  startX: number;
+  delta: number;
+  firstIdx: number;
+  lastIdx: number;
+  dayCellWidth: number;
+};
+
+function SummaryView({ estimate, sections, lineItems, sectionMaterials, onReschedule, disabled }: SummaryViewProps) {
+  const [drag, setDrag] = useState<DragState | null>(null);
+  const estimateLaborRate = estimate.labor_sell_rate_per_day ?? null;
+
+  // Build calendar range = [min(planned_start), max(planned_end)] across dated line items
+  const datedItems = lineItems.filter((it) => it.planned_start);
+  const days: string[] = [];
+  if (datedItems.length > 0) {
+    const starts = datedItems
+      .map((it) => it.planned_start!)
+      .filter(Boolean) as string[];
+    const ends = datedItems
+      .map((it) => it.planned_end ?? it.planned_start!)
+      .filter(Boolean) as string[];
+    const minDate = starts.reduce((a, b) => (a < b ? a : b));
+    const maxDate = ends.reduce((a, b) => (a > b ? a : b));
+
+    const cursor = new Date(minDate + "T00:00:00Z");
+    const end = new Date(maxDate + "T00:00:00Z");
+    while (cursor <= end) {
+      days.push(cursor.toISOString().slice(0, 10));
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+  }
+
+  // Resolve crew_size on a given ISO date for a line item.
+  // Prefer daily_workers jsonb (per-day matrix); fall back to uniform from man_days/crew_days.
+  const crewOnDay = (item: EstimateLineItem, isoDate: string): number => {
+    const matrix = item.daily_workers;
+    if (matrix && Object.keys(matrix).length > 0) {
+      const v = matrix[isoDate];
+      return typeof v === "number" ? v : 0;
+    }
+    // Uniform fallback — only show if isoDate is within [planned_start, planned_end]
+    if (!item.planned_start) return 0;
+    const startISO = item.planned_start;
+    const endISO = item.planned_end ?? item.planned_start;
+    if (isoDate < startISO || isoDate > endISO) return 0;
+    const crewDays = item.crew_days ?? 1;
+    if (crewDays <= 0) return 0;
+    const uniformCrew = (item.man_days ?? 0) / crewDays;
+    return Math.round(uniformCrew * 10) / 10;
+  };
+
+  // Per-task labor (stored labor_cost preferred; falls back to man_days × rate).
+  const taskLabor = (item: EstimateLineItem): number => {
+    const stored = item.labor_cost ?? 0;
+    if (stored > 0) return Number(stored);
+    return computeLaborCost(item, estimateLaborRate);
+  };
+
+  const itemsBySection: Record<string, EstimateLineItem[]> = {};
+  for (const it of lineItems) {
+    const k = it.section_id ?? "_loose";
+    (itemsBySection[k] ??= []).push(it);
+  }
+  const looseItems = itemsBySection["_loose"] ?? [];
+
+  // Index takeoffs by section for O(1) lookup.
+  const materialsBySection: Record<string, EstimateSectionMaterial[]> = {};
+  for (const m of sectionMaterials) {
+    (materialsBySection[m.section_id] ??= []).push(m);
+  }
+
+  const sectionLaborTotal = (sectionId: string) =>
+    (itemsBySection[sectionId] ?? []).reduce((s, it) => s + taskLabor(it), 0);
+  // Material/equipment totals come from the TAKEOFF table now (Option C).
+  const sectionMaterialTotal = (sectionId: string) =>
+    (materialsBySection[sectionId] ?? [])
+      .filter((m) => !m.is_equipment)
+      .reduce((s, m) => s + computeSectionMaterialCost(m), 0);
+  const sectionEquipmentTotal = (sectionId: string) =>
+    (materialsBySection[sectionId] ?? [])
+      .filter((m) => m.is_equipment)
+      .reduce((s, m) => s + computeSectionMaterialCost(m), 0);
+  // Sell total = labor + sum of takeoff sells (with markup applied).
+  const sectionSellTotal = (sectionId: string) => {
+    const labor = sectionLaborTotal(sectionId);
+    const matSell = (materialsBySection[sectionId] ?? [])
+      .reduce((s, m) => s + computeSectionMaterialSell(m, estimate), 0);
+    return labor + matSell;
+  };
+
+  // Find the bar range [firstIdx, lastIdx] for a task: the populated-day window within the days[] array.
+  const barRange = (item: EstimateLineItem): { firstIdx: number; lastIdx: number } => {
+    let firstIdx = -1;
+    let lastIdx = -1;
+    for (let i = 0; i < days.length; i++) {
+      if (crewOnDay(item, days[i]) > 0) {
+        if (firstIdx === -1) firstIdx = i;
+        lastIdx = i;
+      }
+    }
+    return { firstIdx, lastIdx };
+  };
+
+  const onBarMouseDown = (
+    e: ReactMouseEvent<HTMLTableCellElement>,
+    item: EstimateLineItem,
+  ) => {
+    if (disabled) return;
+    const { firstIdx, lastIdx } = barRange(item);
+    if (firstIdx === -1) return;
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    e.preventDefault();
+    setDrag({
+      itemId: item.id,
+      startX: e.clientX,
+      delta: 0,
+      firstIdx,
+      lastIdx,
+      dayCellWidth: rect.width || 28,
+    });
+  };
+
+  useEffect(() => {
+    if (!drag) return;
+    const onMove = (e: MouseEvent) => {
+      const raw = Math.round((e.clientX - drag.startX) / drag.dayCellWidth);
+      if (raw !== drag.delta) setDrag({ ...drag, delta: raw });
+    };
+    const onUp = () => {
+      const d = drag;
+      setDrag(null);
+      if (d && d.delta !== 0) {
+        const it = lineItems.find((li) => li.id === d.itemId);
+        if (it) void onReschedule(it, d.delta);
+      }
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [drag, lineItems, onReschedule]);
+
+  if (lineItems.length === 0) {
+    return (
+      <div className="rounded border border-[#34373c] bg-[#202224] py-10 text-center">
+        <p className="text-[13px] text-[#555]">No line items yet</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded border border-[#34373c] bg-[#202224] overflow-hidden">
+      <div className="px-4 py-3 border-b border-[#2d3035] flex items-center justify-between">
+        <span className="text-[11px] font-mono text-[#666] uppercase tracking-widest">Summary · Gantt</span>
+        <span className="text-[11px] font-mono text-[#555]">
+          {sections.length} section{sections.length === 1 ? "" : "s"} · {lineItems.length} task{lineItems.length === 1 ? "" : "s"} · {days.length} day{days.length === 1 ? "" : "s"}
+        </span>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="min-w-full">
+          <thead>
+            <tr className="border-b border-[#292c31]">
+              <th className="sticky left-0 z-10 bg-[#202224] px-4 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555] min-w-[280px]">Task</th>
+              <th className="px-3 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Labor $</th>
+              <th className="px-3 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Material $</th>
+              <th className="px-3 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Equip. $</th>
+              <th className="px-3 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Total</th>
+              {days.map((d) => {
+                const dt = new Date(d + "T00:00:00Z");
+                const dow = dt.toLocaleDateString("en-US", { weekday: "narrow", timeZone: "UTC" });
+                const dom = dt.getUTCDate();
+                const isWeekend = dt.getUTCDay() === 0 || dt.getUTCDay() === 6;
+                return (
+                  <th
+                    key={d}
+                    className={cn(
+                      "px-1 py-2.5 text-center text-[9px] font-mono uppercase text-[#555]",
+                      isWeekend && "bg-[#1b1c1e]",
+                    )}
+                    style={{ width: 28, minWidth: 28 }}
+                    title={d}
+                  >
+                    <div className="leading-tight">
+                      <div>{dow}</div>
+                      <div className="text-[#888]">{dom}</div>
+                    </div>
+                  </th>
+                );
+              })}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#292c31]">
+            {sections.map((sec) => {
+              const items = itemsBySection[sec.id] ?? [];
+              return (
+                <Fragment key={sec.id}>
+                  <tr className="bg-[#1b1c1e]">
+                    <td className="sticky left-0 z-10 bg-[#1b1c1e] px-4 py-2.5 text-[12px] font-semibold text-[#c4c4c4]">{sec.name}</td>
+                    <td className="px-3 py-2.5 text-right text-[12px] font-mono text-[#888] tabular-nums">
+                      {formatCurrency(sectionLaborTotal(sec.id))}
+                    </td>
+                    <td className="px-3 py-2.5 text-right text-[12px] font-mono text-[#888] tabular-nums">
+                      {formatCurrency(sectionMaterialTotal(sec.id))}
+                    </td>
+                    <td className="px-3 py-2.5 text-right text-[12px] font-mono text-[#888] tabular-nums">
+                      {formatCurrency(sectionEquipmentTotal(sec.id))}
+                    </td>
+                    <td className="px-3 py-2.5 text-right text-[12px] font-mono text-[#aaa] font-semibold tabular-nums">
+                      {formatCurrency(sectionSellTotal(sec.id))}
+                    </td>
+                    {days.map((d) => (
+                      <td key={d} className="bg-[#1b1c1e]" />
+                    ))}
+                  </tr>
+
+                  {items.length === 0 ? (
+                    <tr>
+                      <td colSpan={5 + days.length} className="px-4 py-2.5 text-[12px] text-[#555] italic">
+                        No tasks
+                      </td>
+                    </tr>
+                  ) : (
+                    items.map((item) => {
+                      const computedLabor = computeLaborCost(item, estimateLaborRate);
+                      const laborDisplay = (item.labor_cost ?? 0) > 0 ? item.labor_cost! : computedLabor;
+                      return (
+                        <tr key={item.id} className="hover:bg-[#23252a] transition-colors">
+                          <td className="sticky left-0 z-10 bg-[#202224] px-4 py-3 pl-8 text-[13px] text-[#888]">
+                            {item.description || "(untitled)"}
+                          </td>
+                          <td className="px-3 py-3 text-right text-[12px] font-mono text-[#aaa] tabular-nums">
+                            {laborDisplay > 0 ? formatCurrency(laborDisplay) : "—"}
+                          </td>
+                          <td className="px-3 py-3 text-right text-[12px] font-mono text-[#666] tabular-nums">
+                            {(item.material_cost ?? 0) > 0 ? formatCurrency(item.material_cost!) : "—"}
+                          </td>
+                          <td className="px-3 py-3 text-right text-[12px] font-mono text-[#666] tabular-nums">
+                            {(item.equipment_cost ?? 0) > 0 ? formatCurrency(item.equipment_cost!) : "—"}
+                          </td>
+                          <td className="px-3 py-3 text-right text-[13px] font-mono text-[#aaa] font-semibold tabular-nums">
+                            {formatCurrency(taskLabor(item))}
+                          </td>
+                          {days.map((d, i) => {
+                            const crew = crewOnDay(item, d);
+                            const dow = new Date(d + "T00:00:00Z").getUTCDay();
+                            const isWeekend = dow === 0 || dow === 6;
+                            const isDraggingThis = drag?.itemId === item.id;
+                            const inPreview =
+                              isDraggingThis &&
+                              i >= drag.firstIdx + drag.delta &&
+                              i <= drag.lastIdx + drag.delta;
+                            const isBarCell = crew > 0;
+                            return (
+                              <td
+                                key={d}
+                                onMouseDown={isBarCell ? (e) => onBarMouseDown(e, item) : undefined}
+                                className={cn(
+                                  "px-1 py-3 text-center text-[11px] font-mono tabular-nums border-l border-[#23252a] select-none",
+                                  isWeekend ? "bg-[#1b1c1e]/40" : "",
+                                  isBarCell ? "bg-[#2d3035] text-[#F5A623]" : "text-[#3a3d42]",
+                                  isBarCell && !disabled && (isDraggingThis ? "cursor-grabbing" : "cursor-grab"),
+                                  inPreview && "ring-1 ring-inset ring-[#F5A623]/50",
+                                )}
+                                style={{ width: 28, minWidth: 28 }}
+                              >
+                                {crew > 0 ? crew : ""}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })
+                  )}
+                </Fragment>
+              );
+            })}
+
+            {looseItems.length > 0 && (
+              <Fragment>
+                <tr className="bg-[#1b1c1e]">
+                  <td colSpan={5 + days.length} className="px-4 py-2.5 text-[12px] italic text-[#666]">
+                    Unsectioned line items
+                  </td>
+                </tr>
+                {looseItems.map((item) => {
+                  const computedLabor = computeLaborCost(item, estimateLaborRate);
+                  const laborDisplay = (item.labor_cost ?? 0) > 0 ? item.labor_cost! : computedLabor;
+                  return (
+                    <tr key={item.id} className="hover:bg-[#23252a] transition-colors">
+                      <td className="sticky left-0 z-10 bg-[#202224] px-4 py-3 pl-8 text-[13px] text-[#888]">
+                        {item.description || "(untitled)"}
+                      </td>
+                      <td className="px-3 py-3 text-right text-[12px] font-mono text-[#aaa] tabular-nums">
+                        {laborDisplay > 0 ? formatCurrency(laborDisplay) : "—"}
+                      </td>
+                      <td className="px-3 py-3 text-right text-[12px] font-mono text-[#666] tabular-nums">
+                        {(item.material_cost ?? 0) > 0 ? formatCurrency(item.material_cost!) : "—"}
+                      </td>
+                      <td className="px-3 py-3 text-right text-[12px] font-mono text-[#666] tabular-nums">
+                        {(item.equipment_cost ?? 0) > 0 ? formatCurrency(item.equipment_cost!) : "—"}
+                      </td>
+                      <td className="px-3 py-3 text-right text-[13px] font-mono text-[#aaa] font-semibold tabular-nums">
+                        {formatCurrency(taskLabor(item))}
+                      </td>
+                      {days.map((d, i) => {
+                        const crew = crewOnDay(item, d);
+                        const isDraggingThis = drag?.itemId === item.id;
+                        const inPreview =
+                          isDraggingThis &&
+                          i >= drag.firstIdx + drag.delta &&
+                          i <= drag.lastIdx + drag.delta;
+                        const isBarCell = crew > 0;
+                        return (
+                          <td
+                            key={d}
+                            onMouseDown={isBarCell ? (e) => onBarMouseDown(e, item) : undefined}
+                            className={cn(
+                              "px-1 py-3 text-center text-[11px] font-mono tabular-nums border-l border-[#23252a] select-none",
+                              isBarCell ? "bg-[#2d3035] text-[#F5A623]" : "text-[#3a3d42]",
+                              isBarCell && !disabled && (isDraggingThis ? "cursor-grabbing" : "cursor-grab"),
+                              inPreview && "ring-1 ring-inset ring-[#F5A623]/50",
+                            )}
+                            style={{ width: 28, minWidth: 28 }}
+                          >
+                            {crew > 0 ? crew : ""}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+              </Fragment>
+            )}
+          </tbody>
+        </table>
+      </div>
+      {days.length === 0 && (
+        <div className="px-4 py-2.5 border-t border-[#2d3035] text-[11px] font-mono text-[#555]">
+          No planned dates on any task — set planned_start / planned_end to populate the Gantt grid.
+        </div>
+      )}
     </div>
   );
 }

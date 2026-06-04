@@ -24,12 +24,14 @@ import { ClaudeIcon } from "@/components/icons/claude-icon";
 import { getInitials } from "@/lib/utils";
 import { useEffect, useState } from "react";
 
+// Top-level /gantt removed in #5 — Gantt is now an estimate-scoped view (Summary mode on /estimates/[id]).
+// Top-level /materials remains as the cross-project catalog browser; per-estimate
+// Materials Calc lives at /estimates/[id]/materials.
 const NAV_MAIN = [
   { name: "Dashboard",    href: "/dashboard",     icon: LayoutDashboard },
   { name: "Claude",        href: "/assistant",     icon: ClaudeIcon },
   { name: "Jobs",         href: "/projects",      icon: FolderKanban },
   { name: "Estimates",   href: "/estimates",     icon: FileText },
-  { name: "Gantt",        href: "/gantt",         icon: GanttChartSquare },
   { name: "Crew",         href: "/workers",       icon: Users },
   { name: "Time",         href: "/time-tracking", icon: Clock },
   { name: "Materials",    href: "/materials",     icon: Package },

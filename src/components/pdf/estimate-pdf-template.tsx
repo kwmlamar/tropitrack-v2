@@ -1,5 +1,18 @@
 "use client";
 
+/**
+ * Client-facing estimate PDF (react-pdf).
+ *
+ * Mirrors the web preview at /estimates/[id]/preview — same ODS Construction
+ * paper template: small ESTIMATE eyebrow, big red serif wordmark, red address
+ * block, Client / Project columns, single Details / Labor / Materials / Amount
+ * table, footer ladder Subtotal → Over-head → VAT → Total.
+ *
+ * react-pdf font model: built-in Times-Roman for the wordmark + section labels
+ * (serif analog to Fraunces in the web preview), Helvetica for body. Both are
+ * PDF-standard 14 fonts — no font loading, ships everywhere.
+ */
+
 import {
   Document,
   Page,
@@ -7,647 +20,566 @@ import {
   View,
   StyleSheet,
 } from "@react-pdf/renderer";
-import type { Estimate, EstimateLineItem, EstimateCategory, DocumentTemplate } from "@/types";
+import {
+  computeSectionMaterialSell,
+  type Estimate,
+  type EstimateLineItem,
+  type EstimateSectionMaterial,
+} from "@/types";
+
+type Section = {
+  id: string;
+  name: string;
+  order_index: number;
+  show_to_client?: boolean;
+};
+
+type CompanyInfo = {
+  name: string;
+  address?: string | null;
+  city?: string | null;
+  phone?: string | null;
+  email?: string | null;
+};
+
+interface EstimatePDFTemplateProps {
+  estimate: Estimate;
+  lineItems: EstimateLineItem[];
+  sections?: Section[];
+  /** Takeoff-level materials (Option C — materials now live here, not on tasks). */
+  sectionMaterials?: EstimateSectionMaterial[];
+  companyInfo?: CompanyInfo;
+  /** Legacy prop kept for backwards-compat with old call sites; ignored. */
+  categories?: unknown;
+}
+
+// ─── Palette (HSL values from globals.css resolved for react-pdf) ────────────
+const RED = "#DD3F3F";
+const RED_SOFT = "#E27272";
+const STONE_900 = "#1C1917";
+const STONE_800 = "#292524";
+const STONE_700 = "#44403C";
+const STONE_600 = "#57534E";
+const STONE_500 = "#78716C";
+const STONE_400 = "#A8A29E";
+const STONE_300 = "#D6D3D1";
+const STONE_200 = "#E7E5E4";
 
 const styles = StyleSheet.create({
   page: {
-    padding: 40,
-    fontSize: 10,
+    paddingTop: 56,
+    paddingBottom: 48,
+    paddingHorizontal: 56,
     fontFamily: "Helvetica",
+    fontSize: 10,
+    color: STONE_900,
   },
-  header: {
+
+  eyebrow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 30,
+    alignItems: "baseline",
+    marginBottom: 28,
   },
-  companySection: {
-    maxWidth: "50%",
-  },
-  companyName: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#1a365d",
-    marginBottom: 4,
-  },
-  companyDetails: {
-    fontSize: 9,
-    color: "#4a5568",
-    lineHeight: 1.4,
-  },
-  estimateSection: {
-    textAlign: "right",
-  },
-  documentTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#1a365d",
-    marginBottom: 4,
-  },
-  estimateNumber: {
-    fontSize: 12,
-    color: "#4a5568",
-    marginBottom: 2,
-  },
-  statusBadge: {
-    fontSize: 10,
-    color: "#fff",
-    backgroundColor: "#3182ce",
-    padding: "4 8",
-    borderRadius: 4,
-    marginTop: 8,
+  eyebrowLabel: {
+    fontSize: 8.5,
+    letterSpacing: 1.8,
+    color: STONE_500,
     textTransform: "uppercase",
   },
-  clientSection: {
-    marginBottom: 24,
-    padding: 16,
-    backgroundColor: "#f7fafc",
-    borderRadius: 4,
-  },
-  sectionTitle: {
-    fontSize: 10,
-    fontWeight: "bold",
-    color: "#718096",
-    marginBottom: 6,
+  statusPill: {
+    fontSize: 7.5,
+    letterSpacing: 1.2,
+    color: STONE_600,
     textTransform: "uppercase",
-    letterSpacing: 0.5,
+    borderWidth: 0.5,
+    borderColor: STONE_300,
+    borderRadius: 8,
+    paddingVertical: 1.5,
+    paddingHorizontal: 5,
   },
-  clientName: {
-    fontSize: 12,
-    fontWeight: "bold",
-    color: "#1a202c",
-    marginBottom: 4,
+
+  wordmark: {
+    fontFamily: "Times-Roman",
+    fontSize: 36,
+    color: RED,
+    letterSpacing: -0.4,
+    marginBottom: 8,
   },
-  clientDetails: {
+  addressBlock: { marginBottom: 24 },
+  addressLine: {
+    fontFamily: "Helvetica",
     fontSize: 10,
-    color: "#4a5568",
-    lineHeight: 1.4,
+    color: RED_SOFT,
+    lineHeight: 1.45,
   },
-  datesRow: {
+
+  dateRow: {
     flexDirection: "row",
-    marginBottom: 24,
-    gap: 20,
-  },
-  dateBox: {
-    flex: 1,
-    padding: 12,
-    backgroundColor: "#f7fafc",
-    borderRadius: 4,
+    alignItems: "baseline",
+    marginBottom: 22,
   },
   dateLabel: {
+    fontFamily: "Helvetica-Bold",
     fontSize: 9,
-    color: "#718096",
-    marginBottom: 2,
+    color: RED,
+    letterSpacing: 1.6,
+    textTransform: "uppercase",
+    marginRight: 8,
   },
-  dateValue: {
-    fontSize: 11,
-    fontWeight: "bold",
-    color: "#1a202c",
-  },
-  projectBox: {
-    marginBottom: 24,
-    padding: 12,
-    backgroundColor: "#ebf8ff",
-    borderRadius: 4,
-    borderLeft: "3 solid #3182ce",
-  },
-  projectTitle: {
-    fontSize: 12,
-    fontWeight: "bold",
-    color: "#1a202c",
+  dateValue: { fontSize: 10.5, color: STONE_700 },
+
+  partyRow: { flexDirection: "row", marginBottom: 24 },
+  partyCol: { flex: 1, paddingRight: 16 },
+  partyHeader: {
+    fontFamily: "Times-Roman",
+    fontSize: 16,
+    color: RED,
     marginBottom: 4,
   },
-  projectDescription: {
-    fontSize: 10,
-    color: "#4a5568",
-    lineHeight: 1.4,
-  },
-  table: {
-    marginBottom: 24,
-  },
-  tableHeader: {
-    flexDirection: "row",
-    backgroundColor: "#1a365d",
-    padding: 10,
-  },
-  tableHeaderText: {
-    color: "#fff",
-    fontWeight: "bold",
-    fontSize: 9,
-    textTransform: "uppercase",
-  },
-  tableRow: {
-    flexDirection: "row",
-    padding: 10,
-    borderBottom: "1 solid #e2e8f0",
-  },
-  tableRowAlt: {
-    backgroundColor: "#f7fafc",
-  },
-  col1: { width: "40%" },
-  col2: { width: "10%", textAlign: "center" },
-  col3: { width: "15%", textAlign: "center" },
-  col4: { width: "15%", textAlign: "right" },
-  col5: { width: "20%", textAlign: "right" },
-  categoryBadge: {
-    fontSize: 7,
-    color: "#718096",
-    textTransform: "uppercase",
+  partyName: {
+    fontFamily: "Helvetica-Bold",
+    fontSize: 10.5,
+    color: STONE_800,
     marginBottom: 2,
   },
-  totalsSection: {
-    marginLeft: "auto",
-    width: "40%",
-  },
-  totalRow: {
+  partyDetail: { fontSize: 10, color: STONE_700, lineHeight: 1.5 },
+  partyMuted: { fontSize: 10, color: STONE_500, lineHeight: 1.5 },
+
+  table: { marginTop: 4 },
+  tableHead: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    padding: "8 12",
-    borderBottom: "1 solid #e2e8f0",
+    borderTopWidth: 1.4,
+    borderTopColor: STONE_900,
+    borderBottomWidth: 0.6,
+    borderBottomColor: STONE_900,
+    paddingVertical: 6,
   },
+  tableHeadCell: {
+    fontFamily: "Helvetica-Bold",
+    fontSize: 9.5,
+    color: STONE_900,
+  },
+  colDetails: { flex: 5.8, paddingRight: 6 },
+  colLabor:   { flex: 1.4, textAlign: "right", paddingHorizontal: 6 },
+  colMats:    { flex: 1.4, textAlign: "right", paddingHorizontal: 6 },
+  colAmount:  { flex: 1.4, textAlign: "right", paddingLeft: 6 },
+
+  sectionHeaderRow: { flexDirection: "row", paddingTop: 10, paddingBottom: 3 },
+  sectionHeader: {
+    fontFamily: "Times-Roman",
+    fontSize: 12.5,
+    color: RED,
+    paddingLeft: 0,
+  },
+
+  itemRow: {
+    flexDirection: "row",
+    borderBottomWidth: 0.4,
+    borderBottomColor: STONE_200,
+    paddingVertical: 5,
+  },
+  itemRowLast: { flexDirection: "row", paddingVertical: 5 },
+
+  // Phase-only row (collapsed view — used in client preview/PDF).
+  phaseRow: {
+    flexDirection: "row",
+    borderBottomWidth: 0.4,
+    borderBottomColor: STONE_200,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  phaseRowLast: {
+    flexDirection: "row",
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  phaseDetailsCell: {
+    flex: 5.8,
+    paddingLeft: 4,
+    paddingRight: 6,
+  },
+  phaseName: {
+    fontFamily: "Times-Roman",
+    fontSize: 13,
+    color: RED,
+  },
+  itemDetailsCell: {
+    fontSize: 10,
+    color: STONE_800,
+    lineHeight: 1.45,
+    paddingLeft: 6,
+    paddingRight: 6,
+    flex: 5.8,
+  },
+  itemNumCell: {
+    fontSize: 10,
+    color: STONE_700,
+    textAlign: "right",
+  },
+  itemAmountCell: {
+    fontSize: 10,
+    color: STONE_900,
+    fontFamily: "Helvetica-Bold",
+    textAlign: "right",
+  },
+
+  sectionSubtotalRow: {
+    flexDirection: "row",
+    borderTopWidth: 0.5,
+    borderTopColor: STONE_300,
+    paddingVertical: 3,
+  },
+  sectionSubtotalLabel: {
+    fontSize: 8.5,
+    color: STONE_500,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    paddingLeft: 6,
+    flex: 5.8,
+  },
+  sectionSubtotalNum: {
+    fontSize: 9.5,
+    color: STONE_600,
+    textAlign: "right",
+  },
+  sectionSubtotalTotal: {
+    fontSize: 9.5,
+    color: STONE_900,
+    fontFamily: "Helvetica-Bold",
+    textAlign: "right",
+  },
+
+  totalsBlock: { marginTop: 4 },
+  totalsTopRule: {
+    borderTopWidth: 1.4,
+    borderTopColor: STONE_900,
+    marginTop: 4,
+  },
+  totalRow: { flexDirection: "row", paddingVertical: 4 },
+  totalSpacer: { flex: 5.8 + 1.4 },
+  totalLabelCell: { flex: 1.4, textAlign: "right", paddingHorizontal: 6 },
+  totalValueCell: { flex: 1.4, textAlign: "right", paddingLeft: 6 },
   totalLabel: {
-    fontSize: 10,
-    color: "#4a5568",
+    fontSize: 9,
+    color: STONE_700,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    fontFamily: "Helvetica-Bold",
   },
-  totalValue: {
-    fontSize: 10,
-    fontWeight: "bold",
-    color: "#1a202c",
+  totalLabelMuted: {
+    fontSize: 8.5,
+    color: STONE_600,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
   },
+  totalValue: { fontSize: 10.5, color: STONE_900, fontFamily: "Helvetica-Bold" },
+  totalValueMuted: { fontSize: 10, color: STONE_700 },
   grandTotalRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    padding: "12 12",
-    backgroundColor: "#1a365d",
+    borderTopWidth: 0.6,
+    borderTopColor: STONE_900,
+    paddingTop: 8,
+    paddingBottom: 2,
   },
-  grandTotalLabel: {
-    fontSize: 12,
-    fontWeight: "bold",
-    color: "#fff",
+  grandLabel: {
+    fontSize: 11,
+    color: RED,
+    fontFamily: "Helvetica-Bold",
+    textTransform: "uppercase",
+    letterSpacing: 1.2,
   },
-  grandTotalValue: {
+  grandValue: {
     fontSize: 14,
-    fontWeight: "bold",
-    color: "#fff",
+    color: RED,
+    fontFamily: "Helvetica-Bold",
   },
-  notesSection: {
-    marginTop: 24,
-    padding: 16,
-    backgroundColor: "#fffaf0",
-    borderRadius: 4,
-    borderLeft: "3 solid #dd6b20",
-  },
-  notesTitle: {
-    fontSize: 10,
-    fontWeight: "bold",
-    color: "#c05621",
-    marginBottom: 6,
-  },
-  notesText: {
-    fontSize: 9,
-    color: "#744210",
-    lineHeight: 1.4,
-  },
+
   termsSection: {
-    marginTop: 16,
-    padding: 16,
-    backgroundColor: "#f7fafc",
-    borderRadius: 4,
+    marginTop: 30,
+    paddingTop: 14,
+    borderTopWidth: 0.5,
+    borderTopColor: STONE_200,
+    flexDirection: "row",
   },
-  termsTitle: {
-    fontSize: 10,
-    fontWeight: "bold",
-    color: "#4a5568",
-    marginBottom: 6,
+  termsCol: { flex: 1, paddingRight: 16 },
+  termsHeader: {
+    fontFamily: "Times-Roman",
+    fontSize: 12,
+    color: RED,
+    marginBottom: 4,
   },
-  termsText: {
-    fontSize: 8,
-    color: "#718096",
-    lineHeight: 1.5,
-  },
-  paymentInstructions: {
-    marginTop: 16,
-    padding: 16,
-    backgroundColor: "#ebf8ff",
-    borderRadius: 4,
-    borderLeft: "3 solid #3182ce",
-  },
-  paymentInstructionsTitle: {
-    fontSize: 10,
-    fontWeight: "bold",
-    color: "#2b6cb0",
-    marginBottom: 6,
-  },
-  paymentInstructionsText: {
-    fontSize: 9,
-    color: "#2c5282",
-    lineHeight: 1.5,
-  },
+  termsText: { fontSize: 9, color: STONE_600, lineHeight: 1.55 },
+
   footer: {
     position: "absolute",
     bottom: 30,
-    left: 40,
-    right: 40,
-    borderTop: "1 solid #e2e8f0",
-    paddingTop: 12,
+    left: 56,
+    right: 56,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    borderTopWidth: 0.4,
+    borderTopColor: STONE_200,
+    paddingTop: 6,
   },
-  footerText: {
-    fontSize: 8,
-    color: "#a0aec0",
-    textAlign: "center",
-    lineHeight: 1.4,
-  },
+  footerText: { fontSize: 8, color: STONE_500 },
 });
 
-interface EstimatePDFProps {
-  estimate: Estimate;
-  lineItems: EstimateLineItem[];
-  categories?: EstimateCategory[];
-  template?: DocumentTemplate;
-  companyInfo?: {
-    name: string;
-    address?: string;
-    city?: string;
-    phone?: string;
-    email?: string;
-  };
-  paymentInstructions?: {
-    bank_name?: string;
-    account_name?: string;
-    account_number?: string;
-    routing_number?: string;
-    swift_code?: string;
-    mobile_money?: string;
-    instructions?: string;
-  };
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function formatCurrency(n: number): string {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
 }
 
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "BSD",
-  }).format(amount);
-};
-
-const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-};
-
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case "approved":
-      return "#38a169";
-    case "sent":
-      return "#3182ce";
-    case "rejected":
-      return "#e53e3e";
-    case "expired":
-      return "#718096";
-    default:
-      return "#a0aec0";
+function dottedWordmark(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 0) return name;
+  const first = parts[0];
+  if (/^[A-Z]{2,4}$/.test(first)) {
+    parts[0] = first.split("").join(".");
   }
-};
+  return parts.join(" ");
+}
+
+function formatBritishDate(dateStr?: string | null): string {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr + (dateStr.length === 10 ? "T00:00:00Z" : ""));
+  if (Number.isNaN(d.getTime())) return dateStr;
+  const day = d.getUTCDate();
+  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const year = d.getUTCFullYear();
+  const mod100 = day % 100;
+  const suffix =
+    mod100 >= 11 && mod100 <= 13 ? "th" :
+    (["", "st", "nd", "rd"][day % 10] ?? "th");
+  return `${day}${suffix}/${month}/${year}`;
+}
+
+const rowAmount = (it: EstimateLineItem): number =>
+  Number(it.labor_cost ?? 0) + Number(it.material_cost ?? 0) + Number(it.equipment_cost ?? 0);
+const rowMaterials = (it: EstimateLineItem): number =>
+  Number(it.material_cost ?? 0) + Number(it.equipment_cost ?? 0);
+const rowLabor = (it: EstimateLineItem): number => Number(it.labor_cost ?? 0);
+
+// ─── Component ───────────────────────────────────────────────────────────────
 
 export function EstimatePDFTemplate({
   estimate,
   lineItems,
-  categories,
-  template,
-  companyInfo = {
-    name: "TropiTech Solutions",
-    address: "Nassau",
-    city: "Bahamas",
-    phone: "(242) 555-1234",
-    email: "info@tropitech.bs",
-  },
-  paymentInstructions,
-}: EstimatePDFProps) {
-  const hasBuilderData = categories && categories.length > 0;
-  // Use template settings or defaults
-  const showQuantities = template?.show_quantities ?? true;
-  const showRates = template?.show_rates ?? true;
-  const showUnitCosts = template?.show_unit_costs ?? true;
-  const showSubtotals = template?.show_subtotals ?? true;
-  const showMarkupPercentage = template?.show_markup_percentage ?? false;
-  const showProfitMargin = template?.show_profit_margin ?? false;
-  const showLineItemDescriptions = template?.show_line_item_descriptions ?? true;
-  const overheadAmount =
-    (estimate.subtotal || 0) * ((estimate.overhead_markup_percent || 0) / 100);
-  const subtotalAfterOverhead = (estimate.subtotal || 0) + overheadAmount;
-  const profitAmount =
-    subtotalAfterOverhead * ((estimate.profit_margin_percent || 0) / 100);
-  const subtotalBeforeTax = subtotalAfterOverhead + profitAmount;
-  const taxAmount = subtotalBeforeTax * ((estimate.tax_rate || 0) / 100);
+  sections,
+  sectionMaterials,
+  companyInfo,
+}: EstimatePDFTemplateProps) {
+  const visibleSections = (sections ?? []).filter((s) => s.show_to_client !== false);
+  const sectionIds = new Set(visibleSections.map((s) => s.id));
+  const visibleMats = (sectionMaterials ?? []).filter(
+    (m) => visibleSections.length === 0 || sectionIds.has(m.section_id),
+  );
+  const visibleItems = lineItems.filter(
+    (it) => (visibleSections.length === 0 || sectionIds.has(it.section_id)) && it.show_to_client !== false,
+  );
+
+  const overheadPct = (estimate as any).overhead_pct ?? (estimate as any).overhead_markup_percent ?? 0;
+  const vatPct = (estimate as any).vat_pct ?? (estimate as any).tax_rate ?? 0;
+  const overheadAmount = (estimate as any).overhead_amount ?? 0;
+  const vatAmount = (estimate as any).tax_amount ?? (estimate as any).vat_amount ?? 0;
+
+  const wordmark = dottedWordmark(companyInfo?.name ?? "ODS Construction");
 
   return (
-    <Document>
-      <Page size="A4" style={styles.page}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.companySection}>
-            <Text style={styles.companyName}>{companyInfo.name}</Text>
-            <Text style={styles.companyDetails}>
-              {companyInfo.address && `${companyInfo.address}\n`}
-              {companyInfo.city && `${companyInfo.city}\n`}
-              {companyInfo.phone && `${companyInfo.phone}\n`}
-              {companyInfo.email && companyInfo.email}
-            </Text>
+    <Document title={`Estimate ${estimate.estimate_number ?? estimate.id}`}>
+      <Page size="LETTER" style={styles.page}>
+        {/* Eyebrow */}
+        <View style={styles.eyebrow}>
+          <Text style={styles.eyebrowLabel}>
+            Estimate {estimate.estimate_number ?? `#${estimate.id.slice(0, 8)}`}
+          </Text>
+          <Text style={styles.statusPill}>{estimate.status ?? "draft"}</Text>
+        </View>
+
+        {/* Wordmark + address */}
+        <Text style={styles.wordmark}>{wordmark}</Text>
+        <View style={styles.addressBlock}>
+          {companyInfo?.address && <Text style={styles.addressLine}>{companyInfo.address}</Text>}
+          {companyInfo?.city && <Text style={styles.addressLine}>{companyInfo.city}</Text>}
+          {companyInfo?.phone && <Text style={styles.addressLine}>Phone: {companyInfo.phone}</Text>}
+        </View>
+
+        {/* Date */}
+        <View style={styles.dateRow}>
+          <Text style={styles.dateLabel}>Date</Text>
+          <Text style={styles.dateValue}>{formatBritishDate(estimate.issue_date)}</Text>
+        </View>
+
+        {/* Client / Project */}
+        <View style={styles.partyRow}>
+          <View style={styles.partyCol}>
+            <Text style={styles.partyHeader}>Client</Text>
+            {estimate.client_name ? (
+              <>
+                <Text style={styles.partyName}>{estimate.client_name}</Text>
+                {(estimate as any).property_name && <Text style={styles.partyDetail}>{(estimate as any).property_name}</Text>}
+                {estimate.client_email && <Text style={styles.partyMuted}>{estimate.client_email}</Text>}
+                {estimate.client_phone && <Text style={styles.partyMuted}>{estimate.client_phone}</Text>}
+              </>
+            ) : (
+              <Text style={styles.partyMuted}>No client on file</Text>
+            )}
           </View>
-          <View style={styles.estimateSection}>
-            <Text style={styles.documentTitle}>ESTIMATE</Text>
-            <Text style={styles.estimateNumber}>
-              #{estimate.estimate_number}
+          <View style={styles.partyCol}>
+            <Text style={styles.partyHeader}>Project</Text>
+            <Text style={styles.partyDetail}>
+              {estimate.title?.replace(/—\s*Estimate$/i, "").trim() || "Untitled project"}
             </Text>
-            <View
-              style={[
-                styles.statusBadge,
-                { backgroundColor: getStatusColor(estimate.status) },
-              ]}
-            >
-              <Text>{estimate.status}</Text>
+            {estimate.description && (
+              <Text style={styles.partyMuted}>{estimate.description}</Text>
+            )}
+          </View>
+        </View>
+
+        {/* Table */}
+        <View style={styles.table}>
+          <View style={styles.tableHead}>
+            <Text style={[styles.tableHeadCell, styles.colDetails]}>Details</Text>
+            <Text style={[styles.tableHeadCell, styles.colLabor]}>Labor</Text>
+            <Text style={[styles.tableHeadCell, styles.colMats]}>Materials</Text>
+            <Text style={[styles.tableHeadCell, styles.colAmount]}>Amount</Text>
+          </View>
+
+          {visibleItems.length === 0 && visibleMats.length === 0 ? (
+            <Text style={{ textAlign: "center", color: STONE_400, fontSize: 10, paddingVertical: 24 }}>
+              Nothing to show yet.
+            </Text>
+          ) : visibleSections.length > 0 ? (
+            // Phase-only: one row per section. Labor from tasks; materials from
+            // the takeoff table (with markup applied per Option C).
+            visibleSections
+              .map((sec) => {
+                const items = visibleItems.filter((it) => it.section_id === sec.id);
+                const mats = visibleMats.filter((m) => m.section_id === sec.id);
+                if (items.length === 0 && mats.length === 0) return null;
+                const sLabor = items.reduce((s, it) => s + rowLabor(it), 0);
+                const sMats = mats.reduce((s, m) => s + computeSectionMaterialSell(m, estimate), 0);
+                const sTotal = sLabor + sMats;
+                return { sec, sLabor, sMats, sTotal };
+              })
+              .filter(Boolean)
+              .map((row, idx, arr) => {
+                const { sec, sLabor, sMats, sTotal } = row!;
+                const last = idx === arr.length - 1;
+                return (
+                  <View key={sec.id} style={last ? styles.phaseRowLast : styles.phaseRow} wrap={false}>
+                    <View style={styles.phaseDetailsCell}>
+                      <Text style={styles.phaseName}>{sec.name}</Text>
+                    </View>
+                    <Text style={[styles.itemNumCell, styles.colLabor]}>
+                      {sLabor > 0 ? formatCurrency(sLabor) : "—"}
+                    </Text>
+                    <Text style={[styles.itemNumCell, styles.colMats]}>
+                      {sMats > 0 ? formatCurrency(sMats) : "—"}
+                    </Text>
+                    <Text style={[styles.itemAmountCell, styles.colAmount]}>
+                      {formatCurrency(sTotal)}
+                    </Text>
+                  </View>
+                );
+              })
+          ) : (
+            // No sections — collapse everything to one "Project" row.
+            (() => {
+              const totalLabor = visibleItems.reduce((s, it) => s + rowLabor(it), 0);
+              const totalMats = visibleMats.reduce((s, m) => s + computeSectionMaterialSell(m, estimate), 0);
+              const projectName =
+                estimate.title?.replace(/—\s*Estimate$/i, "").trim() || "Project";
+              return (
+                <View style={styles.phaseRowLast}>
+                  <View style={styles.phaseDetailsCell}>
+                    <Text style={styles.phaseName}>{projectName}</Text>
+                  </View>
+                  <Text style={[styles.itemNumCell, styles.colLabor]}>
+                    {totalLabor > 0 ? formatCurrency(totalLabor) : "—"}
+                  </Text>
+                  <Text style={[styles.itemNumCell, styles.colMats]}>
+                    {totalMats > 0 ? formatCurrency(totalMats) : "—"}
+                  </Text>
+                  <Text style={[styles.itemAmountCell, styles.colAmount]}>
+                    {formatCurrency(totalLabor + totalMats)}
+                  </Text>
+                </View>
+              );
+            })()
+          )}
+
+          {/* Totals ladder */}
+          <View style={styles.totalsBlock}>
+            <View style={styles.totalsTopRule} />
+            <View style={styles.totalRow}>
+              <View style={styles.totalSpacer} />
+              <Text style={[styles.totalLabel, styles.totalLabelCell]}>Subtotal</Text>
+              <Text style={[styles.totalValue, styles.totalValueCell]}>
+                {formatCurrency(Number(estimate.subtotal ?? 0))}
+              </Text>
+            </View>
+            {Number(overheadAmount) > 0 && (
+              <View style={styles.totalRow}>
+                <View style={styles.totalSpacer} />
+                <Text style={[styles.totalLabelMuted, styles.totalLabelCell]}>
+                  Over-head Allowances ({Number(overheadPct).toFixed(0)}%)
+                </Text>
+                <Text style={[styles.totalValueMuted, styles.totalValueCell]}>
+                  {formatCurrency(Number(overheadAmount))}
+                </Text>
+              </View>
+            )}
+            {Number(vatAmount) > 0 && (
+              <View style={styles.totalRow}>
+                <View style={styles.totalSpacer} />
+                <Text style={[styles.totalLabelMuted, styles.totalLabelCell]}>
+                  VAT ({Number(vatPct).toFixed(0)}%)
+                </Text>
+                <Text style={[styles.totalValueMuted, styles.totalValueCell]}>
+                  {formatCurrency(Number(vatAmount))}
+                </Text>
+              </View>
+            )}
+            <View style={styles.grandTotalRow}>
+              <View style={styles.totalSpacer} />
+              <Text style={[styles.grandLabel, styles.totalLabelCell]}>Total</Text>
+              <Text style={[styles.grandValue, styles.totalValueCell]}>
+                {formatCurrency(Number(estimate.total_amount ?? 0))}
+              </Text>
             </View>
           </View>
         </View>
 
-        {/* Client Information */}
-        <View style={styles.clientSection}>
-          <Text style={styles.sectionTitle}>Prepared For</Text>
-          <Text style={styles.clientName}>{estimate.client_name || "N/A"}</Text>
-          <Text style={styles.clientDetails}>
-            {estimate.client_email && `${estimate.client_email}\n`}
-            {estimate.client_phone && `${estimate.client_phone}\n`}
-            {estimate.client_address && estimate.client_address}
-          </Text>
-        </View>
-
-        {/* Dates */}
-        <View style={styles.datesRow}>
-          <View style={styles.dateBox}>
-            <Text style={styles.dateLabel}>Issue Date</Text>
-            <Text style={styles.dateValue}>
-              {formatDate(estimate.issue_date)}
-            </Text>
-          </View>
-          <View style={styles.dateBox}>
-            <Text style={styles.dateLabel}>Valid Until</Text>
-            <Text style={styles.dateValue}>
-              {estimate.valid_until ? formatDate(estimate.valid_until) : "N/A"}
-            </Text>
-          </View>
-        </View>
-
-        {/* Project Title */}
-        <View style={styles.projectBox}>
-          <Text style={styles.projectTitle}>{estimate.title}</Text>
-          {estimate.description && (
-            <Text style={styles.projectDescription}>{estimate.description}</Text>
-          )}
-        </View>
-
-        {/* Line Items Table */}
-        <View style={styles.table}>
-          <View style={styles.tableHeader}>
-            <Text style={[styles.tableHeaderText, styles.col1]}>Description</Text>
-            {showQuantities && <Text style={[styles.tableHeaderText, styles.col2]}>Qty</Text>}
-            {showQuantities && <Text style={[styles.tableHeaderText, styles.col3]}>Unit</Text>}
-            {showRates && <Text style={[styles.tableHeaderText, styles.col4]}>Rate</Text>}
-            <Text style={[styles.tableHeaderText, styles.col5]}>Amount</Text>
-          </View>
-
-          {hasBuilderData ? (
-            /* Category-grouped rendering for builder estimates */
-            <>
-              {categories!.filter(c => c.show_to_client !== false).map((category) => {
-                const items = ((category.items || []) as any[]).filter(
-                  (i: any) => i.show_to_client !== false
-                );
-                return (
-                  <View key={category.id}>
-                    {/* Category header */}
-                    <View style={[styles.tableRow, { backgroundColor: "#edf2f7" }]}>
-                      <Text style={[styles.col1, { fontWeight: "bold", fontSize: 10 }]}>
-                        {category.name}
-                      </Text>
-                      <Text style={styles.col2} />
-                      <Text style={styles.col3} />
-                      <Text style={styles.col4} />
-                      <Text style={[styles.col5, { fontWeight: "bold" }]}>
-                        {formatCurrency(category.client_price || 0)}
-                      </Text>
-                    </View>
-                    {/* Category items */}
-                    {items.map((item: any, idx: number) => (
-                      <View
-                        key={item.id}
-                        style={[styles.tableRow, ...(idx % 2 === 1 ? [styles.tableRowAlt] : [])]}
-                      >
-                        <View style={[styles.col1, { paddingLeft: 12 }]}>
-                          <Text>{item.title || item.description}</Text>
-                          {item.description && item.title && item.description !== item.title && showLineItemDescriptions && (
-                            <Text style={{ fontSize: 8, color: "#718096" }}>
-                              {item.description}
-                            </Text>
-                          )}
-                        </View>
-                        {showQuantities && (
-                          <Text style={styles.col2}>
-                            {item.quantity ? Number(item.quantity).toFixed(item.quantity % 1 === 0 ? 0 : 2) : "-"}
-                          </Text>
-                        )}
-                        {showQuantities && (
-                          <Text style={styles.col3}>{item.unit || "-"}</Text>
-                        )}
-                        {showRates && (
-                          <Text style={styles.col4}>
-                            {item.unit_cost ? formatCurrency(item.unit_cost) : item.unit_rate ? formatCurrency(item.unit_rate) : "-"}
-                          </Text>
-                        )}
-                        <Text style={styles.col5}>
-                          {formatCurrency(item.client_price || item.amount || 0)}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                );
-              })}
-            </>
-          ) : (
-            /* Legacy flat line items rendering */
-            <>
-              {lineItems.map((item, index) => {
-                const hasQuantity = item.quantity !== null && item.quantity !== undefined;
-                const hasRate = item.unit_rate !== null && item.unit_rate !== undefined;
-
-                return (
-                  <View
-                    key={item.id}
-                    style={[styles.tableRow, ...(index % 2 === 1 ? [styles.tableRowAlt] : [])]}
-                  >
-                    <View style={styles.col1}>
-                      <Text style={styles.categoryBadge}>{item.category}</Text>
-                      {showLineItemDescriptions && <Text>{item.description}</Text>}
-                      {!showLineItemDescriptions && <Text>{item.category}</Text>}
-                    </View>
-                    {showQuantities && (
-                      <Text style={styles.col2}>{hasQuantity ? item.quantity : "-"}</Text>
-                    )}
-                    {showQuantities && (
-                      <Text style={styles.col3}>{hasQuantity && item.unit ? item.unit : "-"}</Text>
-                    )}
-                    {showRates && (
-                      <Text style={styles.col4}>{hasRate && item.unit_rate !== undefined ? formatCurrency(item.unit_rate) : "-"}</Text>
-                    )}
-                    <Text style={styles.col5}>{formatCurrency(item.amount)}</Text>
-                  </View>
-                );
-              })}
-            </>
-          )}
-        </View>
-
-        {/* Totals */}
-        <View style={styles.totalsSection}>
-          {hasBuilderData ? (
-            <>
-              <View style={styles.grandTotalRow}>
-                <Text style={styles.grandTotalLabel}>Total Price</Text>
-                <Text style={styles.grandTotalValue}>
-                  {formatCurrency((estimate as any).client_price || estimate.total_amount)}
-                </Text>
-              </View>
-            </>
-          ) : (
-            <>
-              {showSubtotals && (
-                <View style={styles.totalRow}>
-                  <Text style={styles.totalLabel}>Subtotal</Text>
-                  <Text style={styles.totalValue}>
-                    {formatCurrency(estimate.subtotal)}
-                  </Text>
-                </View>
-              )}
-              {showMarkupPercentage && estimate.overhead_markup_percent > 0 && (
-                <View style={styles.totalRow}>
-                  <Text style={styles.totalLabel}>
-                    Overhead ({estimate.overhead_markup_percent}%)
-                  </Text>
-                  <Text style={styles.totalValue}>
-                    {formatCurrency(overheadAmount)}
-                  </Text>
-                </View>
-              )}
-              {showProfitMargin && estimate.profit_margin_percent > 0 && (
-                <View style={styles.totalRow}>
-                  <Text style={styles.totalLabel}>
-                    Profit Margin ({estimate.profit_margin_percent}%)
-                  </Text>
-                  <Text style={styles.totalValue}>
-                    {formatCurrency(profitAmount)}
-                  </Text>
-                </View>
-              )}
-              {estimate.tax_rate > 0 && (
-                <View style={styles.totalRow}>
-                  <Text style={styles.totalLabel}>
-                    VAT ({estimate.tax_rate}%)
-                  </Text>
-                  <Text style={styles.totalValue}>{formatCurrency(taxAmount)}</Text>
-                </View>
-              )}
-              <View style={styles.grandTotalRow}>
-                <Text style={styles.grandTotalLabel}>Total</Text>
-                <Text style={styles.grandTotalValue}>
-                  {formatCurrency(estimate.total_amount)}
-                </Text>
-              </View>
-            </>
-          )}
-        </View>
-
-        {/* Notes */}
-        {estimate.notes && (
-          <View style={styles.notesSection}>
-            <Text style={styles.notesTitle}>Notes</Text>
-            <Text style={styles.notesText}>{estimate.notes}</Text>
-          </View>
-        )}
-
-        {/* Terms */}
-        {estimate.terms_and_conditions && (
+        {/* Terms / notes */}
+        {(estimate.terms_and_conditions || estimate.notes) && (
           <View style={styles.termsSection}>
-            <Text style={styles.termsTitle}>Terms & Conditions</Text>
-            <Text style={styles.termsText}>{estimate.terms_and_conditions}</Text>
+            {estimate.terms_and_conditions && (
+              <View style={styles.termsCol}>
+                <Text style={styles.termsHeader}>Terms</Text>
+                <Text style={styles.termsText}>{estimate.terms_and_conditions}</Text>
+              </View>
+            )}
+            {estimate.notes && (
+              <View style={styles.termsCol}>
+                <Text style={styles.termsHeader}>Notes</Text>
+                <Text style={styles.termsText}>{estimate.notes}</Text>
+              </View>
+            )}
           </View>
         )}
 
-        {/* Payment Instructions (optional for estimates) */}
-        {paymentInstructions && (
-          paymentInstructions.bank_name ||
-          paymentInstructions.mobile_money ||
-          paymentInstructions.instructions
-        ) && (
-          <View style={styles.paymentInstructions}>
-            <Text style={styles.paymentInstructionsTitle}>
-              Payment Information
-            </Text>
-            <Text style={styles.paymentInstructionsText}>
-              {paymentInstructions.bank_name && (
-                <>
-                  Bank: {paymentInstructions.bank_name}{"\n"}
-                  {paymentInstructions.account_name && `Account Name: ${paymentInstructions.account_name}\n`}
-                  {paymentInstructions.account_number && `Account Number: ${paymentInstructions.account_number}\n`}
-                  {paymentInstructions.routing_number && `Routing Number: ${paymentInstructions.routing_number}\n`}
-                  {paymentInstructions.swift_code && `SWIFT Code: ${paymentInstructions.swift_code}\n`}
-                  {"\n"}
-                </>
-              )}
-
-              {paymentInstructions.mobile_money && (
-                <>
-                  Mobile Payment: {paymentInstructions.mobile_money}{"\n\n"}
-                </>
-              )}
-
-              {paymentInstructions.instructions && (
-                <>
-                  {paymentInstructions.instructions}
-                </>
-              )}
-            </Text>
-          </View>
-        )}
-
-        {/* Signature Section */}
-        <View style={{ marginTop: 40, flexDirection: "row", gap: 40 }}>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 9, color: "#718096", marginBottom: 30 }}>
-              Client Signature
-            </Text>
-            <View style={{ borderBottom: "1 solid #4a5568", marginBottom: 6 }} />
-            <Text style={{ fontSize: 9, color: "#718096" }}>
-              Signature
-            </Text>
-            <View style={{ borderBottom: "1 solid #4a5568", marginBottom: 6, marginTop: 16 }} />
-            <Text style={{ fontSize: 9, color: "#718096" }}>
-              Printed Name
-            </Text>
-            <View style={{ borderBottom: "1 solid #4a5568", marginBottom: 6, marginTop: 16 }} />
-            <Text style={{ fontSize: 9, color: "#718096" }}>
-              Date
-            </Text>
-          </View>
-        </View>
-
-        {/* Footer */}
-        <View style={styles.footer}>
+        <View style={styles.footer} fixed>
           <Text style={styles.footerText}>
-            Thank you for considering {companyInfo.name} for your project.
-            {"\n"}
-            This estimate is valid for 30 days from the issue date.
+            Prepared by {companyInfo?.name ?? "ODS Construction"}
+            {companyInfo?.email ? ` · ${companyInfo.email}` : ""}
           </Text>
+          {estimate.valid_until && (
+            <Text style={styles.footerText}>
+              Valid until {formatBritishDate(estimate.valid_until)}
+            </Text>
+          )}
         </View>
       </Page>
     </Document>

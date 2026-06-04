@@ -656,6 +656,12 @@ export interface Estimate {
   tax_rate: number;
   tax_amount: number;
   total_amount: number;
+  /** Estimate-level default labor sell rate per worker-day. Used when a line item does not override. */
+  labor_sell_rate_per_day?: number | null;
+  /** Default markup % applied to material line items when a line does not override. ODS default 75. */
+  default_material_markup_pct?: number;
+  /** Default markup % applied to equipment line items when a line does not override. Default 0 (pass-through). */
+  default_equipment_markup_pct?: number;
   notes?: string;
   terms_and_conditions?: string;
   template_id?: string;
@@ -673,7 +679,14 @@ export type LineItemEntryMode = "detailed" | "simple" | "lump_sum";
 export interface EstimateLineItem {
   id: string;
   estimate_id: string;
-  category: EstimateLineCategory;
+  /** Section grouping (FK to estimate_sections). Required on the live schema. */
+  section_id: string;
+  /**
+   * Legacy single-category tag. The live DB does NOT carry this column — line items
+   * are composite (labor_cost + material_cost + equipment_cost on the same row).
+   * Kept optional for legacy code paths (e.g. estimate-form.tsx) that still set it.
+   */
+  category?: EstimateLineCategory;
   worker_id?: string;
   material_id?: string;
   equipment_id?: string;
@@ -682,11 +695,138 @@ export interface EstimateLineItem {
   unit?: string;
   unit_rate?: number;
   amount: number;
+  /** Scheduling: total worker-days for this task. labor_cost = man_days * labor_sell_rate. */
+  man_days: number;
+  /** Per-line override for the estimate's labor_sell_rate_per_day. Null falls back to estimate default. */
+  labor_sell_rate_per_day?: number | null;
+  /** Per-line markup % override. Null falls back to estimate default for this line's category. */
+  markup_pct?: number | null;
+  /** Cached labor cost — may be either typed manually or computed from man_days × rate. */
+  labor_cost?: number;
+  material_cost?: number;
+  equipment_cost?: number;
+  crew_days?: number | null;
+  /** Per-day crew deployment matrix, keyed by ISO date string. */
+  daily_workers?: Record<string, number>;
+  planned_start?: string | null;
+  planned_end?: string | null;
+  show_to_client?: boolean;
   entry_mode: LineItemEntryMode;
   manual_amount?: number;
   notes?: string;
   order_index: number;
   created_at: string;
+}
+
+/**
+ * Compute labor cost for a line item using the locked formula:
+ *   labor_cost = man_days × COALESCE(line.labor_sell_rate_per_day, estimate.labor_sell_rate_per_day)
+ *
+ * Returns 0 if neither rate is set.
+ */
+export function computeLaborCost(
+  lineItem: Pick<EstimateLineItem, "man_days" | "labor_sell_rate_per_day">,
+  estimateRate?: number | null,
+): number {
+  const rate = lineItem.labor_sell_rate_per_day ?? estimateRate ?? 0;
+  return (lineItem.man_days ?? 0) * rate;
+}
+
+/**
+ * Takeoff-level material line — child of an `estimate_section`. See migration
+ * 20260604_section_materials_takeoff. Sell amount = `qty × unit_cost × (1 +
+ * resolvedMarkup / 100)` where resolved markup falls back to the estimate's
+ * default for material or equipment depending on `is_equipment`.
+ */
+export interface EstimateSectionMaterial {
+  id: string;
+  section_id: string;
+  /** Optional catalog FK. Null = free-form entry. */
+  material_id?: string | null;
+  /** Snapshot from catalog or free-form. Always populated. */
+  description: string;
+  quantity: number;
+  unit?: string | null;
+  /** Snapshot — catalog price changes do not mutate this row. */
+  unit_cost: number;
+  /** Per-line markup % override. Null falls back to estimate default. */
+  markup_pct?: number | null;
+  /** true → equipment line (uses default_equipment_markup_pct). false → material. */
+  is_equipment: boolean;
+  notes?: string | null;
+  order_index: number;
+  created_at: string;
+  updated_at?: string;
+}
+
+/**
+ * Compute the sell amount for one takeoff material line:
+ *   sell = qty × unit_cost × (1 + COALESCE(line.markup_pct, estimate default for category) / 100)
+ */
+export function computeSectionMaterialSell(
+  line: Pick<EstimateSectionMaterial, "quantity" | "unit_cost" | "markup_pct" | "is_equipment">,
+  estimate: Pick<Estimate, "default_material_markup_pct" | "default_equipment_markup_pct">,
+): number {
+  const qty = Number(line.quantity ?? 0);
+  const rate = Number(line.unit_cost ?? 0);
+  const fallback = line.is_equipment
+    ? (estimate.default_equipment_markup_pct ?? 0)
+    : (estimate.default_material_markup_pct ?? 0);
+  const markup = line.markup_pct != null ? line.markup_pct : fallback;
+  return qty * rate * (1 + Number(markup) / 100);
+}
+
+export function computeSectionMaterialCost(
+  line: Pick<EstimateSectionMaterial, "quantity" | "unit_cost">,
+): number {
+  return Number(line.quantity ?? 0) * Number(line.unit_cost ?? 0);
+}
+
+/**
+ * Resolve the effective material markup % for a line item. Per-line override
+ * (`markup_pct`) beats the estimate's `default_material_markup_pct`.
+ *
+ * Note: the locked design uses a single `markup_pct` per line that applies to
+ * both the material and equipment portions. If you need divergent markups,
+ * split the line item.
+ */
+export function resolveMaterialMarkupPct(
+  lineItem: Pick<EstimateLineItem, "markup_pct">,
+  estimate: Pick<Estimate, "default_material_markup_pct">,
+): number {
+  if (lineItem.markup_pct != null) return lineItem.markup_pct;
+  return estimate.default_material_markup_pct ?? 0;
+}
+
+export function resolveEquipmentMarkupPct(
+  lineItem: Pick<EstimateLineItem, "markup_pct">,
+  estimate: Pick<Estimate, "default_equipment_markup_pct">,
+): number {
+  if (lineItem.markup_pct != null) return lineItem.markup_pct;
+  return estimate.default_equipment_markup_pct ?? 0;
+}
+
+/**
+ * Compute the client-facing sell amount for a single line item:
+ *
+ *   sell = labor_cost                          (labor uses sell-rate, no markup)
+ *        + material_cost  × (1 + material_markup / 100)
+ *        + equipment_cost × (1 + equipment_markup / 100)
+ *
+ * The line item carries composite labor/material/equipment costs (no category
+ * column — see EstimateLineItem comment). Markup is applied per-category using
+ * the estimate defaults unless the line overrides via `markup_pct`.
+ */
+export function computeSellAmount(
+  lineItem: Pick<EstimateLineItem, "labor_cost" | "material_cost" | "equipment_cost" | "markup_pct">,
+  estimate: Pick<Estimate, "default_material_markup_pct" | "default_equipment_markup_pct">,
+): number {
+  const labor = lineItem.labor_cost ?? 0;
+  const material = lineItem.material_cost ?? 0;
+  const equipment = lineItem.equipment_cost ?? 0;
+  const matMarkup = resolveMaterialMarkupPct(lineItem, estimate);
+  const eqMarkup = resolveEquipmentMarkupPct(lineItem, estimate);
+  return labor + material * (1 + matMarkup / 100) + equipment * (1 + eqMarkup / 100);
 }
 
 export interface EstimateFormData {
