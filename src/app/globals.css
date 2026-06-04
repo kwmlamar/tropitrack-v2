@@ -32,6 +32,8 @@
     --bedrock-red: 0 72% 51%;
     --bedrock-surface: 0 0% 100%;
     --bedrock-line: 214 32% 91%;
+    --heatmap-color-low: #78350f;
+    --heatmap-color-high: #18191b;
   }
 
   .dark {
@@ -62,6 +64,8 @@
     --bedrock-red: 0 72% 51%;
     --bedrock-surface: 220 4% 13%;
     --bedrock-line: 220 4% 18%;
+    --heatmap-color-low: #ededed;
+    --heatmap-color-high: #18191b;
   }
 }
 

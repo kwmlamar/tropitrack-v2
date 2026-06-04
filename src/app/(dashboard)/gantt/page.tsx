@@ -82,11 +82,11 @@ const LABEL_W = 390; // px for left label column
 
 // Amber heatmap intensities for worker counts 1..9+
 function heatmapStyle(count: number): { background: string; color: string } {
-  if (!count || count <= 0) return { background: "transparent", color: "#3a3d42" };
+  if (!count || count <= 0) return { background: "transparent", color: "var(--muted-foreground)" };
   const alpha = Math.min(0.10 + count * 0.10, 0.85);
   return {
     background: `rgba(245, 166, 35, ${alpha})`,
-    color: count >= 5 ? "#18191b" : "#ededed",
+    color: count >= 5 ? "var(--heatmap-color-high)" : "var(--heatmap-color-low)",
   };
 }
 
@@ -306,24 +306,28 @@ function PhaseBar({
         }
       >
         {/* Planned bar (background) */}
-        <div className="absolute inset-0 rounded bg-[#2d3035] border border-[#3a3d42]" />
+        <div className="absolute inset-0 rounded bg-zinc-200/60 dark:bg-zinc-800/70 border border-zinc-300/40 dark:border-zinc-700/40" />
         {/* Actual progress fill */}
         <div
-          className="absolute inset-y-0 left-0 rounded transition-[width] duration-300"
-          style={{
-            width: `${phase.progress}%`,
-            background: phase.progress === 100
-              ? "rgba(34,197,94,0.25)"
-              : "rgba(245,166,35,0.2)",
-            borderRight: phase.progress > 0 && phase.progress < 100
-              ? "1px solid rgba(245,166,35,0.5)"
-              : undefined,
-          }}
+          className={cn(
+            "absolute inset-y-0 left-0 rounded transition-[width] duration-300",
+            phase.progress === 100
+              ? "bg-emerald-500/20 dark:bg-emerald-500/25"
+              : "bg-amber-500/20 dark:bg-amber-500/25 border-r border-amber-500/40 dark:border-amber-500/50"
+          )}
+          style={{ width: `${phase.progress}%` }}
         />
         {/* Label */}
         {width > 60 && (
           <div className="absolute inset-0 flex items-center px-2 pointer-events-none">
-            <span className="text-[11px] font-mono text-[#888] truncate">
+            <span className={cn(
+              "text-[11px] font-mono font-medium truncate",
+              phase.progress === 100
+                ? "text-emerald-800 dark:text-emerald-200"
+                : phase.progress > 0
+                ? "text-amber-800 dark:text-amber-200"
+                : "text-zinc-500 dark:text-zinc-400"
+            )}>
               {phase.progress > 0 ? `${phase.progress}%` : "—"}
               {crewSummary?.hasData
                 ? ` · ${crewSummary.peak} peak · ${crewSummary.distinctDays} ${crewSummary.distinctDays === 1 ? "day" : "days"}`
@@ -363,7 +367,7 @@ function PhaseBar({
             transform: "translateX(-50%)",
           }}
         >
-          <div className="text-[10px] font-mono text-[#888] uppercase tracking-wider mb-0.5">
+          <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-0.5">
             {drag.mode === "move" ? "Reschedule" : drag.mode === "resize-start" ? "Start" : "End"}
           </div>
           <div className="text-[12px] font-mono text-[#F5A623] whitespace-nowrap">
@@ -939,8 +943,8 @@ export default function GanttPage() {
                       <div
                         key={i}
                         className={cn(
-                          "flex items-center justify-center border-r border-[#23252a]",
-                          isToday ? "bg-[#F5A623]/10" : isWeekend ? "bg-[#0e0e0e]" : ""
+                          "flex-shrink-0 flex items-center justify-center text-[9px] font-mono border-r border-[#2b2e33]/50",
+                          isToday ? "bg-[#F5A623]/10" : isWeekend ? "bg-[#161718]" : ""
                         )}
                         style={{ width: COL_W }}
                       >
@@ -1034,9 +1038,9 @@ export default function GanttPage() {
                             <div
                               key={i}
                               className={cn(
-                                "absolute inset-y-0",
-                                isToday ? "bg-[#F5A623]/5 border-l border-[#F5A623]/20" : "bg-[#1b1c1e]"
-                              )}
+                              "absolute inset-y-0 border-r border-[#1f2125]/30",
+                              isToday ? "bg-[#F5A623]/5 border-l border-[#F5A623]/20" : "bg-[#161718]"
+                            )}
                               style={{ left: i * COL_W, width: COL_W }}
                             />
                           ) : null;
