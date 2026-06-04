@@ -414,8 +414,8 @@ export default function EstimateBuilderEditorPage() {
                 return (
                   <Fragment key={sec.id}>
                     {/* Section header */}
-                    <tr className="bg-muted/40">
-                      <td className="sticky left-0 z-10 bg-muted/40 px-3 py-2 border-b border-r border-border">
+                    <tr className="bg-muted">
+                      <td className="sticky left-0 z-10 bg-muted px-3 py-2 border-b border-r border-border">
                         <div className="flex items-center gap-2">
                           <EditableTextCell
                             value={sec.name}
@@ -488,7 +488,7 @@ export default function EstimateBuilderEditorPage() {
 
             {(itemsBySection["_loose"]?.length ?? 0) > 0 && (
               <Fragment>
-                <tr className="bg-muted/40">
+                <tr className="bg-muted">
                   <td colSpan={5 + days.length} className="px-3 py-2 text-[12px] italic text-muted-foreground border-b border-border">
                     Unsectioned line items
                   </td>
@@ -566,7 +566,7 @@ function TaskRow({ item, days, laborRate, editable, onUpdate, onDelete }: TaskRo
   return (
     <tr className="group">
       {/* Description */}
-      <td className="sticky left-0 z-10 bg-card group-hover:bg-accent/40 transition-colors px-3 py-2 border-b border-r border-border pl-6">
+      <td className="sticky left-0 z-10 bg-card group-hover:bg-accent transition-colors px-3 py-2 border-b border-r border-border pl-6">
         <div className="flex items-center gap-2">
           <EditableTextCell
             value={item.description ?? ""}
@@ -588,7 +588,7 @@ function TaskRow({ item, days, laborRate, editable, onUpdate, onDelete }: TaskRo
       </td>
 
       {/* Crew */}
-      <td className="px-2 py-1 text-right border-b border-border bg-card group-hover:bg-accent/40 transition-colors">
+      <td className="px-2 py-1 text-right border-b border-border bg-card group-hover:bg-accent transition-colors">
         <EditableNumberCell
           value={item.crew_days ?? null}
           onCommit={(v) => onUpdate({ crew_days: v ?? null })}
@@ -599,7 +599,7 @@ function TaskRow({ item, days, laborRate, editable, onUpdate, onDelete }: TaskRo
       </td>
 
       {/* Man-days */}
-      <td className="px-2 py-1 text-right border-b border-border bg-card group-hover:bg-accent/40 transition-colors">
+      <td className="px-2 py-1 text-right border-b border-border bg-card group-hover:bg-accent transition-colors">
         <EditableNumberCell
           value={item.man_days ?? null}
           onCommit={(v) => onManDaysChange(v)}
@@ -610,7 +610,7 @@ function TaskRow({ item, days, laborRate, editable, onUpdate, onDelete }: TaskRo
       </td>
 
       {/* Labor $ */}
-      <td className="px-2 py-1 text-right border-b border-r border-border bg-card group-hover:bg-accent/40 transition-colors">
+      <td className="px-2 py-1 text-right border-b border-r border-border bg-card group-hover:bg-accent transition-colors">
         <EditableNumberCell
           value={laborDisplay > 0 ? laborDisplay : null}
           onCommit={(v) => onUpdate({ labor_cost: v ?? 0 })}

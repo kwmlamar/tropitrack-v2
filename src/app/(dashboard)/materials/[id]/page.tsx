@@ -12,105 +12,62 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, cn } from "@/lib/utils";
 import {
   ArrowLeft,
   Package,
-  TrendingUp,
-  TrendingDown,
   DollarSign,
-  Calendar,
   Truck,
-  BarChart3,
-  History,
   Loader2,
   AlertTriangle,
-  Minus,
+  Layers,
+  Info,
 } from "lucide-react";
-import type { Material, MaterialPriceHistory, Vendor } from "@/types";
 
-interface ExtendedMaterial extends Material {
-  vendor?: Vendor;
-}
-
-interface PriceHistoryWithVendor extends MaterialPriceHistory {
-  vendors?: { name: string };
-  purchase_orders?: { po_number: string };
+interface CatalogMaterial {
+  id: string;
+  division_code: string;
+  division_name: string;
+  category: string;
+  name: string;
+  unit: string;
+  unit_cost: number;
+  supplier?: string | null;
+  notes?: string | null;
+  updated_at?: string;
+  created_at?: string;
 }
 
 export default function MaterialDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { profile } = useAuth();
-  const [material, setMaterial] = useState<ExtendedMaterial | null>(null);
-  const [priceHistory, setPriceHistory] = useState<PriceHistoryWithVendor[]>([]);
+  const [material, setMaterial] = useState<CatalogMaterial | null>(null);
   const [loading, setLoading] = useState(true);
-  const [priceTrend, setPriceTrend] = useState<number>(0);
   const supabase = createClient();
 
   useEffect(() => {
-    if (profile?.company_id && params.id) {
+    if (params.id) {
       fetchMaterialData();
     }
-  }, [profile?.company_id, params.id]);
+  }, [params.id]);
 
   const fetchMaterialData = async () => {
-    if (!profile?.company_id || !params.id) return;
+    if (!params.id) return;
 
     setLoading(true);
     try {
-      // Fetch material with vendor info
-      const { data: materialData, error: materialError } = await supabase
+      const { data, error } = await supabase
         .from("materials")
-        .select("*, vendor:vendors(*)")
+        .select("*")
         .eq("id", params.id)
-        .eq("company_id", profile.company_id)
         .single();
 
-      if (materialError) throw materialError;
-      setMaterial(materialData as ExtendedMaterial);
-
-      // Fetch price history
-      const { data: historyData } = await supabase
-        .from("material_price_history")
-        .select("*, vendors(name), purchase_orders(po_number)")
-        .eq("material_id", params.id)
-        .eq("company_id", profile.company_id)
-        .order("purchase_date", { ascending: false })
-        .limit(50);
-
-      setPriceHistory((historyData as PriceHistoryWithVendor[]) || []);
-
-      // Calculate price trend (compare latest vs 30 days ago)
-      if (historyData && historyData.length >= 2) {
-        const latestPrice = historyData[0].unit_price;
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-        const olderPrices = historyData.filter(
-          (h: PriceHistoryWithVendor) => new Date(h.purchase_date) <= thirtyDaysAgo
-        );
-        const oldPrice = olderPrices.length > 0
-          ? olderPrices[0].unit_price
-          : historyData[historyData.length - 1].unit_price;
-
-        if (oldPrice > 0) {
-          const trend = ((latestPrice - oldPrice) / oldPrice) * 100;
-          setPriceTrend(Math.round(trend * 10) / 10);
-        }
-      }
+      if (error) throw error;
+      setMaterial(data as CatalogMaterial);
     } catch (error) {
       console.error("Error fetching material data:", error);
     } finally {
@@ -118,7 +75,8 @@ export default function MaterialDetailPage() {
     }
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return "—";
     return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
@@ -127,29 +85,18 @@ export default function MaterialDetailPage() {
   };
 
   const getCategoryBadgeColor = (category: string) => {
-    const colors: Record<string, string> = {
-      lumber: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
-      concrete: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
-      steel: "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200",
-      electrical: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-      plumbing: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-      roofing: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-      finishing: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-      hardware: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
-      tools: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200",
-      safety: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-      other: "bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200",
-    };
-    return colors[category] || colors.other;
+    // Return a default slate badge color since catalog categories are highly dynamic
+    return "bg-slate-100 text-slate-800 dark:bg-slate-900 dark:text-slate-200 border border-slate-200 dark:border-slate-800";
   };
 
   if (loading) {
     return (
-      <div className="flex flex-col min-h-screen">
+      <div className="flex flex-col min-h-screen bg-[#18191b] text-[#d0d0d0]">
         <Header title="Material Details" />
-        <main className="flex-1 container py-6">
-          <div className="flex items-center justify-center h-64">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <main className="flex-1 container py-6 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-2">
+            <Loader2 className="h-8 w-8 animate-spin text-[#F5A623]" />
+            <p className="text-[12px] text-[#666] font-mono">Loading details...</p>
           </div>
         </main>
       </div>
@@ -158,16 +105,16 @@ export default function MaterialDetailPage() {
 
   if (!material) {
     return (
-      <div className="flex flex-col min-h-screen">
+      <div className="flex flex-col min-h-screen bg-[#18191b] text-[#d0d0d0]">
         <Header title="Material Not Found" />
         <main className="flex-1 container py-6">
           <div className="flex flex-col items-center justify-center h-64 text-center">
-            <AlertTriangle className="h-12 w-12 text-muted-foreground mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Material Not Found</h2>
-            <p className="text-muted-foreground mb-4">
+            <AlertTriangle className="h-12 w-12 text-[#EF4444] mb-4" />
+            <h2 className="text-lg font-semibold mb-2">Material Not Found</h2>
+            <p className="text-muted-foreground text-sm mb-4">
               The material you're looking for doesn't exist or you don't have access to it.
             </p>
-            <Button onClick={() => router.push("/materials")}>
+            <Button onClick={() => router.push("/materials")} className="bg-[#202224] border border-[#34373c] hover:bg-[#292c31] text-[#aaa]">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Materials
             </Button>
@@ -177,404 +124,150 @@ export default function MaterialDetailPage() {
     );
   }
 
-  const isLowStock = material.quantity_in_stock < material.minimum_stock_level;
-
   return (
-    <div className="flex flex-col min-h-screen">
-      <Header title={material.name} description="Material details and price history" />
-      <main className="flex-1 container py-6 space-y-6">
+    <div className="flex flex-col min-h-screen bg-[#18191b] text-[#d0d0d0]">
+      <Header title={material.name} description="Global reference catalog details" />
+      <main className="flex-1 container py-6 space-y-6 max-w-4xl">
         {/* Back Button */}
         <Button
           variant="ghost"
           size="sm"
           onClick={() => router.push("/materials")}
+          className="text-[#888] hover:text-[#bbb] hover:bg-[#202224]"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Materials
         </Button>
 
-        {/* Header */}
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <Package className="h-8 w-8 text-muted-foreground" />
-              <h1 className="text-2xl font-bold">{material.name}</h1>
-            </div>
+        {/* Header section */}
+        <div className="flex items-start justify-between bg-[#1e2022] border border-[#34373c] rounded-lg p-5">
+          <div className="space-y-1.5">
             <div className="flex items-center gap-3">
-              {material.sku && (
-                <span className="text-muted-foreground font-mono text-sm">
-                  SKU: {material.sku}
-                </span>
-              )}
-              {material.vendor_product_code && (
-                <span className="text-muted-foreground font-mono text-sm">
-                  Vendor Code: {material.vendor_product_code}
-                </span>
-              )}
+              <Package className="h-7 w-7 text-[#F5A623]" />
+              <h1 className="text-xl font-bold text-white">{material.name}</h1>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded text-white text-[10px] font-mono font-semibold bg-[#2d3035]">
+                Div {material.division_code}
+              </span>
+              <span className="text-[12px] text-[#666] font-mono">{material.division_name}</span>
             </div>
           </div>
-          <Badge className={getCategoryBadgeColor(material.category)}>
-            {material.category.charAt(0).toUpperCase() + material.category.slice(1)}
+          <Badge className={cn("text-[11px] font-mono capitalize", getCategoryBadgeColor(material.category))}>
+            {material.category}
           </Badge>
         </div>
 
-        {/* Price Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
+        {/* Cost / supplier cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card className="bg-[#202224] border-[#34373c]">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Last Purchase</p>
-                  <p className="text-2xl font-bold">
-                    {formatCurrency(material.last_purchase_price || material.unit_cost)}
+                  <p className="text-[10px] font-mono text-[#666] uppercase tracking-wider">Unit Cost</p>
+                  <p className="text-2xl font-bold font-mono text-[#F5A623] mt-1">
+                    {formatCurrency(material.unit_cost)}
                   </p>
-                  {material.last_purchase_date && (
-                    <p className="text-xs text-muted-foreground">
-                      {formatDate(material.last_purchase_date)}
-                    </p>
-                  )}
+                  <p className="text-[11px] text-[#666] mt-0.5">per {material.unit}</p>
                 </div>
-                <DollarSign className="h-8 w-8 text-muted-foreground" />
+                <DollarSign className="h-8 w-8 text-[#444]" />
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-[#202224] border-[#34373c]">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Average Price</p>
-                  <p className="text-2xl font-bold">
-                    {formatCurrency(material.average_price || material.unit_cost)}
+                  <p className="text-[10px] font-mono text-[#666] uppercase tracking-wider">Supplier</p>
+                  <p className="text-lg font-bold text-[#d0d0d0] truncate mt-1.5 max-w-[180px]">
+                    {material.supplier || "Not assigned"}
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    {priceHistory.length} purchases
-                  </p>
+                  <p className="text-[11px] text-[#666] mt-1">Reference source</p>
                 </div>
-                <BarChart3 className="h-8 w-8 text-muted-foreground" />
+                <Truck className="h-8 w-8 text-[#444]" />
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-[#202224] border-[#34373c]">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Price Trend</p>
-                  <p
-                    className={`text-2xl font-bold flex items-center gap-1 ${
-                      priceTrend > 0
-                        ? "text-red-600"
-                        : priceTrend < 0
-                        ? "text-green-600"
-                        : "text-muted-foreground"
-                    }`}
-                  >
-                    {priceTrend > 0 ? (
-                      <TrendingUp className="h-6 w-6" />
-                    ) : priceTrend < 0 ? (
-                      <TrendingDown className="h-6 w-6" />
-                    ) : (
-                      <Minus className="h-6 w-6" />
-                    )}
-                    {priceTrend > 0 ? "+" : ""}
-                    {priceTrend}%
+                  <p className="text-[10px] font-mono text-[#666] uppercase tracking-wider">Classification</p>
+                  <p className="text-lg font-bold text-[#d0d0d0] truncate mt-1.5 max-w-[180px]">
+                    {material.category}
                   </p>
-                  <p className="text-xs text-muted-foreground">vs last month</p>
+                  <p className="text-[11px] text-[#666] mt-1">CSI Category</p>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className={isLowStock ? "border-orange-500" : ""}>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">In Stock</p>
-                  <p
-                    className={`text-2xl font-bold ${
-                      isLowStock ? "text-orange-600" : ""
-                    }`}
-                  >
-                    {material.quantity_in_stock} {material.unit}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Min: {material.minimum_stock_level} {material.unit}
-                  </p>
-                </div>
-                {isLowStock ? (
-                  <AlertTriangle className="h-8 w-8 text-orange-500" />
-                ) : (
-                  <Package className="h-8 w-8 text-muted-foreground" />
-                )}
+                <Layers className="h-8 w-8 text-[#444]" />
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Details and History Tabs */}
-        <Tabs defaultValue="history" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="history">
-              <History className="h-4 w-4 mr-2" />
-              Price History
-            </TabsTrigger>
-            <TabsTrigger value="details">
-              <Package className="h-4 w-4 mr-2" />
-              Details
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="history">
-            <Card>
-              <CardHeader>
-                <CardTitle>Price History</CardTitle>
-                <CardDescription>
-                  Track price changes over time from all purchase orders
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {priceHistory.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <History className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No price history available yet.</p>
-                    <p className="text-sm">
-                      Prices will be tracked when you create purchase orders from receipts.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-                    {/* Price Trend Chart */}
-                    {priceHistory.length >= 2 && (
-                      <div className="border rounded-lg p-4">
-                        <h4 className="text-sm font-medium mb-4 flex items-center gap-2">
-                          <BarChart3 className="h-4 w-4" />
-                          Price Trend (Last {Math.min(priceHistory.length, 10)} Purchases)
-                        </h4>
-                        <div className="flex items-end gap-1 h-32">
-                          {(() => {
-                            const recentHistory = [...priceHistory].slice(0, 10).reverse();
-                            const maxPrice = Math.max(...recentHistory.map((h) => h.unit_price));
-                            const minPrice = Math.min(...recentHistory.map((h) => h.unit_price));
-                            const range = maxPrice - minPrice || 1;
-
-                            return recentHistory.map((entry, idx) => {
-                              const heightPercent = ((entry.unit_price - minPrice) / range) * 70 + 30;
-                              const isLatest = idx === recentHistory.length - 1;
-                              const prevPrice = idx > 0 ? recentHistory[idx - 1].unit_price : null;
-                              const isUp = prevPrice !== null && entry.unit_price > prevPrice;
-                              const isDown = prevPrice !== null && entry.unit_price < prevPrice;
-
-                              return (
-                                <div
-                                  key={entry.id}
-                                  className="flex-1 flex flex-col items-center gap-1"
-                                >
-                                  <span className="text-[10px] text-muted-foreground">
-                                    ${entry.unit_price.toFixed(2)}
-                                  </span>
-                                  <div
-                                    className={`w-full rounded-t transition-all ${
-                                      isLatest
-                                        ? "bg-primary"
-                                        : isUp
-                                        ? "bg-red-400 dark:bg-red-600"
-                                        : isDown
-                                        ? "bg-green-400 dark:bg-green-600"
-                                        : "bg-muted-foreground/30"
-                                    }`}
-                                    style={{ height: `${heightPercent}%` }}
-                                    title={`${formatDate(entry.purchase_date)}: ${formatCurrency(entry.unit_price)}`}
-                                  />
-                                  <span className="text-[9px] text-muted-foreground rotate-45 origin-left whitespace-nowrap">
-                                    {new Date(entry.purchase_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                                  </span>
-                                </div>
-                              );
-                            });
-                          })()}
-                        </div>
-                        <div className="flex justify-between text-xs text-muted-foreground mt-2 pt-2 border-t">
-                          <span>Low: {formatCurrency(Math.min(...priceHistory.slice(0, 10).map((h) => h.unit_price)))}</span>
-                          <span>Avg: {formatCurrency(priceHistory.slice(0, 10).reduce((sum, h) => sum + h.unit_price, 0) / Math.min(priceHistory.length, 10))}</span>
-                          <span>High: {formatCurrency(Math.max(...priceHistory.slice(0, 10).map((h) => h.unit_price)))}</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Price History Table */}
-                    <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Vendor</TableHead>
-                          <TableHead className="text-right">Quantity</TableHead>
-                          <TableHead className="text-right">Unit Price</TableHead>
-                          <TableHead className="text-right">Change</TableHead>
-                          <TableHead>PO #</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {priceHistory.map((entry, index) => {
-                          const previousPrice =
-                            index < priceHistory.length - 1
-                              ? priceHistory[index + 1].unit_price
-                              : null;
-                          const priceChange =
-                            previousPrice !== null
-                              ? ((entry.unit_price - previousPrice) / previousPrice) * 100
-                              : null;
-
-                          return (
-                            <TableRow key={entry.id}>
-                              <TableCell className="font-medium">
-                                {formatDate(entry.purchase_date)}
-                              </TableCell>
-                              <TableCell>
-                                {entry.vendors?.name || "Unknown"}
-                              </TableCell>
-                              <TableCell className="text-right font-mono">
-                                {entry.quantity}
-                              </TableCell>
-                              <TableCell className="text-right font-mono">
-                                {formatCurrency(entry.unit_price)}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                {priceChange !== null ? (
-                                  <span
-                                    className={`flex items-center justify-end gap-1 ${
-                                      priceChange > 0
-                                        ? "text-red-600"
-                                        : priceChange < 0
-                                        ? "text-green-600"
-                                        : "text-muted-foreground"
-                                    }`}
-                                  >
-                                    {priceChange > 0 ? (
-                                      <TrendingUp className="h-3 w-3" />
-                                    ) : priceChange < 0 ? (
-                                      <TrendingDown className="h-3 w-3" />
-                                    ) : (
-                                      <Minus className="h-3 w-3" />
-                                    )}
-                                    {priceChange > 0 ? "+" : ""}
-                                    {Math.round(priceChange * 10) / 10}%
-                                  </span>
-                                ) : (
-                                  <span className="text-muted-foreground">-</span>
-                                )}
-                              </TableCell>
-                              <TableCell className="font-mono text-xs">
-                                {entry.purchase_orders?.po_number || "-"}
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="details">
-            <Card>
-              <CardHeader>
-                <CardTitle>Material Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Description</p>
-                      <p className="font-medium">
-                        {material.description || "No description"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Category</p>
-                      <p className="font-medium capitalize">{material.category}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Unit of Measure</p>
-                      <p className="font-medium">{material.unit}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Current Unit Cost</p>
-                      <p className="font-medium">{formatCurrency(material.unit_cost)}</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Supplier</p>
-                      <p className="font-medium">
-                        {material.vendor?.name || "Not assigned"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">SKU</p>
-                      <p className="font-medium font-mono">
-                        {material.sku || "None"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Vendor Product Code</p>
-                      <p className="font-medium font-mono">
-                        {material.vendor_product_code || "None"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Inventory Value</p>
-                      <p className="font-medium">
-                        {formatCurrency(material.quantity_in_stock * material.unit_cost)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <Separator />
-
+        {/* Details Card */}
+        <Card className="bg-[#202224] border-[#34373c]">
+          <CardHeader className="border-b border-[#34373c]/50">
+            <CardTitle className="text-white text-base">Material Specifications</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6 pt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-[13px]">
+              <div className="space-y-4">
                 <div>
-                  <p className="text-sm text-muted-foreground mb-2">Stock Levels</p>
-                  <div className="flex items-center gap-4">
-                    <div className="flex-1">
-                      <div className="flex justify-between text-sm mb-1">
-                        <span>Current Stock</span>
-                        <span className={isLowStock ? "text-orange-600" : ""}>
-                          {material.quantity_in_stock} / {material.minimum_stock_level} min
-                        </span>
-                      </div>
-                      <div className="h-2 bg-muted rounded-full overflow-hidden">
-                        <div
-                          className={`h-full transition-all ${
-                            isLowStock ? "bg-orange-500" : "bg-primary"
-                          }`}
-                          style={{
-                            width: `${Math.min(
-                              (material.quantity_in_stock /
-                                Math.max(material.minimum_stock_level * 2, material.quantity_in_stock)) *
-                                100,
-                              100
-                            )}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </div>
+                  <p className="text-[11px] font-mono text-[#666] uppercase tracking-wider mb-0.5">Description</p>
+                  <p className="font-medium text-[#c4c4c4]">{material.name}</p>
                 </div>
+                <div>
+                  <p className="text-[11px] font-mono text-[#666] uppercase tracking-wider mb-0.5">CSI Division</p>
+                  <p className="font-medium text-[#c4c4c4]">
+                    {material.division_code} — {material.division_name}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[11px] font-mono text-[#666] uppercase tracking-wider mb-0.5">Category</p>
+                  <p className="font-medium text-[#c4c4c4] capitalize">{material.category}</p>
+                </div>
+              </div>
 
-                <div className="text-xs text-muted-foreground">
-                  <p>Created: {formatDate(material.created_at)}</p>
-                  <p>Last Updated: {formatDate(material.updated_at)}</p>
+              <div className="space-y-4">
+                <div>
+                  <p className="text-[11px] font-mono text-[#666] uppercase tracking-wider mb-0.5">Unit of Measure</p>
+                  <p className="font-medium text-[#c4c4c4]">{material.unit}</p>
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+                <div>
+                  <p className="text-[11px] font-mono text-[#666] uppercase tracking-wider mb-0.5">Supplier / Vendor</p>
+                  <p className="font-medium text-[#c4c4c4]">{material.supplier || "None listed"}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] font-mono text-[#666] uppercase tracking-wider mb-0.5">Catalog ID</p>
+                  <p className="font-mono text-[12px] text-[#666]">{material.id}</p>
+                </div>
+              </div>
+            </div>
+
+            {material.notes && (
+              <>
+                <Separator className="bg-[#34373c]/50" />
+                <div>
+                  <p className="text-[11px] font-mono text-[#666] uppercase tracking-wider mb-1 flex items-center gap-1">
+                    <Info className="h-3.5 w-3.5" /> Additional Notes
+                  </p>
+                  <p className="text-[13px] text-[#aaa] italic leading-relaxed whitespace-pre-wrap bg-[#1a1b1d] border border-[#34373c]/30 rounded p-3">
+                    {material.notes}
+                  </p>
+                </div>
+              </>
+            )}
+
+            <Separator className="bg-[#34373c]/50" />
+
+            <div className="text-[11px] text-[#555] font-mono flex justify-between">
+              <span>Created: {formatDate(material.created_at)}</span>
+              <span>Last Price Update: {formatDate(material.updated_at)}</span>
+            </div>
+          </CardContent>
+        </Card>
       </main>
     </div>
   );

@@ -998,8 +998,8 @@ function SummaryView({ estimate, sections, lineItems, sectionMaterials, onResche
                       const computedLabor = computeLaborCost(item, estimateLaborRate);
                       const laborDisplay = (item.labor_cost ?? 0) > 0 ? item.labor_cost! : computedLabor;
                       return (
-                        <tr key={item.id} className="hover:bg-[#23252a] transition-colors">
-                          <td className="sticky left-0 z-10 bg-[#202224] px-4 py-3 pl-8 text-[13px] text-[#888]">
+                        <tr key={item.id} className="group hover:bg-[#23252a] transition-colors">
+                          <td className="sticky left-0 z-10 bg-[#202224] group-hover:bg-[#23252a] transition-colors px-4 py-3 pl-8 text-[13px] text-[#888]">
                             {item.description || "(untitled)"}
                           </td>
                           <td className="px-3 py-3 text-right text-[12px] font-mono text-[#aaa] tabular-nums">
@@ -1060,8 +1060,8 @@ function SummaryView({ estimate, sections, lineItems, sectionMaterials, onResche
                   const computedLabor = computeLaborCost(item, estimateLaborRate);
                   const laborDisplay = (item.labor_cost ?? 0) > 0 ? item.labor_cost! : computedLabor;
                   return (
-                    <tr key={item.id} className="hover:bg-[#23252a] transition-colors">
-                      <td className="sticky left-0 z-10 bg-[#202224] px-4 py-3 pl-8 text-[13px] text-[#888]">
+                    <tr key={item.id} className="group hover:bg-[#23252a] transition-colors">
+                      <td className="sticky left-0 z-10 bg-[#202224] group-hover:bg-[#23252a] transition-colors px-4 py-3 pl-8 text-[13px] text-[#888]">
                         {item.description || "(untitled)"}
                       </td>
                       <td className="px-3 py-3 text-right text-[12px] font-mono text-[#aaa] tabular-nums">

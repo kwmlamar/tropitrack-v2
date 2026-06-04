@@ -112,6 +112,18 @@ export default function MaterialsCalcPage() {
     finally { setSavingCount((n) => Math.max(0, n - 1)); }
   };
 
+  const updateEstimate = async (patch: Partial<Estimate>) => {
+    if (!estimate) return;
+    const prev = estimate;
+    setEstimate({ ...prev, ...patch });
+    const ok = await trackSave(async () => {
+      const { error } = await supabase.from("estimates").update(patch).eq("id", estimateId);
+      if (error) throw error;
+      return true;
+    });
+    if (!ok) setEstimate(prev);
+  };
+
   const updateLine = async (id: string, patch: Partial<EstimateSectionMaterial>) => {
     const prev = lines;
     setLines((ls) => ls.map((l) => (l.id === id ? { ...l, ...patch } : l)));
@@ -226,15 +238,29 @@ export default function MaterialsCalcPage() {
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-mono text-muted-foreground/70 uppercase tracking-widest">Material markup</span>
-              <span className="text-[13px] font-mono text-foreground tabular-nums">
-                {estimate.default_material_markup_pct ?? 0}%
-              </span>
+              <div className="w-[70px]">
+                <EditableNumber
+                  value={estimate.default_material_markup_pct ?? null}
+                  onCommit={(v) => updateEstimate({ default_material_markup_pct: v ?? 0 })}
+                  disabled={!isEditable}
+                  className="text-[13px] font-mono text-foreground tabular-nums w-full text-right py-0.5 px-1 bg-muted/40 rounded"
+                  placeholder="0"
+                  suffix="%"
+                />
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-mono text-muted-foreground/70 uppercase tracking-widest">Equip. markup</span>
-              <span className="text-[13px] font-mono text-foreground tabular-nums">
-                {estimate.default_equipment_markup_pct ?? 0}%
-              </span>
+              <div className="w-[70px]">
+                <EditableNumber
+                  value={estimate.default_equipment_markup_pct ?? null}
+                  onCommit={(v) => updateEstimate({ default_equipment_markup_pct: v ?? 0 })}
+                  disabled={!isEditable}
+                  className="text-[13px] font-mono text-foreground tabular-nums w-full text-right py-0.5 px-1 bg-muted/40 rounded"
+                  placeholder="0"
+                  suffix="%"
+                />
+              </div>
             </div>
           </div>
           <span className="text-[11px] font-mono text-muted-foreground/70">
