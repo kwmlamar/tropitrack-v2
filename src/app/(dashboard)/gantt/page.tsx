@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { cn } from "@/lib/utils";
@@ -8,9 +8,13 @@ import {
   Plus,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronRight as ChevronRightSmall,
   GanttChartSquare,
   Pencil,
   X,
+  DollarSign,
+  Trash2,
 } from "lucide-react";
 import { addDays, addWeeks, subWeeks, format, startOfWeek, differenceInDays, parseISO, isValid } from "date-fns";
 import { PhasePanel } from "@/components/gantt/PhasePanel";
@@ -47,12 +51,57 @@ interface EditingPhase {
   crew_size: string;
 }
 
+interface LaborRole {
+  id: string;
+  name: string;
+  daily_rate: number;
+}
+
+type DailyWorkers = Record<string, number>; // { "YYYY-MM-DD": workerCount }
+
+interface LineItem {
+  id: string;
+  section_id: string;
+  estimate_id: string;
+  description: string;
+  role_id: string | null;
+  daily_workers: DailyWorkers;
+  labor_cost: number;
+  material_cost: number;
+  equipment_cost: number;
+  order_index: number;
+  show_to_client: boolean;
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const WEEKS_VISIBLE = 12;
-const COL_W = 40; // px per day column
-const ROW_H = 36; // px per row
-const LABEL_W = 220; // px for left label column
+const COL_W = 40;  // px per day column
+const ROW_H = 36;  // px per phase row
+const TASK_H = 40; // px per task row
+const HEAD_H = 22; // px column-header row inside expanded phase
+const LABEL_W = 360; // px for left label column
+
+// Amber heatmap intensities for worker counts 1..9+
+function heatmapStyle(count: number): { background: string; color: string } {
+  if (!count || count <= 0) return { background: "transparent", color: "#3a3d42" };
+  const alpha = Math.min(0.10 + count * 0.10, 0.85);
+  return {
+    background: `rgba(245, 166, 35, ${alpha})`,
+    color: count >= 5 ? "#18191b" : "#ededed",
+  };
+}
+
+// Sum the daily worker counts → ManDays
+function sumDailyWorkers(daily: DailyWorkers | null | undefined): number {
+  if (!daily) return 0;
+  return Object.values(daily).reduce((s, n) => s + (Number(n) || 0), 0);
+}
+
+function computeLaborCost(role: LaborRole | undefined, daily: DailyWorkers): number {
+  if (!role) return 0;
+  return role.daily_rate * sumDailyWorkers(daily);
+}
 
 const STATUS_COLOR: Record<string, string> = {
   active:    "#22C55E",
@@ -461,6 +510,10 @@ export default function GanttPage() {
   const [phases, setPhases] = useState<Phase[]>([]);
   const [activeProject, setActiveProject] = useState<string | null>(null);
   const [activeEstimateId, setActiveEstimateId] = useState<string | null>(null);
+  const [laborRoles, setLaborRoles] = useState<LaborRole[]>([]);
+  const [ratesOpen, setRatesOpen] = useState(false);
+  const [tasksByPhase, setTasksByPhase] = useState<Record<string, LineItem[]>>({});
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [viewStart, setViewStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<EditingPhase | null>(null);
@@ -491,36 +544,157 @@ export default function GanttPage() {
     setLoading(false);
   }
 
-  // Resolve the project's estimate (single-source), then load its sections as phases
+  // Resolve the project's estimate (single-source), then load its sections + line items
   async function loadEstimateAndPhases(projectId: string) {
     const { data: est, error: estErr } = await supabase
       .from("estimates")
-      .select("id")
+      .select("id, labor_roles")
       .eq("project_id", projectId)
       .maybeSingle();
 
     if (estErr) {
       console.error("estimates lookup error:", estErr);
       setActiveEstimateId(null);
+      setLaborRoles([]);
       setPhases([]);
+      setTasksByPhase({});
       return;
     }
     if (!est) {
-      // Project somehow has no estimate — shouldn't happen after the auto-create trigger
       setActiveEstimateId(null);
+      setLaborRoles([]);
       setPhases([]);
+      setTasksByPhase({});
       return;
     }
 
     setActiveEstimateId(est.id);
+    setLaborRoles(Array.isArray(est.labor_roles) ? (est.labor_roles as LaborRole[]) : []);
 
-    const { data, error } = await supabase
+    const { data: sections, error } = await supabase
       .from("estimate_sections")
       .select("*")
       .eq("estimate_id", est.id)
       .order("order_index");
     if (error) console.error("estimate_sections error:", error);
-    setPhases(data ?? []);
+    setPhases(sections ?? []);
+
+    // Eager-load all line items for live totals
+    const { data: items } = await supabase
+      .from("estimate_line_items")
+      .select("id, section_id, estimate_id, description, role_id, daily_workers, labor_cost, material_cost, equipment_cost, order_index, show_to_client")
+      .eq("estimate_id", est.id)
+      .order("order_index");
+    const byPhase: Record<string, LineItem[]> = {};
+    for (const it of (items ?? []) as LineItem[]) {
+      const normalised: LineItem = {
+        ...it,
+        daily_workers: (it.daily_workers as DailyWorkers) ?? {},
+      };
+      (byPhase[it.section_id] ??= []).push(normalised);
+    }
+    setTasksByPhase(byPhase);
+  }
+
+  // ── Rate card (estimate.labor_roles) ────────────────────────────────────────
+  async function saveLaborRoles(roles: LaborRole[]) {
+    if (!activeEstimateId) return;
+    setLaborRoles(roles);
+    const { error } = await supabase
+      .from("estimates")
+      .update({ labor_roles: roles })
+      .eq("id", activeEstimateId);
+    if (error) console.error("Failed to save labor roles:", error);
+  }
+
+  // ── Tasks (line items) ──────────────────────────────────────────────────────
+  function toggleExpand(phaseId: string) {
+    setExpanded((p) => ({ ...p, [phaseId]: !p[phaseId] }));
+  }
+
+  function patchTaskLocal(phaseId: string, taskId: string, patch: Partial<LineItem>) {
+    setTasksByPhase((prev) => ({
+      ...prev,
+      [phaseId]: (prev[phaseId] ?? []).map((t) => (t.id === taskId ? { ...t, ...patch } : t)),
+    }));
+  }
+
+  async function saveTask(phaseId: string, taskId: string, patch: Partial<LineItem>) {
+    patchTaskLocal(phaseId, taskId, patch);
+    const { error } = await supabase
+      .from("estimate_line_items")
+      .update(patch)
+      .eq("id", taskId);
+    if (error) console.error("Failed to update task:", error);
+  }
+
+  // Edit one day's worker count → recompute labor_cost and persist both.
+  async function saveDailyWorker(phaseId: string, task: LineItem, dateKey: string, workers: number) {
+    const next = { ...task.daily_workers };
+    if (!workers || workers <= 0) delete next[dateKey];
+    else next[dateKey] = Math.floor(workers);
+    const role = laborRoles.find((r) => r.id === task.role_id);
+    const labor_cost = computeLaborCost(role, next);
+    await saveTask(phaseId, task.id, { daily_workers: next, labor_cost });
+  }
+
+  async function addTask(phase: Phase) {
+    if (!activeEstimateId) return;
+    const current = tasksByPhase[phase.id] ?? [];
+    const defaultRole = laborRoles[0];
+    const { data, error } = await supabase
+      .from("estimate_line_items")
+      .insert({
+        section_id: phase.id,
+        estimate_id: activeEstimateId,
+        description: "",
+        quantity: 1,
+        role_id: defaultRole?.id ?? null,
+        daily_workers: {},
+        labor_cost: 0,
+        material_cost: 0,
+        equipment_cost: 0,
+        order_index: current.length,
+        show_to_client: true,
+      })
+      .select("id, section_id, estimate_id, description, role_id, daily_workers, labor_cost, material_cost, equipment_cost, order_index, show_to_client")
+      .single();
+    if (error || !data) {
+      console.error("Failed to add task:", error);
+      return;
+    }
+    const normalised: LineItem = { ...(data as LineItem), daily_workers: (data.daily_workers as DailyWorkers) ?? {} };
+    setTasksByPhase((prev) => ({ ...prev, [phase.id]: [...current, normalised] }));
+    setExpanded((prev) => ({ ...prev, [phase.id]: true }));
+  }
+
+  async function deleteTask(phaseId: string, taskId: string) {
+    setTasksByPhase((prev) => ({
+      ...prev,
+      [phaseId]: (prev[phaseId] ?? []).filter((t) => t.id !== taskId),
+    }));
+    await supabase.from("estimate_line_items").delete().eq("id", taskId);
+  }
+
+  // Totals
+  function phaseTotals(phaseId: string) {
+    const tasks = tasksByPhase[phaseId] ?? [];
+    let labor = 0, material = 0, equipment = 0;
+    for (const t of tasks) {
+      labor += Number(t.labor_cost) || 0;
+      material += Number(t.material_cost) || 0;
+      equipment += Number(t.equipment_cost) || 0;
+    }
+    return { labor, material, equipment, total: labor + material + equipment };
+  }
+
+  function estimateTotal() {
+    let labor = 0, material = 0, equipment = 0;
+    for (const ph of phases) {
+      const t = phaseTotals(ph.id);
+      labor += t.labor; material += t.material; equipment += t.equipment;
+    }
+    return { labor, material, equipment, total: labor + material + equipment };
   }
 
   function openNew() {
@@ -664,6 +838,38 @@ export default function GanttPage() {
             Today
           </button>
 
+          {activeEstimateId && (() => {
+            const t = estimateTotal();
+            return (
+              <>
+                <div
+                  className="flex items-center gap-2 px-2.5 py-1.5 text-[11px] font-mono border border-[#2b2e33] rounded ml-2"
+                  title={`Labor $${t.labor.toLocaleString()} · Material $${t.material.toLocaleString()} · Equipment $${t.equipment.toLocaleString()}`}
+                >
+                  <span className="text-[#444] uppercase tracking-wider text-[9px]">Total</span>
+                  <span className="text-[#F5A623] font-semibold tabular-nums">
+                    ${t.total.toLocaleString()}
+                  </span>
+                </div>
+                <button
+                  onClick={() => setRatesOpen(true)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-mono text-[#666] border border-[#2b2e33] rounded hover:text-[#aaa] hover:border-[#3a3d42] transition-colors"
+                  title="Edit labor rate card for this estimate"
+                >
+                  <DollarSign className="h-3 w-3" />
+                  {laborRoles.length > 0 ? (
+                    <span>
+                      {laborRoles.slice(0, 2).map((r) => `${r.name.split(/\s/)[0]} $${r.daily_rate}`).join(" · ")}
+                      {laborRoles.length > 2 && ` · +${laborRoles.length - 2}`}
+                    </span>
+                  ) : (
+                    <span>Rates</span>
+                  )}
+                </button>
+              </>
+            );
+          })()}
+
           {activeProject && (
             <button
               onClick={openNew}
@@ -759,63 +965,155 @@ export default function GanttPage() {
                 </div>
               </div>
             ) : (
-              phases.map((phase, rowIdx) => (
-                <div
-                  key={phase.id}
-                  className={cn(
-                    "flex border-b border-[#23252a] hover:bg-[#1b1c1e] transition-colors",
-                    rowIdx % 2 === 0 ? "" : ""
-                  )}
-                  style={{ height: ROW_H, minWidth: LABEL_W + totalDays * COL_W }}
-                >
-                  {/* Phase name */}
-                  <div
-                    className="flex-shrink-0 flex items-center gap-2 px-4 border-r border-[#2b2e33] group"
-                    style={{ width: LABEL_W }}
-                  >
-                    <button
-                      onClick={() => setPanelPhase(phase)}
-                      className="text-[13px] text-[#777] hover:text-[#b8b8b8] truncate flex-1 text-left transition-colors"
+              phases.map((phase) => {
+                const isOpen = !!expanded[phase.id];
+                const tasks = tasksByPhase[phase.id] ?? [];
+                const t = phaseTotals(phase.id);
+                return (
+                  <Fragment key={phase.id}>
+                    {/* ── Phase row ── */}
+                    <div
+                      className="flex border-b border-[#23252a] hover:bg-[#1b1c1e] transition-colors"
+                      style={{ height: ROW_H, minWidth: LABEL_W + totalDays * COL_W }}
                     >
-                      {phase.name}
-                    </button>
-                    <button
-                      onClick={() => openEdit(phase)}
-                      className="opacity-0 group-hover:opacity-100 text-[#333] hover:text-[#666] transition-all flex-shrink-0"
-                    >
-                      <Pencil className="h-3 w-3" />
-                    </button>
-                  </div>
+                      <div
+                        className="flex-shrink-0 flex items-center gap-1.5 pl-1 pr-3 border-r border-[#2b2e33] group"
+                        style={{ width: LABEL_W }}
+                      >
+                        <button
+                          onClick={() => toggleExpand(phase.id)}
+                          className="flex-shrink-0 p-1 text-[#444] hover:text-[#aaa] transition-colors"
+                          title={isOpen ? "Collapse tasks" : "Expand tasks"}
+                        >
+                          {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRightSmall className="h-3 w-3" />}
+                        </button>
+                        <button
+                          onClick={() => toggleExpand(phase.id)}
+                          className="text-[13px] text-[#777] hover:text-[#b8b8b8] truncate flex-1 text-left transition-colors min-w-0"
+                        >
+                          {phase.name}
+                        </button>
+                        {t.total > 0 && (
+                          <span
+                            className="text-[10px] font-mono text-[#666] tabular-nums flex-shrink-0"
+                            title={`Labor $${t.labor.toLocaleString()} · Material $${t.material.toLocaleString()} · Equipment $${t.equipment.toLocaleString()}`}
+                          >
+                            ${t.total.toLocaleString()}
+                          </span>
+                        )}
+                        <button
+                          onClick={() => addTask(phase)}
+                          className="opacity-0 group-hover:opacity-100 text-[#333] hover:text-[#F5A623] transition-all flex-shrink-0"
+                          title="Add task"
+                        >
+                          <Plus className="h-3 w-3" />
+                        </button>
+                        <button
+                          onClick={() => openEdit(phase)}
+                          className="opacity-0 group-hover:opacity-100 text-[#333] hover:text-[#666] transition-all flex-shrink-0"
+                          title="Edit phase"
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </button>
+                      </div>
 
-                  {/* Bar area */}
-                  <div className="relative flex-1" style={{ width: totalDays * COL_W }}>
-                    {/* Weekend shading + today line */}
-                    {weeks.flatMap((w) => w.days).map((day, i) => {
-                      const isToday = format(day, "yyyy-MM-dd") === format(today, "yyyy-MM-dd");
-                      const isWeekend = [0, 6].includes(day.getDay());
-                      return (isToday || isWeekend) ? (
-                        <div
-                          key={i}
-                          className={cn(
-                            "absolute inset-y-0",
-                            isToday ? "bg-[#F5A623]/5 border-l border-[#F5A623]/20" : "bg-[#1b1c1e]"
-                          )}
-                          style={{ left: i * COL_W, width: COL_W }}
+                      <div className="relative flex-1" style={{ width: totalDays * COL_W }}>
+                        {weeks.flatMap((w) => w.days).map((day, i) => {
+                          const isToday = format(day, "yyyy-MM-dd") === format(today, "yyyy-MM-dd");
+                          const isWeekend = [0, 6].includes(day.getDay());
+                          return (isToday || isWeekend) ? (
+                            <div
+                              key={i}
+                              className={cn(
+                                "absolute inset-y-0",
+                                isToday ? "bg-[#F5A623]/5 border-l border-[#F5A623]/20" : "bg-[#1b1c1e]"
+                              )}
+                              style={{ left: i * COL_W, width: COL_W }}
+                            />
+                          ) : null;
+                        })}
+                        <PhaseBar
+                          phase={phase}
+                          viewStart={viewStart}
+                          totalDays={totalDays}
+                          onClick={() => openEdit(phase)}
+                          onCommitDates={commitPhaseDates}
                         />
-                      ) : null;
-                    })}
+                      </div>
+                    </div>
 
-                    {/* Phase bar */}
-                    <PhaseBar
-                      phase={phase}
-                      viewStart={viewStart}
-                      totalDays={totalDays}
-                      onClick={() => openEdit(phase)}
-                      onCommitDates={commitPhaseDates}
-                    />
-                  </div>
-                </div>
-              ))
+                    {/* ── Task column header (one per expanded phase) ── */}
+                    {isOpen && tasks.length > 0 && (
+                      <div
+                        className="flex border-b border-[#1f2125] bg-[#0e0f11]"
+                        style={{ height: HEAD_H, minWidth: LABEL_W + totalDays * COL_W }}
+                      >
+                        <div
+                          className="flex-shrink-0 flex items-center pl-7 pr-3 border-r border-[#1f2125] text-[8px] font-mono uppercase tracking-[0.18em] text-[#4a4d52]"
+                          style={{ width: LABEL_W }}
+                        >
+                          <div
+                            className="grid items-center gap-2 w-full"
+                            style={{ gridTemplateColumns: "1fr 72px 56px 60px 60px" }}
+                          >
+                            <span>Task</span>
+                            <span>Role</span>
+                            <span className="text-right">Labor</span>
+                            <span className="text-right">Material</span>
+                            <span className="text-right">Equip</span>
+                          </div>
+                        </div>
+                        <div
+                          className="flex-1 flex items-center px-3 text-[8px] font-mono uppercase tracking-[0.18em] text-[#3a3d42]"
+                          style={{ width: totalDays * COL_W }}
+                        >
+                          workers per day → click any cell to enter
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ── Task rows (when expanded) ── */}
+                    {isOpen && tasks.map((task) => (
+                      <TaskRow
+                        key={task.id}
+                        task={task}
+                        roles={laborRoles}
+                        viewStart={viewStart}
+                        totalDays={totalDays}
+                        weeks={weeks}
+                        today={today}
+                        onPatchLocal={(patch) => patchTaskLocal(phase.id, task.id, patch)}
+                        onSave={(patch) => saveTask(phase.id, task.id, patch)}
+                        onDelete={() => deleteTask(phase.id, task.id)}
+                        onSetDailyWorker={(dateKey, workers) =>
+                          saveDailyWorker(phase.id, task, dateKey, workers)
+                        }
+                      />
+                    ))}
+
+                    {/* ── Add-task footer (when expanded) ── */}
+                    {isOpen && (
+                      <div
+                        className="flex border-b border-[#23252a]"
+                        style={{ height: 28, minWidth: LABEL_W + totalDays * COL_W }}
+                      >
+                        <div
+                          className="flex-shrink-0 flex items-center pl-7 pr-3 border-r border-[#1f2125]"
+                          style={{ width: LABEL_W }}
+                        >
+                          <button
+                            onClick={() => addTask(phase)}
+                            className="flex items-center gap-1 text-[10px] font-mono text-[#F5A623]/70 hover:text-[#F5A623] transition-colors"
+                          >
+                            <Plus className="h-2.5 w-2.5" /> add task
+                          </button>
+                        </div>
+                        <div className="flex-1" style={{ width: totalDays * COL_W }} />
+                      </div>
+                    )}
+                  </Fragment>
+                );
+              })
             )}
           </div>
         )}
@@ -831,6 +1129,17 @@ export default function GanttPage() {
         />
       )}
 
+      {ratesOpen && (
+        <RateCardEditor
+          roles={laborRoles}
+          onSave={(next) => {
+            saveLaborRoles(next);
+            setRatesOpen(false);
+          }}
+          onClose={() => setRatesOpen(false)}
+        />
+      )}
+
       <PhasePanel
         phase={panelPhase}
         onClose={() => setPanelPhase(null)}
@@ -838,6 +1147,385 @@ export default function GanttPage() {
           setPhases(prev => prev.map(p => p.id === phaseId ? { ...p, progress } : p));
         }}
       />
+    </div>
+  );
+}
+
+// ─── Task Row ────────────────────────────────────────────────────────────────
+// One row per line item. Label area = name + role + labor + material + equip.
+// Chart area = one editable DailyCell per day. Cells drive labor cost.
+
+function TaskRow({
+  task,
+  roles,
+  viewStart,
+  totalDays,
+  weeks,
+  today,
+  onPatchLocal,
+  onSave,
+  onDelete,
+  onSetDailyWorker,
+}: {
+  task: LineItem;
+  roles: LaborRole[];
+  viewStart: Date;
+  totalDays: number;
+  weeks: { label: string; days: Date[] }[];
+  today: Date;
+  onPatchLocal: (patch: Partial<LineItem>) => void;
+  onSave: (patch: Partial<LineItem>) => void;
+  onDelete: () => void;
+  onSetDailyWorker: (dateKey: string, workers: number) => void;
+}) {
+  const role = roles.find((r) => r.id === task.role_id);
+  const mandays = sumDailyWorkers(task.daily_workers);
+  const liveLabor = role ? role.daily_rate * mandays : 0;
+
+  function commitRole(roleId: string | null) {
+    const newRole = roles.find((r) => r.id === roleId);
+    const labor_cost = computeLaborCost(newRole, task.daily_workers);
+    onSave({ role_id: roleId, labor_cost });
+  }
+
+  return (
+    <div
+      className="flex border-b border-[#1b1c1e] bg-[#121315] hover:bg-[#15171a] transition-colors group relative"
+      style={{ height: TASK_H, minWidth: LABEL_W + totalDays * COL_W }}
+    >
+      {/* Soft left rail tying this task to its phase */}
+      <div className="absolute left-4 top-0 bottom-0 w-px bg-[#23252a]" />
+
+      {/* Label area — single line, 5-column grid */}
+      <div
+        className="flex-shrink-0 pl-7 pr-2 border-r border-[#1f2125] flex items-center"
+        style={{ width: LABEL_W }}
+      >
+        <div
+          className="grid items-center gap-2 w-full"
+          style={{ gridTemplateColumns: "1fr 72px 56px 60px 60px" }}
+        >
+          {/* Name */}
+          <input
+            value={task.description}
+            onChange={(e) => onPatchLocal({ description: e.target.value })}
+            onBlur={(e) => onSave({ description: e.target.value })}
+            placeholder="Task name…"
+            className="min-w-0 bg-transparent text-[12px] text-[#cfcfcf] placeholder:text-[#3a3d42] focus:outline-none focus:text-[#ededed] tracking-tight pr-1"
+          />
+
+          {/* Role */}
+          <select
+            value={task.role_id ?? ""}
+            onChange={(e) => commitRole(e.target.value || null)}
+            className={cn(
+              "bg-[#0f1011] border border-[#23252a] rounded-md py-1 pl-2 pr-1 text-[10px] font-mono truncate transition-colors focus:outline-none focus:border-[#3a3d42] cursor-pointer h-7",
+              task.role_id ? "text-[#d4d4d4]" : "text-[#777]"
+            )}
+            title={role ? `${role.name} @ $${role.daily_rate}/day` : "Pick a labor role"}
+          >
+            <option value="">—</option>
+            {roles.map((r) => (
+              <option key={r.id} value={r.id}>{r.name}</option>
+            ))}
+          </select>
+
+          {/* Labor (auto, computed from daily cells) */}
+          <span
+            className="text-[11px] font-mono font-semibold tabular-nums text-right pr-1"
+            style={{ color: liveLabor > 0 ? "#F5A623" : "#3a3d42" }}
+            title={role ? `${role.name} × ${mandays} mandays = $${Math.round(liveLabor)}` : "Pick a role, then fill day cells"}
+          >
+            ${Math.round(liveLabor) || 0}
+          </span>
+
+          {/* Material */}
+          <MoneyCell
+            value={task.material_cost}
+            title="Material $"
+            onLocal={(v) => onPatchLocal({ material_cost: v })}
+            onSave={(v) => onSave({ material_cost: v })}
+          />
+
+          {/* Equipment */}
+          <MoneyCell
+            value={task.equipment_cost}
+            title="Equipment $"
+            onLocal={(v) => onPatchLocal({ equipment_cost: v })}
+            onSave={(v) => onSave({ equipment_cost: v })}
+          />
+        </div>
+
+        {/* Delete (overlay on hover, doesn't take grid space) */}
+        <button
+          onClick={onDelete}
+          className="opacity-0 group-hover:opacity-100 absolute right-1 top-1.5 text-[#333] hover:text-[#EF4444] transition-all"
+          title="Delete task"
+        >
+          <X className="h-2.5 w-2.5" />
+        </button>
+      </div>
+
+      {/* Chart area — weekend shading + daily cells */}
+      <div className="relative flex-1" style={{ width: totalDays * COL_W }}>
+        {/* Weekend / today background */}
+        {weeks.flatMap((w) => w.days).map((day, i) => {
+          const isToday = format(day, "yyyy-MM-dd") === format(today, "yyyy-MM-dd");
+          const isWeekend = [0, 6].includes(day.getDay());
+          return (isToday || isWeekend) ? (
+            <div
+              key={`bg-${i}`}
+              className={cn(
+                "absolute inset-y-0 pointer-events-none",
+                isToday ? "bg-[#F5A623]/5 border-l border-[#F5A623]/20" : "bg-[#161718]"
+              )}
+              style={{ left: i * COL_W, width: COL_W }}
+            />
+          ) : null;
+        })}
+
+        {/* Daily cells (editable worker counts) */}
+        {weeks.flatMap((w) => w.days).map((day, i) => {
+          const dateKey = format(day, "yyyy-MM-dd");
+          const workers = task.daily_workers?.[dateKey] || 0;
+          return (
+            <DailyCell
+              key={`cell-${i}`}
+              dateKey={dateKey}
+              left={i * COL_W}
+              workers={workers}
+              onCommit={(n) => onSetDailyWorker(dateKey, n)}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── Money cell (material / equipment input) ─────────────────────────────────
+
+function MoneyCell({
+  value,
+  title,
+  onLocal,
+  onSave,
+}: {
+  value: number;
+  title: string;
+  onLocal: (v: number) => void;
+  onSave: (v: number) => void;
+}) {
+  const hasValue = (value ?? 0) > 0;
+  return (
+    <div className="relative w-full" title={title}>
+      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] pointer-events-none font-mono text-[#3a3d42]">
+        $
+      </span>
+      <input
+        type="number"
+        min={0}
+        value={value || ""}
+        onChange={(e) => onLocal(Number(e.target.value) || 0)}
+        onBlur={(e) => onSave(Number(e.target.value) || 0)}
+        placeholder="0"
+        className="w-full bg-[#0f1011] border border-[#23252a] rounded-md pl-6 pr-2 py-1 h-7 text-[11px] font-mono tabular-nums text-right focus:outline-none focus:border-[#3a3d42] transition-colors"
+        style={{ color: hasValue ? "#d4d4d4" : "#777" }}
+      />
+    </div>
+  );
+}
+
+// ─── Daily Cell ──────────────────────────────────────────────────────────────
+// Excel-style worker count per day. Click to edit. Amber heatmap.
+
+function DailyCell({
+  dateKey,
+  left,
+  workers,
+  onCommit,
+}: {
+  dateKey: string;
+  left: number;
+  workers: number;
+  onCommit: (workers: number) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<string>("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function openEdit() {
+    setDraft(workers > 0 ? String(workers) : "");
+    setEditing(true);
+    setTimeout(() => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }, 0);
+  }
+
+  function commit() {
+    const n = Math.max(0, Math.floor(Number(draft) || 0));
+    setEditing(false);
+    if (n !== workers) onCommit(n);
+  }
+
+  function cancel() {
+    setEditing(false);
+    setDraft("");
+  }
+
+  const style = heatmapStyle(workers);
+
+  return (
+    <div
+      className="absolute top-0 bottom-0 flex items-center justify-center"
+      style={{ left, width: COL_W }}
+    >
+      {editing ? (
+        <input
+          ref={inputRef}
+          type="number"
+          min={0}
+          max={99}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commit();
+            else if (e.key === "Escape") cancel();
+          }}
+          className="h-7 w-9 rounded text-center text-[12px] font-mono font-semibold tabular-nums bg-[#0f1011] border border-[#F5A623] text-[#ededed] focus:outline-none"
+          aria-label={`Workers on ${dateKey}`}
+        />
+      ) : (
+        <button
+          onClick={openEdit}
+          className="h-7 w-9 rounded flex items-center justify-center text-[12px] font-mono font-semibold tabular-nums transition-all hover:ring-1 hover:ring-[#F5A623]/40 hover:bg-[#F5A623]/[0.04]"
+          style={style}
+          aria-label={`Workers on ${dateKey}: ${workers || "none"}`}
+        >
+          {workers > 0 ? workers : <span className="text-[#2b2e33]">·</span>}
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ─── Rate Card Editor ────────────────────────────────────────────────────────
+
+function RateCardEditor({
+  roles,
+  onSave,
+  onClose,
+}: {
+  roles: LaborRole[];
+  onSave: (roles: LaborRole[]) => void;
+  onClose: () => void;
+}) {
+  const [draft, setDraft] = useState<LaborRole[]>(() =>
+    roles.length > 0 ? roles : [{ id: `role_${Date.now()}`, name: "", daily_rate: 0 }]
+  );
+
+  function update(idx: number, patch: Partial<LaborRole>) {
+    setDraft((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
+  }
+  function addRole() {
+    setDraft((prev) => [
+      ...prev,
+      { id: `role_${Date.now()}_${prev.length}`, name: "", daily_rate: 0 },
+    ]);
+  }
+  function removeRole(idx: number) {
+    setDraft((prev) => prev.filter((_, i) => i !== idx));
+  }
+  function handleSave() {
+    const cleaned = draft
+      .map((r) => ({ ...r, name: r.name.trim(), daily_rate: Number(r.daily_rate) || 0 }))
+      .filter((r) => r.name.length > 0);
+    onSave(cleaned);
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="bg-[#202224] border border-[#222] rounded-lg w-[480px] shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[#2b2e33]">
+          <div>
+            <span className="text-[13px] font-semibold text-[#d0d0d0]">Labor rate card</span>
+            <p className="text-[10px] font-mono text-[#555] mt-0.5">
+              SELL rates for this estimate · not synced from workers
+            </p>
+          </div>
+          <button onClick={onClose} className="text-[#333] hover:text-[#666]">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-2.5 max-h-[60vh] overflow-y-auto">
+          <div className="grid grid-cols-[1fr_120px_28px] gap-2 px-1 pb-1">
+            <span className="text-[9px] font-mono text-[#444] uppercase tracking-widest">Role name</span>
+            <span className="text-[9px] font-mono text-[#444] uppercase tracking-widest">$ / day</span>
+            <span />
+          </div>
+
+          {draft.map((r, i) => (
+            <div key={r.id} className="grid grid-cols-[1fr_120px_28px] gap-2 items-center">
+              <input
+                value={r.name}
+                onChange={(e) => update(i, { name: e.target.value })}
+                placeholder="e.g. Foreman, Skilled, General"
+                className="bg-[#18191b] border border-[#222] rounded px-2.5 py-1.5 text-[13px] text-[#d0d0d0] focus:outline-none focus:border-[#F5A623] transition-colors"
+              />
+              <div className="relative">
+                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] font-mono text-[#555]">$</span>
+                <input
+                  type="number"
+                  min={0}
+                  step={5}
+                  value={r.daily_rate || ""}
+                  onChange={(e) => update(i, { daily_rate: Number(e.target.value) })}
+                  placeholder="0"
+                  className="w-full bg-[#18191b] border border-[#222] rounded pl-6 pr-2.5 py-1.5 text-[13px] text-[#d0d0d0] focus:outline-none focus:border-[#F5A623] transition-colors text-right font-mono"
+                />
+              </div>
+              <button
+                onClick={() => removeRole(i)}
+                className="p-1.5 text-[#333] hover:text-[#EF4444] transition-colors"
+                title="Remove role"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
+
+          <button
+            onClick={addRole}
+            className="flex items-center gap-1.5 text-[11px] font-mono text-[#F5A623] hover:text-[#f5b955] transition-colors mt-2 pt-2 border-t border-[#2b2e33] w-full justify-center py-2"
+          >
+            <Plus className="h-3 w-3" /> Add role
+          </button>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-[#2b2e33]">
+          <button
+            onClick={onClose}
+            className="px-3 py-1.5 text-[12px] text-[#555] hover:text-[#888] border border-[#222] rounded transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            className="px-3 py-1.5 text-[12px] font-medium bg-[#F5A623] text-[#18191b] rounded hover:bg-[#f5a623cc] transition-colors"
+          >
+            Save
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
