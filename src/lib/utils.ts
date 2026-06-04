@@ -6,19 +6,21 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 // Currency formatting for BSD (Bahamian Dollar - pegged 1:1 with USD)
-export function formatCurrency(amount: number): string {
+export function formatCurrency(amount: number | string | null | undefined): string {
+  const numericAmount = typeof amount === 'number' ? amount : Number(amount) || 0;
   return new Intl.NumberFormat("en-BS", {
     style: "currency",
     currency: "BSD",
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(amount);
+  }).format(numericAmount);
 }
 
 // Date formatting utilities
-export function formatDate(date: string | Date): string {
+export function formatDate(date: string | Date | null | undefined): string {
+  if (date == null) return "—";
   let year: number, month: number, day: number;
-  
+
   if (typeof date === 'string') {
     // Handle date strings - extract just the date part (YYYY-MM-DD) before any T or space
     const dateOnly = date.split('T')[0].split(' ')[0];

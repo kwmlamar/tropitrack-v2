@@ -77,14 +77,14 @@ export default function EstimatesPage() {
 
   const filtered = estimates.filter(
     (e) =>
-      e.estimate_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      e.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      e.client_name.toLowerCase().includes(searchTerm.toLowerCase())
+      (e.estimate_number || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (e.title || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (e.client_name || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const pipelineValue = estimates
     .filter((e) => ["sent", "approved"].includes(e.status))
-    .reduce((s, e) => s + e.total_amount, 0);
+    .reduce((s, e) => s + Number(e.total_amount || 0), 0);
 
   const stats = [
     { label: "Total",    value: estimates.length,                                           accent: false },
