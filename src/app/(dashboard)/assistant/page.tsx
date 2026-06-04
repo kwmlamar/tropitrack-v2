@@ -793,7 +793,7 @@ function RailItem({
       <div className="flex items-start gap-2">
         <div
           className="h-3 w-3 mt-0.5 flex-shrink-0 flex items-center justify-center"
-          style={{ color: active && skill ? skill.color : "#3a3d42" }}
+          style={{ color: active && skill ? skill.color : "var(--muted-foreground)" }}
         >
           <span className="text-[10px]">{skill ? "✦" : "·"}</span>
         </div>
@@ -846,7 +846,7 @@ function InputBox({
       style={activeSkill ? {
         borderColor: `${activeSkill.color}40`,
         boxShadow: `0 0 0 1px ${activeSkill.color}15`,
-      } : { borderColor: "#34373c" }}
+      } : {}}
     >
       {/* Active skill indicator bar */}
       {activeSkill && (
@@ -904,11 +904,11 @@ function InputBox({
           justifyContent: "center",
           transition: "all 0.15s",
           background: loading
-            ? (activeSkill?.color ?? "#F5A623")
+            ? (activeSkill?.color ?? "var(--primary)")
             : value.trim()
-            ? (activeSkill?.color ?? "#F5A623")
-            : "#292c31",
-          color: loading || value.trim() ? "#18191b" : "#3a3d42",
+            ? (activeSkill?.color ?? "var(--primary)")
+            : "var(--secondary)",
+          color: loading || value.trim() ? "#18191b" : "var(--muted-foreground)",
           cursor: !loading && !value.trim() ? "not-allowed" : "pointer",
         }}
         title={loading ? "Stop" : "Send"}

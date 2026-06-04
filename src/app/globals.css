@@ -203,7 +203,6 @@ html:not(.dark) ::-webkit-scrollbar-thumb:hover {
   html:not(.dark) .bg-\[\#121315\],
   html:not(.dark) .bg-\[\#141517\],
   html:not(.dark) .bg-\[\#15171a\],
-  html:not(.dark) .bg-\[\#161718\],
   html:not(.dark) .bg-\[\#18191b\],
   html:not(.dark) .bg-\[\#1a1b1d\],
   html:not(.dark) .bg-\[\#1b1c1e\] {
@@ -217,7 +216,8 @@ html:not(.dark) ::-webkit-scrollbar-thumb:hover {
   }
 
   html:not(.dark) .bg-\[\#23252a\],
-  html:not(.dark) .bg-\[\#252729\] {
+  html:not(.dark) .bg-\[\#252729\],
+  html:not(.dark) .bg-\[\#161718\] {
     background-color: #f4f4f5 !important;
   }
 

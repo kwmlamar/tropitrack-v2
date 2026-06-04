@@ -326,7 +326,7 @@ function PhaseBar({
             <span className="text-[11px] font-mono text-[#888] truncate">
               {phase.progress > 0 ? `${phase.progress}%` : "—"}
               {crewSummary?.hasData
-                ? ` · ${crewSummary.peak} peak · ${crewSummary.mandays} mandays`
+                ? ` · ${crewSummary.peak} peak · ${crewSummary.distinctDays} ${crewSummary.distinctDays === 1 ? "day" : "days"}`
                 : ""}
             </span>
           </div>
@@ -356,7 +356,7 @@ function PhaseBar({
       {/* Floating drag tooltip — anchored to cursor */}
       {drag && drag.moved && (
         <div
-          className="fixed z-50 pointer-events-none px-2.5 py-1.5 rounded bg-[#0a0a0a] border border-[#F5A623]/40 shadow-lg"
+          className="fixed z-50 pointer-events-none px-2.5 py-1.5 rounded bg-card border text-card-foreground shadow-lg"
           style={{
             top: drag.cursorY - 56,
             left: drag.cursorX,
@@ -1243,7 +1243,7 @@ function TaskRow({
           {/* Labor (auto, computed from daily cells) */}
           <span
             className="text-[11px] font-mono font-semibold tabular-nums text-right pr-1"
-            style={{ color: liveLabor > 0 ? "#F5A623" : "#3a3d42" }}
+            style={{ color: liveLabor > 0 ? "var(--primary)" : "var(--muted-foreground)" }}
             title={role ? `${role.name} × ${mandays} mandays = $${Math.round(liveLabor)}` : "Pick a role, then fill day cells"}
           >
             ${Math.round(liveLabor) || 0}
@@ -1340,7 +1340,7 @@ function MoneyCell({
         onBlur={(e) => onSave(Number(e.target.value) || 0)}
         placeholder="0"
         className="w-full bg-[#0f1011] border border-[#23252a] rounded-md pl-6 pr-2 py-1 h-7 text-[11px] font-mono tabular-nums text-right focus:outline-none focus:border-[#3a3d42] transition-colors"
-        style={{ color: hasValue ? "#d4d4d4" : "#777" }}
+        style={{ color: hasValue ? "var(--foreground)" : "var(--muted-foreground)" }}
       />
     </div>
   );
