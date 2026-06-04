@@ -314,12 +314,12 @@ export default function MaterialsPage() {
   }, [filtered]);
 
   return (
-    <div className="flex h-full bg-[#18191b] text-[#d0d0d0] overflow-hidden">
+    <div className="flex h-full bg-background text-foreground overflow-hidden">
       {/* Internal Sidebar for CSI Divisions */}
-      <div className="w-56 border-r border-[#34373c] bg-[#1e2022] flex flex-col flex-shrink-0">
-        <div className="px-4 py-4 border-b border-[#34373c]">
-          <p className="text-[10px] font-mono text-[#666] uppercase tracking-widest">CSI CLASSIFICATION</p>
-          <h2 className="text-[14px] font-semibold text-[#d0d0d0] mt-0.5">Divisions</h2>
+      <div className="w-56 border-r border-border bg-card flex flex-col flex-shrink-0">
+        <div className="px-4 py-4 border-b border-border">
+          <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">CSI CLASSIFICATION</p>
+          <h2 className="text-[14px] font-semibold text-foreground mt-0.5">Divisions</h2>
         </div>
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
           <button
@@ -327,17 +327,17 @@ export default function MaterialsPage() {
             className={cn(
               "w-full text-left px-3 py-2 rounded text-[12.5px] transition-colors flex justify-between items-center",
               activeDiv === "ALL"
-                ? "bg-[#292c31] text-[#F5A623] font-medium"
-                : "text-[#888] hover:text-[#bbb] hover:bg-[#202224]"
+                ? "bg-accent text-bedrock-amber font-semibold"
+                : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
             )}
           >
             <span>All Materials</span>
-            <span className="text-[10px] bg-[#34373c] text-[#aaa] px-1.5 py-0.5 rounded font-mono">
+            <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded font-mono">
               {materials.length}
             </span>
           </button>
           
-          <div className="h-px bg-[#34373c] my-2" />
+          <div className="h-px bg-border my-2" />
 
           {DIVISIONS.map((div) => {
             const count = materials.filter((m) => m.division_code === div.code).length;
@@ -351,8 +351,8 @@ export default function MaterialsPage() {
                 className={cn(
                   "w-full text-left px-3 py-1.5 rounded text-[12px] transition-colors flex justify-between items-center group",
                   isActive
-                    ? "bg-[#292c31] text-white font-medium"
-                    : "text-[#888] hover:text-[#bbb] hover:bg-[#202224]"
+                    ? "bg-accent text-foreground font-semibold"
+                    : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
                 )}
               >
                 <span className="flex items-center truncate">
@@ -360,10 +360,10 @@ export default function MaterialsPage() {
                     className="w-1.5 h-1.5 rounded-full mr-2.5 flex-shrink-0"
                     style={{ backgroundColor: color }}
                   />
-                  <span className="font-mono text-[10px] text-[#555] mr-1.5">{div.code}</span>
+                  <span className="font-mono text-[10px] text-muted-foreground/60 mr-1.5">{div.code}</span>
                   <span className="truncate">{div.name}</span>
                 </span>
-                <span className="text-[9px] bg-[#292c31] text-[#666] group-hover:text-[#aaa] px-1 py-0.2 rounded font-mono ml-2">
+                <span className="text-[9px] bg-muted text-muted-foreground px-1 py-0.2 rounded font-mono ml-2">
                   {count}
                 </span>
               </button>
@@ -375,17 +375,17 @@ export default function MaterialsPage() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#34373c] flex-shrink-0 bg-[#1e2022]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0 bg-card">
           <div>
-            <p className="text-[10px] font-mono text-[#666] uppercase tracking-widest">Pricing Database</p>
-            <h1 className="text-[16px] font-semibold text-[#d0d0d0] mt-0.5">
+            <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Pricing Database</p>
+            <h1 className="text-[16px] font-semibold text-foreground mt-0.5">
               {activeDiv === "ALL" ? "All Materials" : `Division ${activeDiv} — ${DIVISIONS.find((d) => d.code === activeDiv)?.name}`}
             </h1>
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={exportCSV}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-[#34373c] bg-[#202224] text-[12px] text-[#aaa] hover:text-[#d0d0d0] hover:bg-[#292c31] transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-border bg-card text-[12px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
             >
               <FileDown className="h-3.5 w-3.5" />
               Export CSV
@@ -398,7 +398,7 @@ export default function MaterialsPage() {
                 }
                 setAddDialogOpen(true);
               }}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded bg-[#F5A623] text-black font-semibold text-[12px] hover:opacity-90 transition-opacity"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded bg-bedrock-amber text-black font-semibold text-[12px] hover:opacity-90 transition-opacity"
             >
               <Plus className="h-3.5 w-3.5" />
               Add Material
@@ -407,7 +407,7 @@ export default function MaterialsPage() {
         </div>
 
         {/* Stats and Filter Bar */}
-        <div className="px-6 py-4 space-y-4 flex-shrink-0 border-b border-[#34373c] bg-[#1a1b1d]">
+        <div className="px-6 py-4 space-y-4 flex-shrink-0 border-b border-border bg-muted/20">
           {/* Stats Grid */}
           <div className="grid grid-cols-3 gap-3">
             {[
@@ -415,10 +415,10 @@ export default function MaterialsPage() {
               { label: "Average Unit Cost", value: formatCurrency(stats.avg), accent: true },
               { label: "Categories", value: stats.categoriesCount.toString() },
             ].map((s, idx) => (
-              <div key={idx} className="rounded border border-[#34373c] bg-[#202224] px-4 py-3">
-                <p className="text-[9.5px] font-mono text-[#666] uppercase tracking-wider">{s.label}</p>
+              <div key={idx} className="rounded border border-border bg-card px-4 py-3">
+                <p className="text-[9.5px] font-mono text-muted-foreground uppercase tracking-wider">{s.label}</p>
                 <p className={cn("text-[20px] font-semibold font-mono mt-0.5 leading-none",
-                  s.accent ? "text-[#F5A623]" : "text-[#d0d0d0]"
+                  s.accent ? "text-bedrock-amber" : "text-foreground"
                 )}>
                   {s.value}
                 </p>
@@ -428,33 +428,33 @@ export default function MaterialsPage() {
 
           {/* Search Box */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#555]" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
             <input
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search materials by name, category, supplier, or notes..."
-              className="w-full bg-[#202224] border border-[#34373c] rounded pl-9 pr-4 py-2 text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#F5A623]/40 transition-colors"
+              className="w-full bg-card border border-border rounded pl-9 pr-4 py-2 text-[13px] text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-bedrock-amber/40 transition-colors"
             />
           </div>
         </div>
 
         {/* Table View */}
-        <div className="flex-1 overflow-auto p-6 bg-[#161718]">
-          <div className="rounded border border-[#34373c] bg-[#202224] overflow-hidden">
+        <div className="flex-1 overflow-auto p-6 bg-background">
+          <div className="rounded border border-border bg-card overflow-hidden">
             {loading ? (
               <div className="p-16 text-center">
-                <Loader2 className="h-8 w-8 animate-spin mx-auto text-[#F5A623]" />
-                <p className="text-[12px] text-[#666] mt-2 font-mono">Loading materials catalog...</p>
+                <Loader2 className="h-8 w-8 animate-spin mx-auto text-bedrock-amber" />
+                <p className="text-[12px] text-muted-foreground mt-2 font-mono">Loading materials catalog...</p>
               </div>
             ) : filtered.length === 0 ? (
               <div className="py-20 text-center">
-                <Layers className="h-12 w-12 mx-auto text-[#444] mb-3" />
-                <p className="text-[13px] text-[#666]">
+                <Layers className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
+                <p className="text-[13px] text-muted-foreground">
                   {searchTerm ? "No materials match your search" : "No materials found in this division"}
                 </p>
                 <button
                   onClick={() => setAddDialogOpen(true)}
-                  className="mt-3 text-[12px] text-[#F5A623] hover:underline"
+                  className="mt-3 text-[12px] text-bedrock-amber hover:underline"
                 >
                   Add a material now →
                 </button>
@@ -462,23 +462,23 @@ export default function MaterialsPage() {
             ) : (
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-[#2d3035] bg-[#1a1b1c]">
+                  <tr className="border-b border-border bg-muted/40">
                     {activeDiv === "ALL" && (
-                      <th className="px-4 py-3 text-[10px] font-mono uppercase tracking-widest text-[#555] w-20">Div</th>
+                      <th className="px-4 py-3 text-[10px] font-mono uppercase tracking-widest text-muted-foreground w-20">Div</th>
                     )}
-                    <th className="px-4 py-3 text-[10px] font-mono uppercase tracking-widest text-[#555] w-36">Category</th>
-                    <th className="px-4 py-3 text-[10px] font-mono uppercase tracking-widest text-[#555]">Material Name / Description</th>
-                    <th className="px-4 py-3 text-[10px] font-mono uppercase tracking-widest text-[#555] w-20 text-center">Unit</th>
-                    <th className="px-4 py-3 text-[10px] font-mono uppercase tracking-widest text-[#555] w-32 text-right">Unit Cost</th>
-                    <th className="px-4 py-3 text-[10px] font-mono uppercase tracking-widest text-[#555] w-36">Supplier</th>
+                    <th className="px-4 py-3 text-[10px] font-mono uppercase tracking-widest text-muted-foreground w-36">Category</th>
+                    <th className="px-4 py-3 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Material Name / Description</th>
+                    <th className="px-4 py-3 text-[10px] font-mono uppercase tracking-widest text-muted-foreground w-20 text-center">Unit</th>
+                    <th className="px-4 py-3 text-[10px] font-mono uppercase tracking-widest text-muted-foreground w-32 text-right">Unit Cost</th>
+                    <th className="px-4 py-3 text-[10px] font-mono uppercase tracking-widest text-muted-foreground w-36">Supplier</th>
                     <th className="w-24 px-4 py-3" />
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#282a2f]">
+                <tbody className="divide-y divide-border">
                   {filtered.map((mat) => {
                     const color = DIV_COLORS[mat.division_code] || "#ccc";
                     return (
-                      <tr key={mat.id} className="group hover:bg-[#25272a] transition-colors align-top">
+                      <tr key={mat.id} className="group hover:bg-muted/40 transition-colors align-top">
                         {activeDiv === "ALL" && (
                           <td className="px-4 py-3 text-[11px] font-mono">
                             <span
@@ -490,39 +490,39 @@ export default function MaterialsPage() {
                             </span>
                           </td>
                         )}
-                        <td className="px-4 py-3 text-[12px] text-[#888] font-mono capitalize truncate max-w-[144px]" title={mat.category}>
+                        <td className="px-4 py-3 text-[12px] text-muted-foreground font-mono capitalize truncate max-w-[144px]" title={mat.category}>
                           {mat.category}
                         </td>
-                        <td className="px-4 py-3 text-[13px] text-[#b4b4b4] group-hover:text-white transition-colors">
+                        <td className="px-4 py-3 text-[13px] text-foreground">
                           <div className="font-medium">{mat.name}</div>
                           {mat.notes && (
-                            <div className="text-[10.5px] text-[#5c5f64] font-normal mt-0.5 italic flex items-start gap-1">
-                              <Info className="h-3 w-3 mt-0.5 flex-shrink-0 text-[#444]" />
+                            <div className="text-[10.5px] text-muted-foreground/80 font-normal mt-0.5 italic flex items-start gap-1">
+                              <Info className="h-3 w-3 mt-0.5 flex-shrink-0 text-muted-foreground/55" />
                               <span>{mat.notes}</span>
                             </div>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-center text-[12px] font-mono text-[#777]">
+                        <td className="px-4 py-3 text-center text-[12px] font-mono text-muted-foreground">
                           {mat.unit}
                         </td>
-                        <td className="px-4 py-3 text-right text-[13px] font-mono text-[#F5A623] font-medium">
+                        <td className="px-4 py-3 text-right text-[13px] font-mono text-bedrock-amber font-medium">
                           {formatCurrency(mat.unit_cost)}
                         </td>
-                        <td className="px-4 py-3 text-[12px] text-[#888] truncate max-w-[144px]" title={mat.supplier || ""}>
+                        <td className="px-4 py-3 text-[12px] text-muted-foreground truncate max-w-[144px]" title={mat.supplier || ""}>
                           {mat.supplier || "—"}
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex items-center justify-end gap-2.5 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
                               onClick={() => openEditDialog(mat)}
-                              className="text-[11px] text-[#3B82F6] hover:text-[#60a5fa] transition-colors"
+                              className="text-[11px] text-blue-500 hover:text-blue-400 transition-colors"
                               title="Edit price/info"
                             >
                               <Edit3 className="h-3.5 w-3.5" />
                             </button>
                             <button
                               onClick={() => handleDelete(mat.id)}
-                              className="text-[11px] text-[#666] hover:text-[#EF4444] transition-colors"
+                              className="text-[11px] text-muted-foreground hover:text-destructive transition-colors"
                               title="Delete material"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
