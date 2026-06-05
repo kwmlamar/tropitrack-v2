@@ -30,6 +30,8 @@ import {
 type Section = {
   id: string;
   name: string;
+  /** Optional client-facing label override — see issue #13. */
+  client_name?: string | null;
   order_index: number;
   show_to_client?: boolean;
 };

@@ -35,6 +35,8 @@ type Section = {
   id: string;
   estimate_id: string;
   name: string;
+  /** Optional client-facing label override — see issue #13. */
+  client_name?: string | null;
   order_index: number;
 };
 
@@ -584,22 +586,32 @@ function MaterialRow({ line, estimate, editable, onUpdate, onDelete }: MaterialR
   return (
     <tr className="border-t border-border/40 hover:bg-accent/30 group">
       <td className="px-4 py-2 pl-8">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-center gap-2">
+            <EditableText
+              value={line.description}
+              onCommit={(v) => onUpdate({ description: v })}
+              disabled={!editable}
+              className="text-[12.5px] text-foreground flex-1"
+              placeholder="(no description)"
+            />
+            {line.is_equipment && (
+              <span className="text-[9px] font-mono uppercase tracking-wider text-bedrock-amber/80 px-1 rounded border border-bedrock-amber/30">
+                equip
+              </span>
+            )}
+            {line.material_id && (
+              <span className="text-[10px] font-mono text-muted-foreground/50" title="Linked to catalog">⇄</span>
+            )}
+          </div>
+          {/* Client-facing label (issue #13). */}
           <EditableText
-            value={line.description}
-            onCommit={(v) => onUpdate({ description: v })}
+            value={line.client_name ?? ""}
+            onCommit={(v) => onUpdate({ client_name: v.trim() || null })}
             disabled={!editable}
-            className="text-[12.5px] text-foreground flex-1"
-            placeholder="(no description)"
+            className="text-[10.5px] italic text-muted-foreground/70 font-normal"
+            placeholder="Client label (optional)"
           />
-          {line.is_equipment && (
-            <span className="text-[9px] font-mono uppercase tracking-wider text-bedrock-amber/80 px-1 rounded border border-bedrock-amber/30">
-              equip
-            </span>
-          )}
-          {line.material_id && (
-            <span className="text-[10px] font-mono text-muted-foreground/50" title="Linked to catalog">⇄</span>
-          )}
         </div>
       </td>
       <td className="px-2 py-2 text-right">

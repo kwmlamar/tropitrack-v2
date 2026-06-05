@@ -691,6 +691,11 @@ export interface EstimateLineItem {
   material_id?: string;
   equipment_id?: string;
   description: string;
+  /**
+   * Optional client-facing label override. Null/empty = render `description` in
+   * the client preview. See issue #13 and the two-layer estimate model.
+   */
+  client_name?: string | null;
   quantity?: number;
   unit?: string;
   unit_rate?: number;
@@ -745,6 +750,11 @@ export interface EstimateSectionMaterial {
   material_id?: string | null;
   /** Snapshot from catalog or free-form. Always populated. */
   description: string;
+  /**
+   * Optional client-facing label override. Null/empty = render `description` in
+   * the client preview. See issue #13.
+   */
+  client_name?: string | null;
   quantity: number;
   unit?: string | null;
   /** Snapshot — catalog price changes do not mutate this row. */

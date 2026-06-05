@@ -4,10 +4,10 @@
  * Client-facing estimate preview.
  *
  * This is the *document* a client sees — no app chrome, no internal cost data,
- * no markup percentages. Designed to mirror the ODS Construction estate paper
- * template: small "ESTIMATE #NNN" eyebrow, big red Fraunces wordmark, red
- * address block, two-column client/project header, a single Details / Labor /
- * Materials / Amount table, then Subtotal → Over-head → VAT → Total.
+ * no markup percentages, no labor/materials split. Designed to mirror the ODS
+ * Construction estate paper template: small "ESTIMATE #NNN" eyebrow, big red
+ * Fraunces wordmark, red address block, two-column client/project header, a
+ * single Details / Amount table, then Subtotal → Over-head → VAT → Total.
  *
  * Surface is always light ("paper" feel) regardless of the app theme — clients
  * receive this as a PDF or shareable link, where a dark UI would be jarring.
@@ -33,6 +33,8 @@ import {
 type Section = {
   id: string;
   name: string;
+  /** Optional client-facing label override — see issue #13. */
+  client_name?: string | null;
   order_index: number;
   show_to_client: boolean;
 };
@@ -259,23 +261,20 @@ export default function EstimatePreviewPage() {
               <table className="w-full text-[12.5px] border-collapse">
                 <thead>
                   <tr className="border-t-2 border-b border-stone-900">
-                    <th className="text-left font-semibold text-stone-900 py-2 pr-3 w-[58%]">Details</th>
-                    <th className="text-right font-semibold text-stone-900 py-2 px-3 w-[14%]">Labor</th>
-                    <th className="text-right font-semibold text-stone-900 py-2 px-3 w-[14%]">Materials</th>
-                    <th className="text-right font-semibold text-stone-900 py-2 pl-3 w-[14%]">Amount</th>
+                    <th className="text-left font-semibold text-stone-900 py-2 pr-3 w-[75%]">Details</th>
+                    <th className="text-right font-semibold text-stone-900 py-2 pl-3 w-[25%]">Amount</th>
                   </tr>
                 </thead>
                 <tbody>
                   {visibleItems.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="py-8 text-center text-stone-400 italic">
+                      <td colSpan={2} className="py-8 text-center text-stone-400 italic">
                         Nothing to show yet.
                       </td>
                     </tr>
                   ) : visibleSections.length > 0 ? (
-                    // Phase-only view — one row per section. Labor reads from tasks;
-                    // Materials reads from the takeoff (Option C: materials live on
-                    // estimate_section_materials, not on tasks).
+                    // Phase-only view — one row per section. Single Amount column
+                    // (labor + materials roll up into one number for the client).
                     visibleSections.map((sec, secIdx) => {
                       const items = visibleItems.filter((it) => it.section_id === sec.id);
                       const mats = sectionMaterials.filter((m) => m.section_id === sec.id);
@@ -294,14 +293,8 @@ export default function EstimatePreviewPage() {
                         >
                           <td className="py-4 pr-3 align-top">
                             <div className="font-display text-[15px] text-bedrock-red leading-tight">
-                              {sec.name}
+                              {sec.client_name?.trim() || sec.name}
                             </div>
-                          </td>
-                          <td className="py-4 px-3 text-right tabular-nums text-stone-700 align-top">
-                            {sectionLabor > 0 ? formatCurrency(sectionLabor) : "—"}
-                          </td>
-                          <td className="py-4 px-3 text-right tabular-nums text-stone-700 align-top">
-                            {sectionMatsSell > 0 ? formatCurrency(sectionMatsSell) : "—"}
                           </td>
                           <td className="py-4 pl-3 text-right tabular-nums font-medium text-stone-900 align-top">
                             {formatCurrency(sectionTotal)}
@@ -310,8 +303,8 @@ export default function EstimatePreviewPage() {
                       );
                     })
                   ) : (
-                    // No sections defined — collapse the whole estimate into a single
-                    // "Project" row. Materials still come from the takeoff table.
+                    // No sections defined — collapse the whole estimate into a
+                    // single "Project" row.
                     (() => {
                       const totalLabor = visibleItems.reduce((s, it) => s + Number(it.labor_cost ?? 0), 0);
                       const totalMats = sectionMaterials.reduce(
@@ -326,12 +319,6 @@ export default function EstimatePreviewPage() {
                               {estimate.title?.replace(/—\s*Estimate$/i, "").trim() || "Project"}
                             </div>
                           </td>
-                          <td className="py-4 px-3 text-right tabular-nums text-stone-700 align-top">
-                            {totalLabor > 0 ? formatCurrency(totalLabor) : "—"}
-                          </td>
-                          <td className="py-4 px-3 text-right tabular-nums text-stone-700 align-top">
-                            {totalMats > 0 ? formatCurrency(totalMats) : "—"}
-                          </td>
                           <td className="py-4 pl-3 text-right tabular-nums font-medium text-stone-900 align-top">
                             {formatCurrency(total)}
                           </td>
@@ -341,11 +328,10 @@ export default function EstimatePreviewPage() {
                   )}
                 </tbody>
 
-                {/* Footer totals — right-aligned ladder */}
+                {/* Footer totals — labels right-aligned under Details, amounts under Amount */}
                 <tfoot>
                   <tr className="border-t-2 border-stone-900">
-                    <td colSpan={2} />
-                    <td className="text-right font-semibold tracking-wide uppercase text-[11px] text-stone-700 py-2.5 px-3">
+                    <td className="text-right font-semibold tracking-wide uppercase text-[11px] text-stone-700 py-2.5 pr-3">
                       Subtotal
                     </td>
                     <td className="text-right tabular-nums font-medium py-2.5 pl-3 text-stone-900">
@@ -354,8 +340,7 @@ export default function EstimatePreviewPage() {
                   </tr>
                   {Number(overheadAmount) > 0 && (
                     <tr>
-                      <td colSpan={2} />
-                      <td className="text-right uppercase text-[11px] tracking-wide text-stone-600 py-1 px-3">
+                      <td className="text-right uppercase text-[11px] tracking-wide text-stone-600 py-1 pr-3">
                         Over-head Allowances ({Number(overheadPct).toFixed(0)}%)
                       </td>
                       <td className="text-right tabular-nums py-1 pl-3 text-stone-800">
@@ -365,8 +350,7 @@ export default function EstimatePreviewPage() {
                   )}
                   {Number(vatAmount) > 0 && (
                     <tr>
-                      <td colSpan={2} />
-                      <td className="text-right uppercase text-[11px] tracking-wide text-stone-600 py-1 px-3">
+                      <td className="text-right uppercase text-[11px] tracking-wide text-stone-600 py-1 pr-3">
                         VAT ({Number(vatPct).toFixed(0)}%)
                       </td>
                       <td className="text-right tabular-nums py-1 pl-3 text-stone-800">
@@ -375,8 +359,7 @@ export default function EstimatePreviewPage() {
                     </tr>
                   )}
                   <tr className="border-t border-stone-900">
-                    <td colSpan={2} />
-                    <td className="text-right font-bold uppercase text-[12px] tracking-wider py-3 px-3 text-bedrock-red">
+                    <td className="text-right font-bold uppercase text-[12px] tracking-wider py-3 pr-3 text-bedrock-red">
                       Total
                     </td>
                     <td className="text-right tabular-nums font-bold py-3 pl-3 text-[14.5px] text-bedrock-red">

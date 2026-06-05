@@ -31,6 +31,7 @@ import {
   type EstimateStatus,
 } from "@/types";
 import { canSeeCosts } from "@/lib/permissions";
+import { ScopeThisButton } from "@/components/estimates/scope-this-button";
 
 const STATUS_DOT: Record<string, string> = {
   draft:     "bg-[#555]",
@@ -45,6 +46,8 @@ type EstimateSection = {
   id: string;
   estimate_id: string;
   name: string;
+  /** Optional client-facing label override — see issue #13. */
+  client_name?: string | null;
   order_index: number;
   show_to_client: boolean;
 };
@@ -530,6 +533,25 @@ export default function EstimateDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* Scope-this empty-state action (issue #9) — only when no sections exist
+            and the viewer can see costs. Workers (sell-only view) don't see this. */}
+        {sections.length === 0 && costsVisible && estimate.status === "draft" && (
+          <div className="rounded border border-dashed border-[#34373c] bg-[#1b1c1e] px-6 py-10 text-center mb-4">
+            <p className="text-[13px] text-[#888] mb-3">
+              This estimate is empty. Describe the job and Claude will scope it for you — sections, tasks, and a materials takeoff.
+            </p>
+            <div className="flex justify-center">
+              <ScopeThisButton
+                estimateId={estimateId}
+                defaultLaborSellRatePerDay={Number(estimate.labor_sell_rate_per_day ?? 180)}
+                defaultMaterialMarkupPct={Number(estimate.default_material_markup_pct ?? 0)}
+                defaultEquipmentMarkupPct={Number(estimate.default_equipment_markup_pct ?? 0)}
+                onApplied={fetchEstimateData}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Line items — different shape per view */}
         {view === "internal" ? (

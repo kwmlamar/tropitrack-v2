@@ -36,6 +36,8 @@ type Section = {
   id: string;
   estimate_id: string;
   name: string;
+  /** Optional client-facing label override — see issue #13. */
+  client_name?: string | null;
   order_index: number;
   show_to_client: boolean;
 };
@@ -416,32 +418,43 @@ export default function EstimateBuilderEditorPage() {
                     {/* Section header */}
                     <tr className="bg-muted">
                       <td className="sticky left-0 z-10 bg-muted px-3 py-2 border-b border-r border-border">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-2">
+                            <EditableTextCell
+                              value={sec.name}
+                              onCommit={(v) => updateSection(sec.id, { name: v })}
+                              disabled={!isEditable}
+                              className="text-[12px] font-semibold text-foreground"
+                              placeholder="Section name"
+                            />
+                            {isEditable && (
+                              <>
+                                <button
+                                  onClick={() => addTask(sec.id)}
+                                  className="text-[10px] font-mono text-muted-foreground hover:text-foreground transition-colors px-1.5 py-0.5 rounded hover:bg-accent"
+                                  title="Add task to this section"
+                                >
+                                  + task
+                                </button>
+                                <button
+                                  onClick={() => deleteSection(sec.id)}
+                                  className="text-muted-foreground/60 hover:text-destructive transition-colors"
+                                  title="Delete section"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                          {/* Client-facing label (issue #13): falls back to `name` on the
+                              client preview when empty. Internal `name` always shows here. */}
                           <EditableTextCell
-                            value={sec.name}
-                            onCommit={(v) => updateSection(sec.id, { name: v })}
+                            value={sec.client_name ?? ""}
+                            onCommit={(v) => updateSection(sec.id, { client_name: v.trim() || null })}
                             disabled={!isEditable}
-                            className="text-[12px] font-semibold text-foreground"
-                            placeholder="Section name"
+                            className="text-[10.5px] italic text-muted-foreground/80 font-normal"
+                            placeholder="Client label (optional, e.g. 'Raised Concrete Pad')"
                           />
-                          {isEditable && (
-                            <>
-                              <button
-                                onClick={() => addTask(sec.id)}
-                                className="text-[10px] font-mono text-muted-foreground hover:text-foreground transition-colors px-1.5 py-0.5 rounded hover:bg-accent"
-                                title="Add task to this section"
-                              >
-                                + task
-                              </button>
-                              <button
-                                onClick={() => deleteSection(sec.id)}
-                                className="text-muted-foreground/60 hover:text-destructive transition-colors"
-                                title="Delete section"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </button>
-                            </>
-                          )}
                         </div>
                       </td>
                       <td colSpan={2} className="px-2 py-2 text-right text-[10px] font-mono text-muted-foreground/70 border-b border-border">
@@ -567,23 +580,34 @@ function TaskRow({ item, days, laborRate, editable, onUpdate, onDelete }: TaskRo
     <tr className="group">
       {/* Description */}
       <td className="sticky left-0 z-10 bg-card group-hover:bg-accent transition-colors px-3 py-2 border-b border-r border-border pl-6">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-center gap-2">
+            <EditableTextCell
+              value={item.description ?? ""}
+              onCommit={(v) => onUpdate({ description: v })}
+              disabled={!editable}
+              placeholder="(untitled)"
+              className="text-[13px] text-foreground flex-1"
+            />
+            {editable && (
+              <button
+                onClick={onDelete}
+                className="opacity-0 group-hover:opacity-100 text-muted-foreground/60 hover:text-destructive transition-all"
+                title="Delete task"
+              >
+                <Trash2 className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+          {/* Client-facing label (issue #13): only override when the internal
+              description uses jargon a homeowner wouldn't read. */}
           <EditableTextCell
-            value={item.description ?? ""}
-            onCommit={(v) => onUpdate({ description: v })}
+            value={item.client_name ?? ""}
+            onCommit={(v) => onUpdate({ client_name: v.trim() || null })}
             disabled={!editable}
-            placeholder="(untitled)"
-            className="text-[13px] text-foreground flex-1"
+            className="text-[10.5px] italic text-muted-foreground/70 font-normal pl-0"
+            placeholder="Client label (optional)"
           />
-          {editable && (
-            <button
-              onClick={onDelete}
-              className="opacity-0 group-hover:opacity-100 text-muted-foreground/60 hover:text-destructive transition-all"
-              title="Delete task"
-            >
-              <Trash2 className="h-3 w-3" />
-            </button>
-          )}
         </div>
       </td>
 
