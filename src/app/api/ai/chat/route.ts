@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { runTool } from "@/lib/ai-tools/audit";
+import type { ToolContext } from "@/lib/ai-tools/types";
+import { TOOL_REGISTRY, getTool } from "@/lib/ai-tools/registry";
+import { createPendingWrite, type ProposedWritePayload } from "@/lib/ai-tools/pending-writes";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -26,14 +30,14 @@ When answering:
 - Keep responses tight. No fluff.
 - You are part of the system. Act like it.
 
-# Data access (READ CAREFULLY)
+# Data access
 
-You do NOT currently have live database query tools in this chat surface. You CANNOT read live jobs, timesheets, payroll records, materials, or any other Bedrock data on your own. Tool-use is being wired into this surface separately.
+You have live database tools for some questions. Use them before asking the user to paste data.
 
-This means: if the user asks for live data ("how much is unpaid for X", "what hours did Y work this week", "show me active jobs"), you have two choices and only two:
+Available tools:
+- **get_worker_unpaid(worker_name)** — returns how much a worker is owed right now: outstanding payroll balance + unbilled time since their last pay period, with NIB estimate and net cash. Fuzzy name matching is built in; accept misspellings, first-name only, last-name only. If the tool returns candidates, ask the user to pick one.
 
-1. **Ask the user to paste the data into the chat**, then do the calculation or analysis they wanted with what they paste.
-2. **Point them to the right module in Bedrock** so they can read it themselves (Payroll, Time, Estimates, Jobs, Materials).
+For questions outside the tools above (active jobs list, material stock, receipt history, etc.) you still don't have direct access yet — ask the user to paste, or point them to the relevant Bedrock module.
 
 # Things you must NEVER do
 
@@ -149,9 +153,18 @@ export async function POST(request: NextRequest) {
     if (!authHeader) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const token = authHeader.replace("Bearer ", "");
+    // Admin client: only used for auth.getUser and for ai_threads/ai_thread_messages
+    // persistence (those tables aren't tenant-scoped in this slice).
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     if (authError || !user) return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+
+    // User-scoped client: every tool call runs through this so RLS applies.
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+    const userSupabase = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
 
     const { thread_id, skill_id, message } = await request.json();
     if (!message || typeof message !== "string") {
@@ -224,29 +237,110 @@ export async function POST(request: NextRequest) {
     const skillAddon = activeSkillId && SKILL_PROMPTS[activeSkillId] ? SKILL_PROMPTS[activeSkillId] : "";
     const systemPrompt = BASE_SYSTEM + skillAddon;
 
-    // Call Anthropic
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 2048,
-        system: systemPrompt,
-        messages: orderedHistory,
-      }),
-    });
+    // Tool-use loop. Each iteration: call Claude → if it asked for a tool, run it,
+    // append the result, and loop. Cap iterations to keep latency bounded.
+    type ContentBlock =
+      | { type: "text"; text: string }
+      | { type: "tool_use"; id: string; name: string; input: Record<string, unknown> }
+      | { type: "tool_result"; tool_use_id: string; content: string };
+    type Msg = { role: "user" | "assistant"; content: string | ContentBlock[] };
 
-    if (!res.ok) {
-      const err = await res.text();
-      return NextResponse.json({ success: false, message: `Claude API error: ${err}` }, { status: res.status });
+    const messages: Msg[] = orderedHistory.map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
+
+    // Filtering by skill/scope arrives in #21. For now expose everything in the registry.
+    const tools = TOOL_REGISTRY.map((t) => ({
+      name: t.name,
+      description: t.description,
+      input_schema: t.input_schema,
+    }));
+
+    const baseCtx: Omit<ToolContext, "supabase"> = {
+      companyId: profile.company_id,
+      userId: user.id,
+      threadId: activeThreadId,
+      source: "ai",
+    };
+
+    let responseText = "";
+    let pendingWrite: ProposedWritePayload | null = null;
+
+    for (let step = 0; step < 4; step++) {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-6",
+          max_tokens: 2048,
+          system: systemPrompt,
+          tools,
+          messages,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.text();
+        return NextResponse.json({ success: false, message: `Claude API error: ${err}` }, { status: res.status });
+      }
+
+      const data = await res.json();
+      const content = (data.content ?? []) as ContentBlock[];
+      const toolUses = content.filter((b): b is Extract<ContentBlock, { type: "tool_use" }> => b.type === "tool_use");
+
+      if (toolUses.length === 0 || data.stop_reason !== "tool_use") {
+        responseText = content.find((b): b is Extract<ContentBlock, { type: "text" }> => b.type === "text")?.text?.trim() ?? "";
+        break;
+      }
+
+      messages.push({ role: "assistant", content });
+
+      // Identify any writes in this batch. If present, stage them and stop.
+      const firstWrite = toolUses.find((u) => {
+        const t = getTool(u.name);
+        return t && t.tier !== "none";
+      });
+
+      if (firstWrite) {
+        const tool = getTool(firstWrite.name)!;
+        if (!tool.preview) {
+          throw new Error(`tool ${tool.name} is tier ${tool.tier} but has no preview()`);
+        }
+        const preview = await tool.preview(firstWrite.input, { ...baseCtx, supabase: userSupabase });
+        pendingWrite = await createPendingWrite(supabase, {
+          companyId: profile.company_id,
+          userId: user.id,
+          threadId: activeThreadId!,
+          tool,
+          input: firstWrite.input,
+          summary: preview.summary,
+          doubleConfirmAnswer: preview.doubleConfirmAnswer,
+        });
+        responseText = `${preview.summary}\n\nConfirm to apply, or cancel.`;
+        break;
+      }
+
+      const toolResults: ContentBlock[] = [];
+      for (const use of toolUses) {
+        const tool = getTool(use.name);
+        let payload: unknown;
+        if (!tool) {
+          payload = { ok: false, error: `unknown tool: ${use.name}` };
+        } else {
+          const outcome = await runTool(tool, use.input, {
+            ...baseCtx,
+            supabase: userSupabase,
+            confirmationMode: "auto",
+          });
+          payload = outcome.status === "ok" ? outcome.result : { ok: false, error: outcome.error };
+        }
+        toolResults.push({ type: "tool_result", tool_use_id: use.id, content: JSON.stringify(payload) });
+      }
+      messages.push({ role: "user", content: toolResults });
     }
 
-    const data = await res.json();
-    const responseText = data.content?.find((b: { type: string }) => b.type === "text")?.text?.trim();
     if (!responseText) throw new Error("No response from Claude");
 
     // Persist assistant response
@@ -260,6 +354,7 @@ export async function POST(request: NextRequest) {
       success: true,
       thread_id: activeThreadId,
       message: responseText,
+      pending_write: pendingWrite,
     });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "Chat failed";

@@ -16,6 +16,14 @@ interface Message {
   skill_id?: string;
 }
 
+interface PendingWrite {
+  id: string;
+  tool_name: string;
+  tier: "confirm" | "double-confirm";
+  summary: string;
+  expires_at: string;
+}
+
 interface Thread {
   id: string;
   user_id: string;
@@ -230,6 +238,9 @@ export default function ClaudePage() {
   const { user, profile, session } = useAuth();
   const supabase = useMemo(() => createClient(), []);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [pendingWrite, setPendingWrite] = useState<PendingWrite | null>(null);
+  const [doubleConfirmInput, setDoubleConfirmInput] = useState("");
+  const [resolvingWrite, setResolvingWrite] = useState(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -397,6 +408,11 @@ export default function ClaudePage() {
         },
       ]);
 
+      if (data.pending_write) {
+        setPendingWrite(data.pending_write);
+        setDoubleConfirmInput("");
+      }
+
       // Server creates a thread on first send — adopt its id and refresh the list
       if (data.thread_id) {
         if (!activeThreadId) setActiveThreadId(data.thread_id);
@@ -419,6 +435,71 @@ export default function ClaudePage() {
     abortRef.current?.abort();
     setLoading(false);
   };
+
+  const confirmPending = useCallback(async () => {
+    if (!pendingWrite || resolvingWrite) return;
+    if (pendingWrite.tier === "double-confirm" && !doubleConfirmInput.trim()) return;
+    setResolvingWrite(true);
+    try {
+      const res = await fetch("/api/ai/chat/confirm", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({
+          pending_write_id: pendingWrite.id,
+          typed_answer: pendingWrite.tier === "double-confirm" ? doubleConfirmInput.trim() : undefined,
+        }),
+      });
+      const data = await res.json();
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: data.message ?? (data.success ? "Applied." : `Failed: ${data.error ?? "unknown"}`),
+        },
+      ]);
+      setPendingWrite(null);
+      setDoubleConfirmInput("");
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        { id: (Date.now() + 1).toString(), role: "assistant", content: "Confirm failed. Try again." },
+      ]);
+    } finally {
+      setResolvingWrite(false);
+    }
+  }, [pendingWrite, doubleConfirmInput, session, resolvingWrite]);
+
+  const cancelPending = useCallback(async () => {
+    if (!pendingWrite || resolvingWrite) return;
+    setResolvingWrite(true);
+    try {
+      const res = await fetch("/api/ai/chat/cancel", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ pending_write_id: pendingWrite.id }),
+      });
+      const data = await res.json();
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: data.message ?? "Cancelled.",
+        },
+      ]);
+      setPendingWrite(null);
+      setDoubleConfirmInput("");
+    } finally {
+      setResolvingWrite(false);
+    }
+  }, [pendingWrite, session, resolvingWrite]);
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -697,6 +778,16 @@ export default function ClaudePage() {
       {inChat && (
         <div className="flex-shrink-0 border-t border-[#2b2e33] px-6 py-4 bg-[#18191b]">
           <div className="max-w-[680px] mx-auto space-y-3">
+            {pendingWrite && (
+              <PendingWriteCard
+                pending={pendingWrite}
+                typedInput={doubleConfirmInput}
+                onTypedInputChange={setDoubleConfirmInput}
+                onConfirm={confirmPending}
+                onCancel={cancelPending}
+                busy={resolvingWrite}
+              />
+            )}
             {/* Skill chips in chat mode */}
             <div className="flex items-center gap-1.5 flex-wrap">
               {SKILLS.map((skill) => {
@@ -915,6 +1006,75 @@ function InputBox({
       >
         {loading ? <Square className="h-3 w-3 fill-current" /> : <ArrowUp className="h-3.5 w-3.5" />}
       </button>
+    </div>
+  );
+}
+
+// ─── Pending write confirmation card ──────────────────────────────────────────
+
+function PendingWriteCard({
+  pending,
+  typedInput,
+  onTypedInputChange,
+  onConfirm,
+  onCancel,
+  busy,
+}: {
+  pending: PendingWrite;
+  typedInput: string;
+  onTypedInputChange: (v: string) => void;
+  onConfirm: () => void;
+  onCancel: () => void;
+  busy: boolean;
+}) {
+  const isDouble = pending.tier === "double-confirm";
+  const canConfirm = !busy && (!isDouble || typedInput.trim().length > 0);
+  return (
+    <div
+      className="rounded-lg border px-4 py-3 space-y-3"
+      style={{
+        borderColor: isDouble ? "#d35e5e" : "#3a3d42",
+        background: isDouble ? "#2a1a1a" : "#1f2125",
+      }}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1">
+          <div className="text-[10px] font-mono uppercase tracking-wider" style={{ color: isDouble ? "#e88080" : "#8a8d92" }}>
+            {isDouble ? "Confirm — destructive" : "Confirm write"}
+          </div>
+          <div className="text-[13px] text-[#e0e0e0] leading-relaxed">{pending.summary}</div>
+          <div className="text-[10px] font-mono text-[#555]">{pending.tool_name}</div>
+        </div>
+      </div>
+      {isDouble && (
+        <input
+          type="text"
+          value={typedInput}
+          onChange={(e) => onTypedInputChange(e.target.value)}
+          placeholder="Type to confirm"
+          className="w-full px-3 py-2 text-[13px] rounded-md bg-[#18191b] border border-[#3a3d42] text-[#e0e0e0] focus:outline-none focus:border-[#d35e5e]"
+        />
+      )}
+      <div className="flex items-center justify-end gap-2">
+        <button
+          onClick={onCancel}
+          disabled={busy}
+          className="px-3 py-1.5 text-[12px] font-mono rounded-md border border-[#3a3d42] text-[#aaa] hover:bg-[#292c31] disabled:opacity-40"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={onConfirm}
+          disabled={!canConfirm}
+          className="px-3 py-1.5 text-[12px] font-mono rounded-md disabled:opacity-40"
+          style={{
+            background: isDouble ? "#d35e5e" : "#a2c573",
+            color: "#18191b",
+          }}
+        >
+          {busy ? "Working…" : "Confirm"}
+        </button>
+      </div>
     </div>
   );
 }
