@@ -30,14 +30,16 @@ When answering:
 - Keep responses tight. No fluff.
 - You are part of the system. Act like it.
 
-# Data access
+## Tool use
 
-You have live database tools for some questions. Use them before asking the user to paste data.
+You have live database tools, but only those visible in the current request. The set is filtered by the active skill mode:
 
-Available tools:
-- **get_worker_unpaid(worker_name)** — returns how much a worker is owed right now: outstanding payroll balance + unbilled time since their last pay period, with NIB estimate and net cash. Fuzzy name matching is built in; accept misspellings, first-name only, last-name only. If the tool returns candidates, ask the user to pick one.
+- **Default mode (no skill pill active)** — reads only. You can answer questions about workers, payroll, time, projects. You CANNOT do writes. If the user asks for a write, tell them to click the relevant skill pill (PAYROLL, TIMESHEET, etc.) and try again.
+- **PAYROLL / TIMESHEET / etc.** — read tools + that skill's write tools.
 
-For questions outside the tools above (active jobs list, material stock, receipt history, etc.) you still don't have direct access yet — ask the user to paste, or point them to the relevant Bedrock module.
+Use fuzzy matching for worker and project names — first name, last name, or partial/misspelled are all fine.
+
+For things you have no tool for (material stock, receipts, client history), ask the user to paste, or point them to the relevant Bedrock module.
 
 # Things you must NEVER do
 
@@ -166,7 +168,8 @@ export async function POST(request: NextRequest) {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    const { thread_id, skill_id, message } = await request.json();
+    const { thread_id, skill_id, message, mode: rawMode } = await request.json();
+    const mode: "default" | "bypass" = rawMode === "bypass" ? "bypass" : "default";
     if (!message || typeof message !== "string") {
       return NextResponse.json({ error: "Message required" }, { status: 400 });
     }
@@ -247,8 +250,22 @@ export async function POST(request: NextRequest) {
 
     const messages: Msg[] = orderedHistory.map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
 
-    // Filtering by skill/scope arrives in #21. For now expose everything in the registry.
-    const tools = TOOL_REGISTRY.map((t) => ({
+    // Skill-scoped tool filtering (#21).
+    //   - Reads (scope='read') with skills including 'core' are ALWAYS loaded.
+    //   - Reads scoped to a specific skill are loaded when that skill is active.
+    //   - Writes (scope='write') are loaded ONLY when their skill is active.
+    //   - Default mode (no active skill) = reads only. Claude must ask the user to
+    //     switch skills before doing any write.
+    const activeSkillForTools = activeSkillId ?? null;
+    const visibleTools = TOOL_REGISTRY.filter((t) => {
+      const inActiveSkill = activeSkillForTools !== null && t.skills.includes(activeSkillForTools);
+      if (t.scope === "read") {
+        return t.skills.includes("core") || inActiveSkill;
+      }
+      // write
+      return inActiveSkill;
+    });
+    const tools = visibleTools.map((t) => ({
       name: t.name,
       description: t.description,
       input_schema: t.input_schema,
@@ -297,10 +314,13 @@ export async function POST(request: NextRequest) {
 
       messages.push({ role: "assistant", content });
 
-      // Identify any writes in this batch. If present, stage them and stop.
+      // Identify the first write that needs staging. In bypass mode, tier='confirm'
+      // skips the card; tier='double-confirm' still stages (irreversible ops never auto-run).
       const firstWrite = toolUses.find((u) => {
         const t = getTool(u.name);
-        return t && t.tier !== "none";
+        if (!t || t.tier === "none") return false;
+        if (t.tier === "confirm" && mode === "bypass") return false;
+        return true;
       });
 
       if (firstWrite) {
@@ -329,10 +349,15 @@ export async function POST(request: NextRequest) {
         if (!tool) {
           payload = { ok: false, error: `unknown tool: ${use.name}` };
         } else {
+          const cm = tool.tier === "none"
+            ? "auto"
+            : mode === "bypass"
+            ? "bypass"
+            : "auto"; // shouldn't reach: confirm/double-confirm in default mode is staged above
           const outcome = await runTool(tool, use.input, {
             ...baseCtx,
             supabase: userSupabase,
-            confirmationMode: "auto",
+            confirmationMode: cm,
           });
           payload = outcome.status === "ok" ? outcome.result : { ok: false, error: outcome.error };
         }

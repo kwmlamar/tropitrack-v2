@@ -99,14 +99,13 @@ export async function getWorkerUnpaid(
   const rate = Number(best.hourly_rate ?? 0);
   const otMult = Number(best.overtime_rate_multiplier ?? 1.5);
 
-  // Outstanding = entries in OPEN periods that aren't fully paid.
-  // Closed pay periods (status='paid') are the source of truth that no money is owed,
-  // regardless of per-entry payment_status (which can drift from data imports).
+  // Outstanding = active (non-voided) entries in OPEN periods that aren't fully paid.
   const { data: payrollRows, error: pErr } = await supabase
     .from("payroll_entries")
-    .select("id, gross_pay, total_paid, payment_status, pay_period_id, pay_periods!inner(end_date, status)")
+    .select("id, gross_pay, total_paid, payment_status, pay_period_id, voided_at, pay_periods!inner(end_date, status)")
     .eq("worker_id", workerId)
     .in("payment_status", ["unpaid", "partial"])
+    .is("voided_at", null)
     .neq("pay_periods.status", "paid");
 
   if (pErr) return { ok: false, error: `payroll query failed: ${pErr.message}` };

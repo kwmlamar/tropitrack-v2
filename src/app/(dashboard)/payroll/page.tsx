@@ -131,7 +131,7 @@ export default function PayrollPage() {
     try {
       const { data, error } = await supabase
         .from("pay_periods")
-        .insert({ start_date: periodForm.start_date.split("T")[0], end_date: periodForm.end_date.split("T")[0], status: "open" })
+        .insert({ start_date: periodForm.start_date.split("T")[0], end_date: periodForm.end_date.split("T")[0], status: "open", company_id: profile!.company_id })
         .select().single();
       if (error) throw error;
       toast({ title: "Pay period created" });

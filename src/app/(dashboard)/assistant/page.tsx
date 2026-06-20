@@ -241,6 +241,7 @@ export default function ClaudePage() {
   const [pendingWrite, setPendingWrite] = useState<PendingWrite | null>(null);
   const [doubleConfirmInput, setDoubleConfirmInput] = useState("");
   const [resolvingWrite, setResolvingWrite] = useState(false);
+  const [mode, setMode] = useState<"default" | "bypass">("default");
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -394,6 +395,7 @@ export default function ClaudePage() {
           thread_id: activeThreadId,
           skill_id: activeSkill?.id ?? null,
           message: trimmed,
+          mode,
         }),
         signal: abortRef.current.signal,
       });
@@ -429,7 +431,7 @@ export default function ClaudePage() {
       abortRef.current = null;
       setTimeout(() => textareaRef.current?.focus(), 50);
     }
-  }, [loading, session, activeSkill, activeThreadId]);
+  }, [loading, session, activeSkill, activeThreadId, mode]);
 
   const stop = () => {
     abortRef.current?.abort();
@@ -811,7 +813,28 @@ export default function ClaudePage() {
                   </button>
                 );
               })}
+              <button
+                onClick={() => setMode((m) => (m === "bypass" ? "default" : "bypass"))}
+                className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-md border transition-all text-[11px] font-mono"
+                style={mode === "bypass" ? {
+                  borderColor: "#d35e5e",
+                  color: "#e88080",
+                  background: "#2a1a1a",
+                } : {
+                  borderColor: "#2d3035",
+                  color: "#555",
+                }}
+                title={mode === "bypass" ? "Bypass mode ON — confirm-tier writes commit instantly. Click to turn off." : "Default mode — every write asks for confirmation. Click to bypass."}
+              >
+                {mode === "bypass" ? "⚠ BYPASS" : "BYPASS"}
+              </button>
             </div>
+
+            {mode === "bypass" && (
+              <div className="px-3 py-2 rounded-md border text-[11px] font-mono" style={{ borderColor: "#d35e5e", background: "#2a1a1a", color: "#e88080" }}>
+                Bypass mode: writes commit instantly without a confirmation card. Deletes and voids still require typed confirmation.
+              </div>
+            )}
 
             <InputBox
               value={input}
