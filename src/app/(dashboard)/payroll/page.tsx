@@ -181,7 +181,7 @@ export default function PayrollPage() {
           nibEE = nibWages * NIB_EMPLOYEE_RATE;
           nibER = nibWages * NIB_EMPLOYER_RATE;
         }
-        return { pay_period_id: selectedPeriod.id, worker_id, regular_hours: t.regular_hours, overtime_hours: t.overtime_hours, regular_rate: t.hourly_rate, overtime_rate: t.hourly_rate * t.overtime_multiplier, gross_pay: grossPay, deductions: nibEE, net_pay: grossPay - nibEE, deduction_details: { nib_employee: nibEE, nib_employer: nibER, nib_insurable_wages: nibWages } };
+        return { company_id: profile!.company_id, pay_period_id: selectedPeriod.id, worker_id, regular_hours: t.regular_hours, overtime_hours: t.overtime_hours, regular_rate: t.hourly_rate, overtime_rate: t.hourly_rate * t.overtime_multiplier, gross_pay: grossPay, deductions: nibEE, net_pay: grossPay - nibEE, deduction_details: { nib_employee: nibEE, nib_employer: nibER, nib_insurable_wages: nibWages } };
       });
       const { error: insErr } = await supabase.from("payroll_entries").insert(payrollEntries);
       if (insErr) throw insErr;
@@ -224,7 +224,7 @@ export default function PayrollPage() {
     try {
       const list = selectedPeriod.entries?.filter(e => selectedEntries.has(e.id)) || [];
       const { error } = await supabase.from("payment_transactions").insert(
-        list.map(e => ({ payroll_entry_id: e.id, amount: e.net_pay - (e.total_paid || 0), payment_method: "cash", created_by: user?.id }))
+        list.map(e => ({ company_id: profile!.company_id, payroll_entry_id: e.id, amount: e.net_pay - (e.total_paid || 0), payment_method: "cash", created_by: user?.id }))
       );
       if (error) throw error;
       const { data: allEntries } = await supabase.from("payroll_entries").select("id, is_paid").eq("pay_period_id", periodId);
@@ -261,7 +261,7 @@ export default function PayrollPage() {
     const periodId = selectedPeriod.id;
     setPayingEntryId(payingEntry.id);
     try {
-      const { error } = await supabase.from("payment_transactions").insert({ payroll_entry_id: payingEntry.id, amount, payment_method: payMethod, created_by: user?.id });
+      const { error } = await supabase.from("payment_transactions").insert({ company_id: profile!.company_id, payroll_entry_id: payingEntry.id, amount, payment_method: payMethod, created_by: user?.id });
       if (error) throw error;
       const { data: allEntries } = await supabase.from("payroll_entries").select("id, is_paid, net_pay, total_paid").eq("pay_period_id", periodId);
       if (allEntries?.every(e => e.id === payingEntry.id ? (e.total_paid || 0) + amount >= e.net_pay : e.is_paid)) {
@@ -325,7 +325,7 @@ export default function PayrollPage() {
     }
     setSubmitting(true);
     try {
-      const { error } = await supabase.from("payroll_adjustments").insert({ pay_period_id: selectedPeriod.id, worker_id: adjustmentForm.worker_id, adjustment_type: adjustmentForm.adjustment_type, hours_adjustment: parseFloat(adjustmentForm.hours_adjustment) || 0, amount_adjustment: parseFloat(adjustmentForm.amount_adjustment) || 0, reason: adjustmentForm.reason, created_by: user.id });
+      const { error } = await supabase.from("payroll_adjustments").insert({ company_id: profile!.company_id, pay_period_id: selectedPeriod.id, worker_id: adjustmentForm.worker_id, adjustment_type: adjustmentForm.adjustment_type, hours_adjustment: parseFloat(adjustmentForm.hours_adjustment) || 0, amount_adjustment: parseFloat(adjustmentForm.amount_adjustment) || 0, reason: adjustmentForm.reason, created_by: user.id });
       if (error) throw error;
       toast({ title: "Adjustment created" });
       setAdjustmentDialogOpen(false);
