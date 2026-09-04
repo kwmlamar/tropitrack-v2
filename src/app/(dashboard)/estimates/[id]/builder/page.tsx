@@ -5,7 +5,7 @@
  *
  * Theme contract: this page is theme-aware. Colors come from shadcn CSS vars
  * (background / card / muted / accent / border / foreground / muted-foreground)
- * and the project's custom `bedrock-amber` accent. No hardcoded hex values —
+ * and the `brand`/`primary` accent tokens. No hardcoded hex values —
  * dark/light modes both render correctly via globals.css `:root` + `.dark`.
  *
  * Schema notes (project_bedrock_materials_calc_design.md):
@@ -293,7 +293,7 @@ export default function EstimateBuilderEditorPage() {
             </div>
             <h1 className="text-[16px] font-semibold truncate text-foreground">{estimate.title || "Untitled estimate"}</h1>
           </div>
-          <div className="text-[10px] font-mono text-muted-foreground">
+          <div className="text-[10px] tabular-nums text-muted-foreground">
             {savingCount > 0 ? (
               <span className="flex items-center gap-1.5">
                 <Loader2 className="h-3 w-3 animate-spin" /> Saving…
@@ -305,17 +305,17 @@ export default function EstimateBuilderEditorPage() {
           <div className="flex items-baseline gap-4">
             <div className="flex items-baseline gap-1.5">
               <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/70">Labor</span>
-              <span className="text-[12px] font-mono text-foreground tabular-nums">{formatCurrency(laborSubtotal)}</span>
+              <span className="text-[12px] tabular-nums text-foreground tabular-nums">{formatCurrency(laborSubtotal)}</span>
             </div>
             <div className="flex items-baseline gap-1.5" title="Total = labor + materials + overhead + VAT (computed server-side; refresh /estimates/[id] for latest)">
               <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/70">Total</span>
-              <span className="text-[14px] font-mono text-bedrock-amber tabular-nums font-semibold">{formatCurrency(estimateTotal)}</span>
+              <span className="text-[14px] tabular-nums text-brand tabular-nums font-semibold">{formatCurrency(estimateTotal)}</span>
             </div>
           </div>
         </div>
 
         {lockReason && (
-          <div className="px-6 py-2 bg-bedrock-amber/10 border-t border-bedrock-amber/20 flex items-center gap-2 text-[11px] font-mono text-bedrock-amber">
+          <div className="px-6 py-2 bg-primary/10 border-t border-primary/20 flex items-center gap-2 text-[11px] tabular-nums text-brand">
             <Lock className="h-3 w-3" />
             {lockReason}
           </div>
@@ -348,7 +348,7 @@ export default function EstimateBuilderEditorPage() {
           <button
             onClick={addSection}
             disabled={!isEditable}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-muted border border-border text-[11px] font-mono text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted border border-border text-[11px] tabular-nums text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Plus className="h-3 w-3" />
             Section
@@ -388,7 +388,7 @@ export default function EstimateBuilderEditorPage() {
                   <th
                     key={d}
                     className={cn(
-                      "px-1 py-2.5 text-center text-[9px] font-mono text-muted-foreground/70 border-b border-border min-w-[34px] bg-card",
+                      "px-1 py-2.5 text-center text-[9px] tabular-nums text-muted-foreground/70 border-b border-border min-w-[34px] bg-card",
                       weekend && "bg-muted/40",
                       firstOfMonth && "border-l-2 border-l-border"
                     )}
@@ -431,7 +431,7 @@ export default function EstimateBuilderEditorPage() {
                               <>
                                 <button
                                   onClick={() => addTask(sec.id)}
-                                  className="text-[10px] font-mono text-muted-foreground hover:text-foreground transition-colors px-1.5 py-0.5 rounded hover:bg-accent"
+                                  className="text-[10px] tabular-nums text-muted-foreground hover:text-foreground transition-colors px-1.5 py-0.5 rounded-md hover:bg-accent"
                                   title="Add task to this section"
                                 >
                                   + task
@@ -457,10 +457,10 @@ export default function EstimateBuilderEditorPage() {
                           />
                         </div>
                       </td>
-                      <td colSpan={2} className="px-2 py-2 text-right text-[10px] font-mono text-muted-foreground/70 border-b border-border">
+                      <td colSpan={2} className="px-2 py-2 text-right text-[10px] tabular-nums text-muted-foreground/70 border-b border-border">
                         {items.length} task{items.length === 1 ? "" : "s"}
                       </td>
-                      <td className="px-2 py-2 text-right text-[12px] font-mono text-foreground font-semibold tabular-nums border-b border-r border-border">
+                      <td className="px-2 py-2 text-right text-[12px] tabular-nums text-foreground font-semibold tabular-nums border-b border-r border-border">
                         {formatCurrency(sectionSubtotal(sec.id))}
                       </td>
                       <td className="border-b border-border" />
@@ -617,7 +617,7 @@ function TaskRow({ item, days, laborRate, editable, onUpdate, onDelete }: TaskRo
           value={item.crew_days ?? null}
           onCommit={(v) => onUpdate({ crew_days: v ?? null })}
           disabled={!editable}
-          className="text-[12px] font-mono text-muted-foreground tabular-nums w-full text-right"
+          className="text-[12px] tabular-nums text-muted-foreground tabular-nums w-full text-right"
           placeholder="—"
         />
       </td>
@@ -628,7 +628,7 @@ function TaskRow({ item, days, laborRate, editable, onUpdate, onDelete }: TaskRo
           value={item.man_days ?? null}
           onCommit={(v) => onManDaysChange(v)}
           disabled={!editable}
-          className="text-[12px] font-mono text-muted-foreground tabular-nums w-full text-right"
+          className="text-[12px] tabular-nums text-muted-foreground tabular-nums w-full text-right"
           placeholder="—"
         />
       </td>
@@ -639,7 +639,7 @@ function TaskRow({ item, days, laborRate, editable, onUpdate, onDelete }: TaskRo
           value={laborDisplay > 0 ? laborDisplay : null}
           onCommit={(v) => onUpdate({ labor_cost: v ?? 0 })}
           disabled={!editable}
-          className="text-[12px] font-mono text-foreground tabular-nums w-full text-right"
+          className="text-[12px] tabular-nums text-foreground tabular-nums w-full text-right"
           placeholder="—"
         />
       </td>
@@ -723,7 +723,7 @@ function DayGanttCell({ crew, isStart, isEnd, weekend, firstOfMonth, editable, o
   // Pill geometry: full-bleed horizontally so neighbours touch; rounded only on bar ends.
   const pillClass = cn(
     "absolute inset-y-1.5 inset-x-0 flex items-center justify-center transition-colors",
-    active && "bg-bedrock-amber/85 shadow-[inset_0_-1px_0_0_hsl(var(--bedrock-amber)/0.4)]",
+    active && "bg-primary/85 shadow-[inset_0_-1px_0_0_hsl(var(--primary)/0.4)]",
     isStart && "rounded-l-md ml-0.5",
     isEnd && "rounded-r-md mr-0.5"
   );
@@ -764,17 +764,17 @@ function DayGanttCell({ crew, isStart, isEnd, weekend, firstOfMonth, editable, o
               }
             }}
             className={cn(
-              "absolute inset-1 w-[calc(100%-8px)] text-center text-[11px] font-mono tabular-nums rounded",
-              "bg-card text-foreground outline-none ring-1 ring-bedrock-amber/60 focus:ring-bedrock-amber"
+              "absolute inset-1 w-[calc(100%-8px)] text-center text-[11px] tabular-nums tabular-nums rounded-md",
+              "bg-card text-foreground outline-none ring-1 ring-primary/60 focus:ring-primary"
             )}
           />
         ) : active ? (
           // Amber pill is bright in both themes → fixed near-black for legibility
-          <span className="text-[11px] font-mono font-semibold tabular-nums text-zinc-950 select-none">
+          <span className="text-[11px] tabular-nums font-semibold tabular-nums text-primary-foreground select-none">
             {crew}
           </span>
         ) : (
-          <span className="text-[10px] font-mono text-muted-foreground/0 select-none">·</span>
+          <span className="text-[10px] tabular-nums text-muted-foreground/0 select-none">·</span>
         )}
       </div>
     </td>
@@ -807,7 +807,7 @@ function EditableTextCell({ value, onCommit, disabled, className, placeholder }:
       onBlur={() => { if (local !== value) onCommit(local); }}
       onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
       className={cn(
-        "bg-transparent border-0 outline-none focus:bg-accent/60 focus:ring-1 focus:ring-ring rounded px-1",
+        "bg-transparent border-0 outline-none focus:bg-accent/60 focus:ring-1 focus:ring-ring rounded-md px-1",
         className
       )}
     />
@@ -872,7 +872,7 @@ function EditableNumberCell({
           }
         }}
         className={cn(
-          "bg-transparent border-0 outline-none focus:bg-accent/60 focus:ring-1 focus:ring-ring rounded",
+          "bg-transparent border-0 outline-none focus:bg-accent/60 focus:ring-1 focus:ring-ring rounded-md",
           className,
           prefix && "pl-4",
           suffix && "pr-5"
@@ -903,7 +903,7 @@ function EstimateNumberInput({ label, value, onChange, disabled, prefix, suffix 
           value={value}
           onCommit={onChange}
           disabled={disabled}
-          className="text-[12px] font-mono text-foreground tabular-nums w-full text-right py-0.5 px-1 bg-muted/40 rounded"
+          className="text-[12px] tabular-nums text-foreground tabular-nums w-full text-right py-0.5 px-1 bg-muted/40 rounded-md"
           placeholder="—"
           prefix={prefix}
           suffix={suffix}

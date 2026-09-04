@@ -325,14 +325,14 @@ export default function MaterialsPage() {
           <button
             onClick={() => setActiveDiv("ALL")}
             className={cn(
-              "w-full text-left px-3 py-2 rounded text-[12.5px] transition-colors flex justify-between items-center",
+              "w-full text-left px-3 py-2 rounded-md text-[12.5px] transition-colors flex justify-between items-center",
               activeDiv === "ALL"
-                ? "bg-accent text-bedrock-amber font-semibold"
+                ? "bg-accent text-brand font-semibold"
                 : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
             )}
           >
             <span>All Materials</span>
-            <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded font-mono">
+            <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full tabular-nums">
               {materials.length}
             </span>
           </button>
@@ -349,7 +349,7 @@ export default function MaterialsPage() {
                 key={div.code}
                 onClick={() => setActiveDiv(div.code)}
                 className={cn(
-                  "w-full text-left px-3 py-1.5 rounded text-[12px] transition-colors flex justify-between items-center group",
+                  "w-full text-left px-3 py-1.5 rounded-md text-[12px] transition-colors flex justify-between items-center group",
                   isActive
                     ? "bg-accent text-foreground font-semibold"
                     : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
@@ -360,10 +360,10 @@ export default function MaterialsPage() {
                     className="w-1.5 h-1.5 rounded-full mr-2.5 flex-shrink-0"
                     style={{ backgroundColor: color }}
                   />
-                  <span className="font-mono text-[10px] text-muted-foreground/60 mr-1.5">{div.code}</span>
+                  <span className="tabular-nums text-[10px] text-muted-foreground/60 mr-1.5">{div.code}</span>
                   <span className="truncate">{div.name}</span>
                 </span>
-                <span className="text-[9px] bg-muted text-muted-foreground px-1 py-0.2 rounded font-mono ml-2">
+                <span className="text-[9px] bg-muted text-muted-foreground px-1 py-0.2 rounded-full tabular-nums ml-2">
                   {count}
                 </span>
               </button>
@@ -385,7 +385,7 @@ export default function MaterialsPage() {
           <div className="flex items-center gap-3">
             <button
               onClick={exportCSV}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-border bg-card text-[12px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border bg-card text-[12px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
             >
               <FileDown className="h-3.5 w-3.5" />
               Export CSV
@@ -398,7 +398,7 @@ export default function MaterialsPage() {
                 }
                 setAddDialogOpen(true);
               }}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded bg-bedrock-amber text-black font-semibold text-[12px] hover:opacity-90 transition-opacity"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-primary text-primary-foreground font-semibold text-[12px] hover:opacity-90 transition-opacity"
             >
               <Plus className="h-3.5 w-3.5" />
               Add Material
@@ -415,10 +415,10 @@ export default function MaterialsPage() {
               { label: "Average Unit Cost", value: formatCurrency(stats.avg), accent: true },
               { label: "Categories", value: stats.categoriesCount.toString() },
             ].map((s, idx) => (
-              <div key={idx} className="rounded border border-border bg-card px-4 py-3">
+              <div key={idx} className="rounded-lg border border-border bg-card px-4 py-3">
                 <p className="text-[9.5px] font-mono text-muted-foreground uppercase tracking-wider">{s.label}</p>
-                <p className={cn("text-[20px] font-semibold font-mono mt-0.5 leading-none",
-                  s.accent ? "text-bedrock-amber" : "text-foreground"
+                <p className={cn("text-[20px] font-semibold tabular-nums mt-0.5 leading-none",
+                  s.accent ? "text-brand" : "text-foreground"
                 )}>
                   {s.value}
                 </p>
@@ -433,18 +433,18 @@ export default function MaterialsPage() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search materials by name, category, supplier, or notes..."
-              className="w-full bg-card border border-border rounded pl-9 pr-4 py-2 text-[13px] text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-bedrock-amber/40 transition-colors"
+              className="w-full bg-card border border-border rounded-md pl-9 pr-4 py-2 text-[13px] text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-primary/40 transition-colors"
             />
           </div>
         </div>
 
         {/* Table View */}
         <div className="flex-1 overflow-auto p-6 bg-background">
-          <div className="rounded border border-border bg-card overflow-hidden">
+          <div className="rounded-lg border border-border bg-card overflow-hidden">
             {loading ? (
               <div className="p-16 text-center">
-                <Loader2 className="h-8 w-8 animate-spin mx-auto text-bedrock-amber" />
-                <p className="text-[12px] text-muted-foreground mt-2 font-mono">Loading materials catalog...</p>
+                <Loader2 className="h-8 w-8 animate-spin mx-auto text-brand" />
+                <p className="text-[12px] text-muted-foreground mt-2 tabular-nums">Loading materials catalog...</p>
               </div>
             ) : filtered.length === 0 ? (
               <div className="py-20 text-center">
@@ -454,7 +454,7 @@ export default function MaterialsPage() {
                 </p>
                 <button
                   onClick={() => setAddDialogOpen(true)}
-                  className="mt-3 text-[12px] text-bedrock-amber hover:underline"
+                  className="mt-3 text-[12px] text-brand hover:underline"
                 >
                   Add a material now →
                 </button>
@@ -480,9 +480,9 @@ export default function MaterialsPage() {
                     return (
                       <tr key={mat.id} className="group hover:bg-muted/40 transition-colors align-top">
                         {activeDiv === "ALL" && (
-                          <td className="px-4 py-3 text-[11px] font-mono">
+                          <td className="px-4 py-3 text-[11px] tabular-nums">
                             <span
-                              className="px-2 py-0.5 rounded text-white text-[10px] font-semibold"
+                              className="px-2 py-0.5 rounded-full text-white text-[10px] font-semibold"
                               style={{ backgroundColor: color }}
                               title={mat.division_name}
                             >
@@ -490,7 +490,7 @@ export default function MaterialsPage() {
                             </span>
                           </td>
                         )}
-                        <td className="px-4 py-3 text-[12px] text-muted-foreground font-mono capitalize truncate max-w-[144px]" title={mat.category}>
+                        <td className="px-4 py-3 text-[12px] text-muted-foreground tabular-nums capitalize truncate max-w-[144px]" title={mat.category}>
                           {mat.category}
                         </td>
                         <td className="px-4 py-3 text-[13px] text-foreground">
@@ -502,10 +502,10 @@ export default function MaterialsPage() {
                             </div>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-center text-[12px] font-mono text-muted-foreground">
+                        <td className="px-4 py-3 text-center text-[12px] tabular-nums text-muted-foreground">
                           {mat.unit}
                         </td>
-                        <td className="px-4 py-3 text-right text-[13px] font-mono text-bedrock-amber font-medium">
+                        <td className="px-4 py-3 text-right text-[13px] tabular-nums text-brand font-medium">
                           {formatCurrency(mat.unit_cost)}
                         </td>
                         <td className="px-4 py-3 text-[12px] text-muted-foreground truncate max-w-[144px]" title={mat.supplier || ""}>
@@ -515,7 +515,7 @@ export default function MaterialsPage() {
                           <div className="flex items-center justify-end gap-2.5 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
                               onClick={() => openEditDialog(mat)}
-                              className="text-[11px] text-blue-500 hover:text-blue-400 transition-colors"
+                              className="text-[11px] text-info hover:opacity-80 transition-colors"
                               title="Edit price/info"
                             >
                               <Edit3 className="h-3.5 w-3.5" />
@@ -541,27 +541,27 @@ export default function MaterialsPage() {
 
       {/* Add Material Dialog */}
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-        <DialogContent className="max-w-md bg-[#202224] border-[#34373c] text-[#d0d0d0]">
+        <DialogContent className="max-w-md bg-surface-100 border-border text-foreground">
           <DialogHeader>
-            <DialogTitle className="text-[#d0d0d0] text-[15px]">Add Catalog Material</DialogTitle>
+            <DialogTitle className="text-foreground text-[15px]">Add Catalog Material</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleAddMaterial}>
             <div className="space-y-4 py-2 text-[12px]">
               <div className="space-y-1">
-                <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">CSI Division *</p>
+                <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">CSI Division *</p>
                 <Select
                   value={materialForm.division_code}
                   onValueChange={(v) => setMaterialForm((f) => ({ ...f, division_code: v }))}
                 >
-                  <SelectTrigger className="h-8 bg-[#292c31] border-[#3a3d42] text-[#aaa] text-[13px] focus:ring-0 focus:border-[#333]">
+                  <SelectTrigger className="h-8 bg-surface-100 border-strong text-foreground-light text-[13px] focus:ring-0 focus:border-strong">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-[#202224] border-[#3a3d42] max-h-56">
+                  <SelectContent className="bg-surface-100 border-strong max-h-56">
                     {DIVISIONS.map((d) => (
                       <SelectItem
                         key={d.code}
                         value={d.code}
-                        className="text-[#aaa] focus:bg-[#292c31] focus:text-[#d0d0d0]"
+                        className="text-foreground-light focus:bg-surface-100 focus:text-foreground"
                       >
                         {d.code} — {d.name}
                       </SelectItem>
@@ -572,9 +572,9 @@ export default function MaterialsPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Category *</p>
+                  <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Category *</p>
                   <input
-                    className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#F5A623]/40 transition-colors"
+                    className="w-full h-8 px-2.5 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light placeholder:text-foreground-lighter outline-none focus:border-primary/40 transition-colors"
                     placeholder="e.g. Ready-Mix, Tile"
                     value={materialForm.category}
                     onChange={(e) => setMaterialForm((f) => ({ ...f, category: e.target.value }))}
@@ -582,20 +582,20 @@ export default function MaterialsPage() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Unit *</p>
+                  <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Unit *</p>
                   <Select
                     value={materialForm.unit}
                     onValueChange={(v) => setMaterialForm((f) => ({ ...f, unit: v }))}
                   >
-                    <SelectTrigger className="h-8 bg-[#292c31] border-[#3a3d42] text-[#aaa] text-[13px] focus:ring-0 focus:border-[#333]">
+                    <SelectTrigger className="h-8 bg-surface-100 border-strong text-foreground-light text-[13px] focus:ring-0 focus:border-strong">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-[#202224] border-[#3a3d42] max-h-56">
+                    <SelectContent className="bg-surface-100 border-strong max-h-56">
                       {COMMON_UNITS.map((u) => (
                         <SelectItem
                           key={u}
                           value={u}
-                          className="text-[#aaa] focus:bg-[#292c31] focus:text-[#d0d0d0] font-mono"
+                          className="text-foreground-light focus:bg-surface-100 focus:text-foreground tabular-nums"
                         >
                           {u}
                         </SelectItem>
@@ -606,9 +606,9 @@ export default function MaterialsPage() {
               </div>
 
               <div className="space-y-1">
-                <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Material Name / Description *</p>
+                <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Material Name / Description *</p>
                 <input
-                  className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#F5A623]/40 transition-colors"
+                  className="w-full h-8 px-2.5 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light placeholder:text-foreground-lighter outline-none focus:border-primary/40 transition-colors"
                   placeholder="e.g. Ready-Mix Concrete 3000 PSI"
                   value={materialForm.name}
                   onChange={(e) => setMaterialForm((f) => ({ ...f, name: e.target.value }))}
@@ -618,21 +618,21 @@ export default function MaterialsPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Unit Cost (BSD$) *</p>
+                  <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Unit Cost (BSD$) *</p>
                   <input
                     type="number"
                     step="0.01"
                     min="0"
-                    className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#F5A623]/40 transition-colors font-mono"
+                    className="w-full h-8 px-2.5 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light outline-none focus:border-primary/40 transition-colors tabular-nums"
                     value={materialForm.unit_cost || ""}
                     onChange={(e) => setMaterialForm((f) => ({ ...f, unit_cost: parseFloat(e.target.value) || 0 }))}
                     required
                   />
                 </div>
                 <div className="space-y-1">
-                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Supplier</p>
+                  <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Supplier</p>
                   <input
-                    className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#F5A623]/40 transition-colors"
+                    className="w-full h-8 px-2.5 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light placeholder:text-foreground-lighter outline-none focus:border-primary/40 transition-colors"
                     placeholder="e.g. Nassau, Local"
                     value={materialForm.supplier}
                     onChange={(e) => setMaterialForm((f) => ({ ...f, supplier: e.target.value }))}
@@ -641,9 +641,9 @@ export default function MaterialsPage() {
               </div>
 
               <div className="space-y-1">
-                <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Notes</p>
+                <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Notes</p>
                 <textarea
-                  className="w-full px-2.5 py-1.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#F5A623]/40 transition-colors min-h-[50px] resize-y"
+                  className="w-full px-2.5 py-1.5 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light placeholder:text-foreground-lighter outline-none focus:border-primary/40 transition-colors min-h-[50px] resize-y"
                   placeholder="e.g. Delivered. Price varies with freight."
                   value={materialForm.notes}
                   onChange={(e) => setMaterialForm((f) => ({ ...f, notes: e.target.value }))}
@@ -655,14 +655,14 @@ export default function MaterialsPage() {
               <button
                 type="button"
                 onClick={() => setAddDialogOpen(false)}
-                className="px-4 py-2 text-[12px] text-[#555] hover:text-[#aaa] transition-colors"
+                className="px-4 py-2 text-[12px] text-foreground-lighter hover:text-foreground-light transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={submitting}
-                className="flex items-center gap-1.5 px-4 py-2 rounded bg-[#F5A623] border border-[#d4891b] text-[12px] text-black font-semibold hover:opacity-90 transition-opacity disabled:opacity-40"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-primary border border-primary text-[12px] text-primary-foreground font-semibold hover:opacity-90 transition-opacity disabled:opacity-40"
               >
                 {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 Add Material
@@ -674,27 +674,27 @@ export default function MaterialsPage() {
 
       {/* Edit Material Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="max-w-md bg-[#202224] border-[#34373c] text-[#d0d0d0]">
+        <DialogContent className="max-w-md bg-surface-100 border-border text-foreground">
           <DialogHeader>
-            <DialogTitle className="text-[#d0d0d0] text-[15px]">Edit Catalog Material</DialogTitle>
+            <DialogTitle className="text-foreground text-[15px]">Edit Catalog Material</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleEditMaterial}>
             <div className="space-y-4 py-2 text-[12px]">
               <div className="space-y-1">
-                <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">CSI Division *</p>
+                <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">CSI Division *</p>
                 <Select
                   value={materialForm.division_code}
                   onValueChange={(v) => setMaterialForm((f) => ({ ...f, division_code: v }))}
                 >
-                  <SelectTrigger className="h-8 bg-[#292c31] border-[#3a3d42] text-[#aaa] text-[13px] focus:ring-0 focus:border-[#333]">
+                  <SelectTrigger className="h-8 bg-surface-100 border-strong text-foreground-light text-[13px] focus:ring-0 focus:border-strong">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-[#202224] border-[#3a3d42] max-h-56">
+                  <SelectContent className="bg-surface-100 border-strong max-h-56">
                     {DIVISIONS.map((d) => (
                       <SelectItem
                         key={d.code}
                         value={d.code}
-                        className="text-[#aaa] focus:bg-[#292c31] focus:text-[#d0d0d0]"
+                        className="text-foreground-light focus:bg-surface-100 focus:text-foreground"
                       >
                         {d.code} — {d.name}
                       </SelectItem>
@@ -705,9 +705,9 @@ export default function MaterialsPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Category *</p>
+                  <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Category *</p>
                   <input
-                    className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#F5A623]/40 transition-colors"
+                    className="w-full h-8 px-2.5 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light placeholder:text-foreground-lighter outline-none focus:border-primary/40 transition-colors"
                     placeholder="e.g. Ready-Mix, Tile"
                     value={materialForm.category}
                     onChange={(e) => setMaterialForm((f) => ({ ...f, category: e.target.value }))}
@@ -715,20 +715,20 @@ export default function MaterialsPage() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Unit *</p>
+                  <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Unit *</p>
                   <Select
                     value={materialForm.unit}
                     onValueChange={(v) => setMaterialForm((f) => ({ ...f, unit: v }))}
                   >
-                    <SelectTrigger className="h-8 bg-[#292c31] border-[#3a3d42] text-[#aaa] text-[13px] focus:ring-0 focus:border-[#333]">
+                    <SelectTrigger className="h-8 bg-surface-100 border-strong text-foreground-light text-[13px] focus:ring-0 focus:border-strong">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-[#202224] border-[#3a3d42] max-h-56">
+                    <SelectContent className="bg-surface-100 border-strong max-h-56">
                       {COMMON_UNITS.map((u) => (
                         <SelectItem
                           key={u}
                           value={u}
-                          className="text-[#aaa] focus:bg-[#292c31] focus:text-[#d0d0d0] font-mono"
+                          className="text-foreground-light focus:bg-surface-100 focus:text-foreground tabular-nums"
                         >
                           {u}
                         </SelectItem>
@@ -739,9 +739,9 @@ export default function MaterialsPage() {
               </div>
 
               <div className="space-y-1">
-                <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Material Name / Description *</p>
+                <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Material Name / Description *</p>
                 <input
-                  className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#F5A623]/40 transition-colors"
+                  className="w-full h-8 px-2.5 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light placeholder:text-foreground-lighter outline-none focus:border-primary/40 transition-colors"
                   placeholder="e.g. Ready-Mix Concrete 3000 PSI"
                   value={materialForm.name}
                   onChange={(e) => setMaterialForm((f) => ({ ...f, name: e.target.value }))}
@@ -751,21 +751,21 @@ export default function MaterialsPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Unit Cost (BSD$) *</p>
+                  <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Unit Cost (BSD$) *</p>
                   <input
                     type="number"
                     step="0.01"
                     min="0"
-                    className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#F5A623]/40 transition-colors font-mono"
+                    className="w-full h-8 px-2.5 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light outline-none focus:border-primary/40 transition-colors tabular-nums"
                     value={materialForm.unit_cost || ""}
                     onChange={(e) => setMaterialForm((f) => ({ ...f, unit_cost: parseFloat(e.target.value) || 0 }))}
                     required
                   />
                 </div>
                 <div className="space-y-1">
-                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Supplier</p>
+                  <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Supplier</p>
                   <input
-                    className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#F5A623]/40 transition-colors"
+                    className="w-full h-8 px-2.5 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light placeholder:text-foreground-lighter outline-none focus:border-primary/40 transition-colors"
                     placeholder="e.g. Nassau, Local"
                     value={materialForm.supplier}
                     onChange={(e) => setMaterialForm((f) => ({ ...f, supplier: e.target.value }))}
@@ -774,9 +774,9 @@ export default function MaterialsPage() {
               </div>
 
               <div className="space-y-1">
-                <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Notes</p>
+                <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Notes</p>
                 <textarea
-                  className="w-full px-2.5 py-1.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#F5A623]/40 transition-colors min-h-[50px] resize-y"
+                  className="w-full px-2.5 py-1.5 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light placeholder:text-foreground-lighter outline-none focus:border-primary/40 transition-colors min-h-[50px] resize-y"
                   placeholder="e.g. Delivered. Price varies with freight."
                   value={materialForm.notes}
                   onChange={(e) => setMaterialForm((f) => ({ ...f, notes: e.target.value }))}
@@ -791,14 +791,14 @@ export default function MaterialsPage() {
                   setEditDialogOpen(false);
                   setSelectedMaterial(null);
                 }}
-                className="px-4 py-2 text-[12px] text-[#555] hover:text-[#aaa] transition-colors"
+                className="px-4 py-2 text-[12px] text-foreground-lighter hover:text-foreground-light transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={submitting}
-                className="flex items-center gap-1.5 px-4 py-2 rounded bg-[#F5A623] border border-[#d4891b] text-[12px] text-black font-semibold hover:opacity-90 transition-opacity disabled:opacity-40"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-primary border border-primary text-[12px] text-primary-foreground font-semibold hover:opacity-90 transition-opacity disabled:opacity-40"
               >
                 {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 Save Changes

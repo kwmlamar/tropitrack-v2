@@ -59,13 +59,14 @@ export function CalendarDay({
                 key={i}
                 className={cn(
                   "w-1.5 h-1.5 rounded-full",
-                  event.type === "project" && "bg-blue-500",
-                  event.type === "milestone" && "bg-purple-500",
-                  event.type === "worker" && "bg-green-500",
-                  event.type === "material_delivery" && "bg-orange-500",
-                  event.type === "invoice_due" && "bg-red-500",
-                  event.type === "timesheet" && "bg-cyan-500",
-                  event.type === "equipment" && "bg-amber-500"
+                  // Kept in sync with eventTypeConfig's dotColor in calendar-event.tsx
+                  event.type === "project" && "bg-info-solid",
+                  event.type === "milestone" && "bg-primary",
+                  event.type === "worker" && "bg-success-solid",
+                  event.type === "material_delivery" && "bg-warning-solid",
+                  event.type === "invoice_due" && "bg-destructive-solid",
+                  event.type === "timesheet" && "bg-info-solid",
+                  event.type === "equipment" && "bg-warning-solid"
                 )}
               />
             ))}

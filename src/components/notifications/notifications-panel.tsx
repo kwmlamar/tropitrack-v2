@@ -40,15 +40,18 @@ const notificationIcons: Record<string, React.ComponentType<{ className?: string
   payment_received: DollarSign,
 };
 
+// Notification categories outnumber the status token set (success/destructive/
+// warning/info), so several categories share a token — chosen by closest
+// semantic match rather than by the original hue.
 const notificationColors: Record<string, string> = {
-  low_stock: "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50",
-  milestone_reminder: "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50",
-  payroll_reminder: "text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/50",
-  budget_alert: "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/50",
-  invoice_overdue: "text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/50",
-  estimate_expiring: "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/50",
-  team_invitation: "text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50",
-  payment_received: "text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/50",
+  low_stock: "text-warning bg-warning-subtle",
+  milestone_reminder: "text-info bg-info-subtle",
+  payroll_reminder: "text-success bg-success-subtle",
+  budget_alert: "text-destructive bg-destructive-subtle",
+  invoice_overdue: "text-warning bg-warning-subtle",
+  estimate_expiring: "text-info bg-info-subtle",
+  team_invitation: "text-info bg-info-subtle",
+  payment_received: "text-success bg-success-subtle",
 };
 
 export function NotificationsPanel({ onClose, onUpdate }: NotificationsPanelProps) {
@@ -156,7 +159,7 @@ export function NotificationsPanel({ onClose, onUpdate }: NotificationsPanelProp
   };
 
   const getNotificationColor = (type: string) => {
-    return notificationColors[type] || "text-gray-600 bg-gray-50 dark:bg-gray-950";
+    return notificationColors[type] || "text-foreground-light bg-surface-200";
   };
 
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -221,7 +224,7 @@ export function NotificationsPanel({ onClose, onUpdate }: NotificationsPanelProp
                 <div
                   key={notification.id}
                   className={`p-4 transition-colors cursor-pointer hover:bg-muted/50 ${
-                    !notification.read ? "bg-blue-50/50 dark:bg-blue-950/20" : ""
+                    !notification.read ? "bg-info-subtle/40" : ""
                   }`}
                   onClick={() => handleNotificationClick(notification)}
                 >
@@ -233,7 +236,7 @@ export function NotificationsPanel({ onClose, onUpdate }: NotificationsPanelProp
                       <div className="flex items-start justify-between gap-2">
                         <p className="font-medium text-sm">{notification.title}</p>
                         {!notification.read && (
-                          <div className="flex-shrink-0 w-2 h-2 bg-blue-600 rounded-full mt-1" />
+                          <div className="flex-shrink-0 w-2 h-2 bg-info-solid rounded-full mt-1" />
                         )}
                       </div>
                       <p className="text-sm text-muted-foreground mt-1 line-clamp-2">

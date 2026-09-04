@@ -145,7 +145,7 @@ export function SearchView({
                 className="flex-1 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-base bg-transparent placeholder:text-muted-foreground/60 h-auto p-0"
               />
               <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground/60 flex-shrink-0">
-                <kbd className="px-2 py-1 rounded-lg bg-muted/50 border border-border/50 font-mono text-[10px]">
+                <kbd className="px-2 py-1 rounded-lg bg-muted/50 border border-border/50 tabular-nums text-[10px]">
                   Enter
                 </kbd>
                 <span>to send</span>
@@ -159,7 +159,7 @@ export function SearchView({
               {showEscHint && (
                 <span className="hidden sm:block">
                   Press{" "}
-                  <kbd className="px-1.5 py-0.5 rounded bg-muted/50 border border-border/50 font-mono text-[10px]">
+                  <kbd className="px-1.5 py-0.5 rounded bg-muted/50 border border-border/50 tabular-nums text-[10px]">
                     Esc
                   </kbd>{" "}
                   to close

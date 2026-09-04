@@ -47,16 +47,18 @@ const typeLabels: Record<string, string> = {
   payroll: "Payroll",
 };
 
+// 9 result categories share the 4-token status palette (no per-category token
+// exists), grouped by closest semantic/hue match rather than 1:1 color.
 const typeColors: Record<string, string> = {
-  project: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
-  invoice: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
-  estimate: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300",
-  worker: "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300",
-  material: "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300",
-  vendor: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900 dark:text-cyan-300",
-  client: "bg-pink-100 text-pink-700 dark:bg-pink-900 dark:text-pink-300",
-  purchase_order: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300",
-  payroll: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300",
+  project: "bg-info-subtle text-info border border-info-border",
+  invoice: "bg-success-subtle text-success border border-success-border",
+  estimate: "bg-info-subtle text-info border border-info-border",
+  worker: "bg-warning-subtle text-warning border border-warning-border",
+  material: "bg-warning-subtle text-warning border border-warning-border",
+  vendor: "bg-info-subtle text-info border border-info-border",
+  client: "bg-destructive-subtle text-destructive border border-destructive-border",
+  purchase_order: "bg-info-subtle text-info border border-info-border",
+  payroll: "bg-success-subtle text-success border border-success-border",
 };
 
 export function SearchResults({

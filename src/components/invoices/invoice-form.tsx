@@ -682,7 +682,7 @@ export function InvoiceForm({ invoice, lineItems = [], mode }: InvoiceFormProps)
                           <h4 className="font-medium mb-2">Labor</h4>
                           <div className="space-y-2">
                             {projectCosts.laborCosts.map((labor, i) => (
-                              <div key={i} className="flex items-center gap-3 p-2 border rounded">
+                              <div key={i} className="flex items-center gap-3 p-2 border rounded-lg">
                                 <Checkbox
                                   checked={selectedLabor[i]}
                                   onCheckedChange={(checked) => {
@@ -710,7 +710,7 @@ export function InvoiceForm({ invoice, lineItems = [], mode }: InvoiceFormProps)
                           <h4 className="font-medium mb-2">Materials</h4>
                           <div className="space-y-2">
                             {projectCosts.materialCosts.map((mat, i) => (
-                              <div key={i} className="flex items-center gap-3 p-2 border rounded">
+                              <div key={i} className="flex items-center gap-3 p-2 border rounded-lg">
                                 <Checkbox
                                   checked={selectedMaterials[i]}
                                   onCheckedChange={(checked) => {
@@ -738,7 +738,7 @@ export function InvoiceForm({ invoice, lineItems = [], mode }: InvoiceFormProps)
                           <h4 className="font-medium mb-2">Equipment</h4>
                           <div className="space-y-2">
                             {projectCosts.equipmentCosts.map((equip, i) => (
-                              <div key={i} className="flex items-center gap-3 p-2 border rounded">
+                              <div key={i} className="flex items-center gap-3 p-2 border rounded-lg">
                                 <Checkbox
                                   checked={selectedEquipment[i]}
                                   onCheckedChange={(checked) => {
@@ -944,7 +944,7 @@ export function InvoiceForm({ invoice, lineItems = [], mode }: InvoiceFormProps)
                         {item.category}
                       </span>
                       {item.entry_mode === "lump_sum" && (
-                        <span className="text-xs px-2 py-0.5 bg-primary/10 text-primary rounded">
+                        <span className="text-xs px-2 py-0.5 bg-primary/10 text-primary rounded-full">
                           Lump Sum
                         </span>
                       )}

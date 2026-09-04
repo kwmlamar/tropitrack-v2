@@ -817,11 +817,11 @@ export default function VendorsPage() {
 
   const getVendorStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      active: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
-      inactive: "bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-300",
-      blacklisted: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
+      active: "bg-success-subtle text-success border border-success-border",
+      inactive: "bg-surface-200 text-foreground-light border border-strong",
+      blacklisted: "bg-destructive-subtle text-destructive border border-destructive-border",
     };
-    return colors[status] || "bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-300";
+    return colors[status] || "bg-surface-200 text-foreground-light border border-strong";
   };
 
   return (
@@ -1177,8 +1177,8 @@ export default function VendorsPage() {
                         {vendors.filter((v) => v.status === "active").length}
                       </p>
                     </div>
-                    <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-full">
-                      <Truck className="h-6 w-6 text-green-600" />
+                    <div className="p-3 bg-success-subtle rounded-full">
+                      <Truck className="h-6 w-6 text-success" />
                     </div>
                   </div>
                 </CardContent>
@@ -1190,8 +1190,8 @@ export default function VendorsPage() {
                       <p className="text-sm text-muted-foreground">Purchase Orders</p>
                       <p className="text-2xl font-bold">{purchaseOrders.length}</p>
                     </div>
-                    <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-full">
-                      <FileText className="h-6 w-6 text-blue-600" />
+                    <div className="p-3 bg-info-subtle rounded-full">
+                      <FileText className="h-6 w-6 text-info" />
                     </div>
                   </div>
                 </CardContent>
@@ -1269,7 +1269,7 @@ export default function VendorsPage() {
                             </div>
                             <div className="h-2 bg-muted rounded-full overflow-hidden">
                               <div
-                                className="h-full bg-green-500 rounded-full transition-all"
+                                className="h-full bg-success-solid rounded-full transition-all"
                                 style={{ width: `${percent}%` }}
                               />
                             </div>
@@ -1406,7 +1406,7 @@ export default function VendorsPage() {
                   value={viewingReceipt.po.ocr_raw_text}
                   readOnly
                   rows={6}
-                  className="font-mono text-sm"
+                  className="tabular-nums text-sm"
                 />
               </div>
             )}
@@ -1622,13 +1622,13 @@ export default function VendorsPage() {
                   {(selectedVendor as any).tin && (
                     <div>
                       <Label className="text-muted-foreground text-xs">TIN (Tax ID)</Label>
-                      <p className="font-medium font-mono">{(selectedVendor as any).tin}</p>
+                      <p className="font-medium tabular-nums">{(selectedVendor as any).tin}</p>
                     </div>
                   )}
                   {(selectedVendor as any).account_number && (
                     <div>
                       <Label className="text-muted-foreground text-xs">Account Number</Label>
-                      <p className="font-medium font-mono">{(selectedVendor as any).account_number}</p>
+                      <p className="font-medium tabular-nums">{(selectedVendor as any).account_number}</p>
                     </div>
                   )}
                 </div>
@@ -1863,7 +1863,7 @@ export default function VendorsPage() {
                   </div>
                 )}
                 {selectedPO.discount_amount > 0 && (
-                  <div className="flex justify-between text-sm text-green-600">
+                  <div className="flex justify-between text-sm text-success">
                     <span>{selectedPO.discount_label || "Discount"}</span>
                     <span>-{formatCurrency(selectedPO.discount_amount)}</span>
                   </div>
@@ -1890,7 +1890,7 @@ export default function VendorsPage() {
               {selectedPO.vendor_invoice_number && (
                 <div>
                   <Label className="text-muted-foreground text-xs">Vendor Invoice #</Label>
-                  <p className="font-mono">{selectedPO.vendor_invoice_number}</p>
+                  <p className="tabular-nums">{selectedPO.vendor_invoice_number}</p>
                 </div>
               )}
 
@@ -1924,8 +1924,8 @@ export default function VendorsPage() {
 
               {/* Approval Info */}
               {selectedPO.approved_at && (
-                <div className="border rounded-lg p-3 bg-green-50 dark:bg-green-900/20 space-y-1">
-                  <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
+                <div className="border rounded-lg p-3 bg-success-subtle space-y-1">
+                  <div className="flex items-center gap-2 text-success">
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
@@ -1953,7 +1953,7 @@ export default function VendorsPage() {
             {selectedPO && !selectedPO.approved_at && (profile?.role === "admin" || profile?.role === "project_manager") && (
               <Button
                 variant="outline"
-                className="text-green-600 border-green-600 hover:bg-green-50"
+                className="text-success border-success-border hover:bg-success-subtle"
                 onClick={() => handleApprovePO(selectedPO)}
               >
                 <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">

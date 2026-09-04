@@ -34,12 +34,12 @@ import { canSeeCosts } from "@/lib/permissions";
 import { ScopeThisButton } from "@/components/estimates/scope-this-button";
 
 const STATUS_DOT: Record<string, string> = {
-  draft:     "bg-[#555]",
-  sent:      "bg-[#3B82F6]",
-  approved:  "bg-[#22C55E]",
-  rejected:  "bg-[#EF4444]",
-  converted: "bg-[#A855F7]",
-  expired:   "bg-[#F5A623]",
+  draft:     "bg-surface-400",
+  sent:      "bg-info-solid",
+  approved:  "bg-success-solid",
+  rejected:  "bg-destructive-solid",
+  converted: "bg-primary",
+  expired:   "bg-warning-solid",
 };
 
 type EstimateSection = {
@@ -266,17 +266,17 @@ export default function EstimateDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full bg-[#18191b]">
-        <div className="h-5 w-5 rounded-full border border-[#333] border-t-[#F5A623] animate-spin" />
+      <div className="flex items-center justify-center h-full bg-background">
+        <div className="h-5 w-5 rounded-full border border-strong border-t-primary animate-spin" />
       </div>
     );
   }
 
   if (!estimate) {
     return (
-      <div className="flex flex-col items-center justify-center h-full bg-[#18191b]">
-        <p className="text-[13px] text-[#555]">Estimate not found</p>
-        <Link href="/estimates" className="mt-3 text-[12px] text-[#F5A623] hover:opacity-80">
+      <div className="flex flex-col items-center justify-center h-full bg-background">
+        <p className="text-[13px] text-foreground-lighter">Estimate not found</p>
+        <Link href="/estimates" className="mt-3 text-[12px] text-brand hover:opacity-80">
           ← Back to estimates
         </Link>
       </div>
@@ -292,24 +292,24 @@ export default function EstimateDetailPage() {
   }, {});
 
   return (
-    <div className="flex flex-col h-full overflow-auto bg-[#18191b]">
+    <div className="flex flex-col h-full overflow-auto bg-background">
       {/* Top bar */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-[#34373c] flex-shrink-0">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-4 min-w-0">
           <Link
             href="/estimates"
-            className="text-[11px] font-mono text-[#555] hover:text-[#999] transition-colors flex-shrink-0"
+            className="text-[11px] tabular-nums text-foreground-lighter hover:text-foreground-light transition-colors flex-shrink-0"
           >
             ← Estimates
           </Link>
-          <div className="h-3 w-px bg-[#3a3d42] flex-shrink-0" />
+          <div className="h-3 w-px bg-surface-400 flex-shrink-0" />
           <div className="min-w-0">
-            <p className="text-[11px] font-mono text-[#666] uppercase tracking-widest">{estimate.estimate_number}</p>
-            <h1 className="text-[16px] font-semibold text-[#d0d0d0] mt-0.5 truncate">{estimate.title}</h1>
+            <p className="text-[11px] font-mono text-foreground-lighter uppercase tracking-widest">{estimate.estimate_number}</p>
+            <h1 className="text-[16px] font-semibold text-foreground mt-0.5 truncate">{estimate.title}</h1>
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
-            <span className={cn("h-1.5 w-1.5 rounded-full", STATUS_DOT[estimate.status] ?? "bg-[#404040]")} />
-            <span className="text-[11px] font-mono text-[#666] capitalize">{estimate.status}</span>
+            <span className={cn("h-1.5 w-1.5 rounded-full", STATUS_DOT[estimate.status] ?? "bg-surface-400")} />
+            <span className="text-[11px] tabular-nums text-foreground-lighter capitalize">{estimate.status}</span>
           </div>
         </div>
 
@@ -319,14 +319,14 @@ export default function EstimateDetailPage() {
               lives on /builder. */}
           <div className="flex items-center gap-2">
             {costsVisible && (
-              <div className="flex items-center bg-[#1a1b1d] border border-[#2b2e33] rounded p-[2px]">
+              <div className="flex items-center bg-background border border-border rounded-md p-[2px]">
                 <button
                   onClick={() => setView("internal")}
                   className={cn(
-                    "px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider rounded transition-colors",
+                    "px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider rounded-md transition-colors",
                     view === "internal"
-                      ? "bg-[#2d3035] text-[#d0d0d0]"
-                      : "text-[#555] hover:text-[#999]"
+                      ? "bg-surface-300 text-foreground"
+                      : "text-foreground-lighter hover:text-foreground-light"
                   )}
                   title="Full breakdown — internal use only"
                 >
@@ -335,10 +335,10 @@ export default function EstimateDetailPage() {
                 <button
                   onClick={() => setView("client")}
                   className={cn(
-                    "px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider rounded transition-colors",
+                    "px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider rounded-md transition-colors",
                     view === "client"
-                      ? "bg-[#2d3035] text-[#F5A623]"
-                      : "text-[#555] hover:text-[#999]"
+                      ? "bg-surface-300 text-brand"
+                      : "text-foreground-lighter hover:text-foreground-light"
                   )}
                   title="What the client sees — simplified, no internal cost detail"
                 >
@@ -350,14 +350,14 @@ export default function EstimateDetailPage() {
 
           {/* Separator */}
           {(view === "internal" || costsVisible) && (
-            <div className="h-4 w-px bg-[#34373c] flex-shrink-0" />
+            <div className="h-4 w-px bg-surface-300 flex-shrink-0" />
           )}
 
           {/* Secondary Actions Group */}
           <div className="flex items-center gap-2">
             <Link
               href={`/estimates/${estimateId}/builder`}
-              className="px-3 py-1.5 text-[11px] font-mono font-medium border border-[#34373c] bg-[#202224] text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-[#272a2c] dark:hover:bg-[#272a2c] hover:border-slate-300 dark:hover:border-slate-700 rounded transition-all flex items-center gap-1.5"
+              className="px-3 py-1.5 text-[11px] tabular-nums font-medium border border-border bg-surface-100 text-foreground-light hover:text-foreground hover:bg-surface-200 hover:border-hover rounded-md transition-all flex items-center gap-1.5"
             >
               <Edit2 className="h-3 w-3" />
               <span>Edit</span>
@@ -365,7 +365,7 @@ export default function EstimateDetailPage() {
             {costsVisible && (
               <Link
                 href={`/estimates/${estimateId}/materials`}
-                className="px-3 py-1.5 text-[11px] font-mono font-medium border border-[#34373c] bg-[#202224] text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-[#272a2c] dark:hover:bg-[#272a2c] hover:border-slate-300 dark:hover:border-slate-700 rounded transition-all flex items-center gap-1.5"
+                className="px-3 py-1.5 text-[11px] tabular-nums font-medium border border-border bg-surface-100 text-foreground-light hover:text-foreground hover:bg-surface-200 hover:border-hover rounded-md transition-all flex items-center gap-1.5"
                 title="Materials & Equipment cost / markup / sell breakdown — internal only"
               >
                 <Layers className="h-3 w-3" />
@@ -374,7 +374,7 @@ export default function EstimateDetailPage() {
             )}
             <Link
               href={`/estimates/${estimateId}/preview`}
-              className="px-3 py-1.5 text-[11px] font-mono font-medium border border-[#34373c] bg-[#202224] text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-[#272a2c] dark:hover:bg-[#272a2c] hover:border-slate-300 dark:hover:border-slate-700 rounded transition-all flex items-center gap-1.5"
+              className="px-3 py-1.5 text-[11px] tabular-nums font-medium border border-border bg-surface-100 text-foreground-light hover:text-foreground hover:bg-surface-200 hover:border-hover rounded-md transition-all flex items-center gap-1.5"
             >
               <FileText className="h-3 w-3" />
               <span>Preview PDF</span>
@@ -382,7 +382,7 @@ export default function EstimateDetailPage() {
           </div>
 
           {/* Separator */}
-          <div className="h-4 w-px bg-[#34373c] flex-shrink-0" />
+          <div className="h-4 w-px bg-surface-300 flex-shrink-0" />
 
           {/* Workflow/Primary Actions Group */}
           <div className="flex items-center gap-2">
@@ -396,7 +396,7 @@ export default function EstimateDetailPage() {
                   });
                   setShowEmailDialog(true);
                 }}
-                className="px-3 py-1.5 text-[11px] font-mono font-medium border border-blue-500/20 dark:border-blue-500/30 bg-blue-50/50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-500/20 rounded transition-colors flex items-center gap-1.5"
+                className="px-3 py-1.5 text-[11px] tabular-nums font-medium border border-info-border bg-info-subtle text-info hover:opacity-80 rounded-md transition-colors flex items-center gap-1.5"
               >
                 <Mail className="h-3.5 w-3.5" />
                 <span>Send email</span>
@@ -406,14 +406,14 @@ export default function EstimateDetailPage() {
               <>
                 <button
                   onClick={() => handleStatusChange("approved")}
-                  className="px-3 py-1.5 text-[11px] font-mono font-medium border border-emerald-500/20 dark:border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 rounded transition-colors flex items-center gap-1.5"
+                  className="px-3 py-1.5 text-[11px] tabular-nums font-medium border border-success-border bg-success-subtle text-success hover:opacity-80 rounded-md transition-colors flex items-center gap-1.5"
                 >
                   <Check className="h-3.5 w-3.5" />
                   <span>Approve</span>
                 </button>
                 <button
                   onClick={() => handleStatusChange("rejected")}
-                  className="px-3 py-1.5 text-[11px] font-mono font-medium border border-rose-500/20 dark:border-rose-500/30 bg-rose-50/50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-500/20 rounded transition-colors flex items-center gap-1.5"
+                  className="px-3 py-1.5 text-[11px] tabular-nums font-medium border border-destructive-border bg-destructive-subtle text-destructive hover:opacity-80 rounded-md transition-colors flex items-center gap-1.5"
                 >
                   <X className="h-3.5 w-3.5" />
                   <span>Reject</span>
@@ -423,7 +423,7 @@ export default function EstimateDetailPage() {
             {estimate.status === "approved" && !estimate.project_id && (
               <button
                 onClick={() => setShowConvertDialog(true)}
-                className="px-3 py-1.5 text-[11px] font-mono font-medium border border-amber-500/20 dark:border-amber-500/30 bg-amber-50/50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/20 rounded transition-colors flex items-center gap-1.5"
+                className="px-3 py-1.5 text-[11px] tabular-nums font-medium border border-warning-border bg-warning-subtle text-warning hover:opacity-80 rounded-md transition-colors flex items-center gap-1.5"
               >
                 <Briefcase className="h-3.5 w-3.5" />
                 <span>Convert to job</span>
@@ -432,7 +432,7 @@ export default function EstimateDetailPage() {
             {estimate.project_id && (
               <Link
                 href={`/projects/${estimate.project_id}`}
-                className="px-3 py-1.5 text-[11px] font-mono font-medium border border-purple-500/20 dark:border-purple-500/30 bg-purple-50/50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-500/20 rounded transition-colors flex items-center gap-1.5"
+                className="px-3 py-1.5 text-[11px] tabular-nums font-medium border border-brand-border bg-brand-subtle text-brand hover:bg-primary/15 rounded-md transition-colors flex items-center gap-1.5"
               >
                 <span>View job</span>
                 <ArrowRight className="h-3.5 w-3.5" />
@@ -445,21 +445,21 @@ export default function EstimateDetailPage() {
       <div className="flex-1 p-6 space-y-6">
         {/* Summary bar */}
         <div className="grid grid-cols-3 gap-3">
-          <div className="rounded border border-[#34373c] bg-[#202224] px-4 py-3.5">
-            <p className="text-[11px] font-mono text-[#666] uppercase tracking-wider">Subtotal</p>
-            <p className="text-[22px] font-semibold font-mono text-[#d0d0d0] mt-1 leading-none">
+          <div className="rounded-lg border border-border bg-surface-100 px-4 py-3.5">
+            <p className="text-[11px] font-mono text-foreground-lighter uppercase tracking-wider">Subtotal</p>
+            <p className="text-[22px] font-semibold tabular-nums text-foreground mt-1 leading-none">
               {formatCurrency(estimate.subtotal || 0)}
             </p>
           </div>
-          <div className="rounded border border-[#34373c] bg-[#202224] px-4 py-3.5">
-            <p className="text-[11px] font-mono text-[#666] uppercase tracking-wider">Total</p>
-            <p className="text-[22px] font-semibold font-mono text-[#F5A623] mt-1 leading-none">
+          <div className="rounded-lg border border-border bg-surface-100 px-4 py-3.5">
+            <p className="text-[11px] font-mono text-foreground-lighter uppercase tracking-wider">Total</p>
+            <p className="text-[22px] font-semibold tabular-nums text-brand mt-1 leading-none">
               {formatCurrency(estimate.total_amount)}
             </p>
           </div>
-          <div className="rounded border border-[#34373c] bg-[#202224] px-4 py-3.5">
-            <p className="text-[11px] font-mono text-[#666] uppercase tracking-wider">Issued</p>
-            <p className="text-[22px] font-semibold font-mono text-[#d0d0d0] mt-1 leading-none">
+          <div className="rounded-lg border border-border bg-surface-100 px-4 py-3.5">
+            <p className="text-[11px] font-mono text-foreground-lighter uppercase tracking-wider">Issued</p>
+            <p className="text-[22px] font-semibold tabular-nums text-foreground mt-1 leading-none">
               {formatDate(estimate.issue_date)}
             </p>
           </div>
@@ -467,16 +467,16 @@ export default function EstimateDetailPage() {
 
         {/* Client + Estimate details */}
         <div className="grid grid-cols-2 gap-4">
-          <div className="rounded border border-[#34373c] bg-[#202224]">
-            <div className="px-4 py-3 border-b border-[#2d3035]">
-              <span className="text-[11px] font-mono text-[#666] uppercase tracking-widest">Client</span>
+          <div className="rounded-lg border border-border bg-surface-100">
+            <div className="px-4 py-3 border-b border-border">
+              <span className="text-[11px] font-mono text-foreground-lighter uppercase tracking-widest">Client</span>
             </div>
             <div className="px-4 py-4 space-y-2.5">
-              <p className="text-[14px] font-semibold text-[#c4c4c4]">{estimate.client_name}</p>
+              <p className="text-[14px] font-semibold text-foreground">{estimate.client_name}</p>
               {estimate.client_email && (
                 <a
                   href={`mailto:${estimate.client_email}`}
-                  className="block text-[13px] text-[#777] hover:text-[#aaa] transition-colors"
+                  className="block text-[13px] text-foreground-lighter hover:text-foreground-light transition-colors"
                 >
                   {estimate.client_email}
                 </a>
@@ -484,20 +484,20 @@ export default function EstimateDetailPage() {
               {estimate.client_phone && (
                 <a
                   href={`tel:${estimate.client_phone}`}
-                  className="block text-[13px] text-[#777] hover:text-[#aaa] transition-colors"
+                  className="block text-[13px] text-foreground-lighter hover:text-foreground-light transition-colors"
                 >
                   {estimate.client_phone}
                 </a>
               )}
               {estimate.client_address && (
-                <p className="text-[13px] text-[#666]">{estimate.client_address}</p>
+                <p className="text-[13px] text-foreground-lighter">{estimate.client_address}</p>
               )}
             </div>
           </div>
 
-          <div className="rounded border border-[#34373c] bg-[#202224]">
-            <div className="px-4 py-3 border-b border-[#2d3035]">
-              <span className="text-[11px] font-mono text-[#666] uppercase tracking-widest">Summary</span>
+          <div className="rounded-lg border border-border bg-surface-100">
+            <div className="px-4 py-3 border-b border-border">
+              <span className="text-[11px] font-mono text-foreground-lighter uppercase tracking-widest">Summary</span>
             </div>
             <div className="px-4 py-4 space-y-2">
               {[
@@ -520,13 +520,13 @@ export default function EstimateDetailPage() {
                 .filter(Boolean)
                 .map((row: any) => (
                   <div key={row.label} className="flex items-center justify-between">
-                    <span className="text-[12px] text-[#666]">{row.label}</span>
-                    <span className="text-[12px] font-mono text-[#aaa]">{row.value}</span>
+                    <span className="text-[12px] text-foreground-lighter">{row.label}</span>
+                    <span className="text-[12px] tabular-nums text-foreground-light">{row.value}</span>
                   </div>
                 ))}
-              <div className="pt-2 border-t border-[#2d3035] flex items-center justify-between">
-                <span className="text-[12px] font-semibold text-[#d0d0d0]">Total</span>
-                <span className="text-[15px] font-semibold font-mono text-[#F5A623]">
+              <div className="pt-2 border-t border-border flex items-center justify-between">
+                <span className="text-[12px] font-semibold text-foreground">Total</span>
+                <span className="text-[15px] font-semibold tabular-nums text-brand">
                   {formatCurrency(estimate.total_amount)}
                 </span>
               </div>
@@ -537,8 +537,8 @@ export default function EstimateDetailPage() {
         {/* Scope-this empty-state action (issue #9) — only when no sections exist
             and the viewer can see costs. Workers (sell-only view) don't see this. */}
         {sections.length === 0 && costsVisible && estimate.status === "draft" && (
-          <div className="rounded border border-dashed border-[#34373c] bg-[#1b1c1e] px-6 py-10 text-center mb-4">
-            <p className="text-[13px] text-[#888] mb-3">
+          <div className="rounded-lg border border-dashed border-border bg-background px-6 py-10 text-center mb-4">
+            <p className="text-[13px] text-foreground-lighter mb-3">
               This estimate is empty. Describe the job and Claude will scope it for you — sections, tasks, and a materials takeoff.
             </p>
             <div className="flex justify-center">
@@ -578,36 +578,36 @@ export default function EstimateDetailPage() {
                 .reduce((s, it) => s + Number(it.amount || 0), 0);
 
             return (
-              <div className="rounded border border-[#34373c] bg-[#202224] overflow-hidden">
-                <div className="px-4 py-3 border-b border-[#2d3035] flex items-center justify-between">
-                  <span className="text-[11px] font-mono text-[#F5A623]/80 uppercase tracking-widest">
+              <div className="rounded-lg border border-border bg-surface-100 overflow-hidden">
+                <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+                  <span className="text-[11px] font-mono text-brand/80 uppercase tracking-widest">
                     Scope of Work
                   </span>
-                  <span className="text-[11px] font-mono text-[#555]">{clientSections.length} sections</span>
+                  <span className="text-[11px] tabular-nums text-foreground-lighter">{clientSections.length} sections</span>
                 </div>
                 {clientSections.length === 0 ? (
                   <div className="py-10 text-center">
-                    <p className="text-[13px] text-[#555]">Nothing visible to client yet</p>
-                    <p className="text-[11px] text-[#3a3d42] mt-1.5">
+                    <p className="text-[13px] text-foreground-lighter">Nothing visible to client yet</p>
+                    <p className="text-[11px] text-foreground-lighter mt-1.5">
                       Toggle sections / line items to “show to client” in the builder
                     </p>
                   </div>
                 ) : (
-                  <div className="divide-y divide-[#292c31]">
+                  <div className="divide-y divide-border">
                     {clientSections.map((sec) => {
                       const total = sectionTotal(sec.id);
                       return (
-                        <div key={sec.id} className="flex items-center justify-between px-4 py-3.5 hover:bg-[#23252a] transition-colors">
-                          <span className="text-[13px] text-[#c4c4c4] font-medium">{sec.name}</span>
-                          <span className="text-[13px] font-mono text-[#aaa] font-semibold tabular-nums">
+                        <div key={sec.id} className="flex items-center justify-between px-4 py-3.5 hover:bg-surface-200 transition-colors">
+                          <span className="text-[13px] text-foreground font-medium">{sec.name}</span>
+                          <span className="text-[13px] tabular-nums text-foreground-light font-semibold tabular-nums">
                             {formatCurrency(total)}
                           </span>
                         </div>
                       );
                     })}
-                    <div className="flex items-center justify-between px-4 py-3.5 bg-[#1b1c1e]">
-                      <span className="text-[12px] font-semibold text-[#d0d0d0]">Project Total</span>
-                      <span className="text-[15px] font-semibold font-mono text-[#F5A623] tabular-nums">
+                    <div className="flex items-center justify-between px-4 py-3.5 bg-background">
+                      <span className="text-[12px] font-semibold text-foreground">Project Total</span>
+                      <span className="text-[15px] font-semibold tabular-nums text-brand tabular-nums">
                         {formatCurrency(estimate.total_amount)}
                       </span>
                     </div>
@@ -620,21 +620,21 @@ export default function EstimateDetailPage() {
 
         {/* Terms */}
         {(estimate.terms_and_conditions || estimate.description) && (
-          <div className="rounded border border-[#34373c] bg-[#202224]">
-            <div className="px-4 py-3 border-b border-[#2d3035]">
-              <span className="text-[11px] font-mono text-[#666] uppercase tracking-widest">Terms & Notes</span>
+          <div className="rounded-lg border border-border bg-surface-100">
+            <div className="px-4 py-3 border-b border-border">
+              <span className="text-[11px] font-mono text-foreground-lighter uppercase tracking-widest">Terms & Notes</span>
             </div>
             <div className="px-4 py-4 space-y-4">
               {estimate.description && (
                 <div>
-                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest mb-1.5">Description</p>
-                  <p className="text-[13px] text-[#777]">{estimate.description}</p>
+                  <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest mb-1.5">Description</p>
+                  <p className="text-[13px] text-foreground-lighter">{estimate.description}</p>
                 </div>
               )}
               {estimate.terms_and_conditions && (
                 <div>
-                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest mb-1.5">Terms</p>
-                  <p className="text-[13px] text-[#777] whitespace-pre-wrap">{estimate.terms_and_conditions}</p>
+                  <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest mb-1.5">Terms</p>
+                  <p className="text-[13px] text-foreground-lighter whitespace-pre-wrap">{estimate.terms_and_conditions}</p>
                 </div>
               )}
             </div>
@@ -645,7 +645,7 @@ export default function EstimateDetailPage() {
         <div className="flex items-center justify-end pt-2">
           <button
             onClick={handleDelete}
-            className="text-[12px] text-[#555] hover:text-[#EF4444] transition-colors"
+            className="text-[12px] text-foreground-lighter hover:text-destructive transition-colors"
           >
             Delete estimate
           </button>
@@ -654,40 +654,40 @@ export default function EstimateDetailPage() {
 
       {/* Convert to Project Dialog */}
       <Dialog open={showConvertDialog} onOpenChange={setShowConvertDialog}>
-        <DialogContent className="bg-[#202224] border-[#34373c] text-[#d0d0d0]">
+        <DialogContent className="bg-surface-100 border-border text-foreground">
           <DialogHeader>
-            <DialogTitle className="text-[#d0d0d0]">Convert to Job</DialogTitle>
-            <DialogDescription className="text-[#666]">
+            <DialogTitle className="text-foreground">Convert to Job</DialogTitle>
+            <DialogDescription className="text-foreground-lighter">
               Creates a new job from this estimate and links them together.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label className="text-[11px] font-mono text-[#666] uppercase tracking-wider">Job Name *</Label>
+              <Label className="text-[11px] font-mono text-foreground-lighter uppercase tracking-wider">Job Name *</Label>
               <Input
                 value={projectName}
                 onChange={(e) => setProjectName(e.target.value)}
                 placeholder="Enter job name"
-                className="bg-[#292c31] border-[#3a3d42] text-[#d0d0d0] placeholder:text-[#444]"
+                className="bg-surface-100 border-strong text-foreground placeholder:text-foreground-lighter"
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-[11px] font-mono text-[#666] uppercase tracking-wider">Location *</Label>
+              <Label className="text-[11px] font-mono text-foreground-lighter uppercase tracking-wider">Location *</Label>
               <Input
                 value={projectLocation}
                 onChange={(e) => setProjectLocation(e.target.value)}
                 placeholder="e.g. Governor's Harbour, Eleuthera"
-                className="bg-[#292c31] border-[#3a3d42] text-[#d0d0d0] placeholder:text-[#444]"
+                className="bg-surface-100 border-strong text-foreground placeholder:text-foreground-lighter"
               />
             </div>
-            <div className="rounded border border-[#2d3035] bg-[#1b1c1e] px-4 py-3 space-y-1.5">
+            <div className="rounded-lg border border-border bg-background px-4 py-3 space-y-1.5">
               {[
                 { label: "Client", value: estimate?.client_name },
                 { label: "Budget", value: formatCurrency(estimate?.total_amount || 0) },
               ].map((r) => (
                 <div key={r.label} className="flex items-center justify-between">
-                  <span className="text-[11px] font-mono text-[#555]">{r.label}</span>
-                  <span className="text-[12px] text-[#888]">{r.value}</span>
+                  <span className="text-[11px] tabular-nums text-foreground-lighter">{r.label}</span>
+                  <span className="text-[12px] text-foreground-lighter">{r.value}</span>
                 </div>
               ))}
             </div>
@@ -695,14 +695,14 @@ export default function EstimateDetailPage() {
           <DialogFooter>
             <button
               onClick={() => setShowConvertDialog(false)}
-              className="px-4 py-2 text-[12px] text-[#666] hover:text-[#aaa] transition-colors"
+              className="px-4 py-2 text-[12px] text-foreground-lighter hover:text-foreground-light transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={handleConvertToProject}
               disabled={converting}
-              className="flex items-center gap-2 px-4 py-2 rounded bg-[#2d3035] border border-[#333] text-[12px] text-[#F5A623] hover:bg-[#353840] transition-colors disabled:opacity-40"
+              className="flex items-center gap-2 px-4 py-2 rounded-md bg-surface-300 border border-strong text-[12px] text-brand hover:bg-surface-400 transition-colors disabled:opacity-40"
             >
               {converting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               Create Job
@@ -713,54 +713,54 @@ export default function EstimateDetailPage() {
 
       {/* Send Email Dialog */}
       <Dialog open={showEmailDialog} onOpenChange={setShowEmailDialog}>
-        <DialogContent className="bg-[#202224] border-[#34373c] text-[#d0d0d0]">
+        <DialogContent className="bg-surface-100 border-border text-foreground">
           <DialogHeader>
-            <DialogTitle className="text-[#d0d0d0]">Send Estimate</DialogTitle>
-            <DialogDescription className="text-[#666]">
+            <DialogTitle className="text-foreground">Send Estimate</DialogTitle>
+            <DialogDescription className="text-foreground-lighter">
               Email this estimate to {estimate?.client_name}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label className="text-[11px] font-mono text-[#666] uppercase tracking-wider">To *</Label>
+              <Label className="text-[11px] font-mono text-foreground-lighter uppercase tracking-wider">To *</Label>
               <Input
                 type="email"
                 value={emailForm.to_email}
                 onChange={(e) => setEmailForm({ ...emailForm, to_email: e.target.value })}
                 placeholder="client@example.com"
-                className="bg-[#292c31] border-[#3a3d42] text-[#d0d0d0] placeholder:text-[#444]"
+                className="bg-surface-100 border-strong text-foreground placeholder:text-foreground-lighter"
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-[11px] font-mono text-[#666] uppercase tracking-wider">Subject</Label>
+              <Label className="text-[11px] font-mono text-foreground-lighter uppercase tracking-wider">Subject</Label>
               <Input
                 value={emailForm.subject}
                 onChange={(e) => setEmailForm({ ...emailForm, subject: e.target.value })}
-                className="bg-[#292c31] border-[#3a3d42] text-[#d0d0d0] placeholder:text-[#444]"
+                className="bg-surface-100 border-strong text-foreground placeholder:text-foreground-lighter"
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-[11px] font-mono text-[#666] uppercase tracking-wider">Message</Label>
+              <Label className="text-[11px] font-mono text-foreground-lighter uppercase tracking-wider">Message</Label>
               <Textarea
                 value={emailForm.message}
                 onChange={(e) => setEmailForm({ ...emailForm, message: e.target.value })}
                 placeholder="Optional message..."
                 rows={3}
-                className="bg-[#292c31] border-[#3a3d42] text-[#d0d0d0] placeholder:text-[#444] resize-none"
+                className="bg-surface-100 border-strong text-foreground placeholder:text-foreground-lighter resize-none"
               />
             </div>
           </div>
           <DialogFooter>
             <button
               onClick={() => setShowEmailDialog(false)}
-              className="px-4 py-2 text-[12px] text-[#666] hover:text-[#aaa] transition-colors"
+              className="px-4 py-2 text-[12px] text-foreground-lighter hover:text-foreground-light transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={handleSendEmail}
               disabled={sendingEmail}
-              className="flex items-center gap-2 px-4 py-2 rounded bg-[#2d3035] border border-[#333] text-[12px] text-[#3B82F6] hover:bg-[#353840] transition-colors disabled:opacity-40"
+              className="flex items-center gap-2 px-4 py-2 rounded-md bg-surface-300 border border-strong text-[12px] text-info hover:bg-surface-400 transition-colors disabled:opacity-40"
             >
               {sendingEmail && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               Send
@@ -938,29 +938,29 @@ function SummaryView({ estimate, sections, lineItems, sectionMaterials, onResche
 
   if (lineItems.length === 0) {
     return (
-      <div className="rounded border border-[#34373c] bg-[#202224] py-10 text-center">
-        <p className="text-[13px] text-[#555]">No line items yet</p>
+      <div className="rounded-lg border border-border bg-surface-100 py-10 text-center">
+        <p className="text-[13px] text-foreground-lighter">No line items yet</p>
       </div>
     );
   }
 
   return (
-    <div className="rounded border border-[#34373c] bg-[#202224] overflow-hidden">
-      <div className="px-4 py-3 border-b border-[#2d3035] flex items-center justify-between">
-        <span className="text-[11px] font-mono text-[#666] uppercase tracking-widest">Summary · Gantt</span>
-        <span className="text-[11px] font-mono text-[#555]">
+    <div className="rounded-lg border border-border bg-surface-100 overflow-hidden">
+      <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+        <span className="text-[11px] font-mono text-foreground-lighter uppercase tracking-widest">Summary · Gantt</span>
+        <span className="text-[11px] tabular-nums text-foreground-lighter">
           {sections.length} section{sections.length === 1 ? "" : "s"} · {lineItems.length} task{lineItems.length === 1 ? "" : "s"} · {days.length} day{days.length === 1 ? "" : "s"}
         </span>
       </div>
       <div className="overflow-x-auto">
         <table className="min-w-full">
           <thead>
-            <tr className="border-b border-[#292c31]">
-              <th className="sticky left-0 z-10 bg-[#202224] px-4 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555] min-w-[280px]">Task</th>
-              <th className="px-3 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Labor $</th>
-              <th className="px-3 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Material $</th>
-              <th className="px-3 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Equip. $</th>
-              <th className="px-3 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Total</th>
+            <tr className="border-b border-border">
+              <th className="sticky left-0 z-10 bg-surface-100 px-4 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-foreground-lighter min-w-[280px]">Task</th>
+              <th className="px-3 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">Labor $</th>
+              <th className="px-3 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">Material $</th>
+              <th className="px-3 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">Equip. $</th>
+              <th className="px-3 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">Total</th>
               {days.map((d) => {
                 const dt = new Date(d + "T00:00:00Z");
                 const dow = dt.toLocaleDateString("en-US", { weekday: "narrow", timeZone: "UTC" });
@@ -970,48 +970,48 @@ function SummaryView({ estimate, sections, lineItems, sectionMaterials, onResche
                   <th
                     key={d}
                     className={cn(
-                      "px-1 py-2.5 text-center text-[9px] font-mono uppercase text-[#555]",
-                      isWeekend && "bg-[#1b1c1e]",
+                      "px-1 py-2.5 text-center text-[9px] font-mono uppercase text-foreground-lighter",
+                      isWeekend && "bg-background",
                     )}
                     style={{ width: 28, minWidth: 28 }}
                     title={d}
                   >
                     <div className="leading-tight">
                       <div>{dow}</div>
-                      <div className="text-[#888]">{dom}</div>
+                      <div className="text-foreground-lighter">{dom}</div>
                     </div>
                   </th>
                 );
               })}
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#292c31]">
+          <tbody className="divide-y divide-border">
             {sections.map((sec) => {
               const items = itemsBySection[sec.id] ?? [];
               return (
                 <Fragment key={sec.id}>
-                  <tr className="bg-[#1b1c1e]">
-                    <td className="sticky left-0 z-10 bg-[#1b1c1e] px-4 py-2.5 text-[12px] font-semibold text-[#c4c4c4]">{sec.name}</td>
-                    <td className="px-3 py-2.5 text-right text-[12px] font-mono text-[#888] tabular-nums">
+                  <tr className="bg-background">
+                    <td className="sticky left-0 z-10 bg-background px-4 py-2.5 text-[12px] font-semibold text-foreground">{sec.name}</td>
+                    <td className="px-3 py-2.5 text-right text-[12px] tabular-nums text-foreground-lighter tabular-nums">
                       {formatCurrency(sectionLaborTotal(sec.id))}
                     </td>
-                    <td className="px-3 py-2.5 text-right text-[12px] font-mono text-[#888] tabular-nums">
+                    <td className="px-3 py-2.5 text-right text-[12px] tabular-nums text-foreground-lighter tabular-nums">
                       {formatCurrency(sectionMaterialTotal(sec.id))}
                     </td>
-                    <td className="px-3 py-2.5 text-right text-[12px] font-mono text-[#888] tabular-nums">
+                    <td className="px-3 py-2.5 text-right text-[12px] tabular-nums text-foreground-lighter tabular-nums">
                       {formatCurrency(sectionEquipmentTotal(sec.id))}
                     </td>
-                    <td className="px-3 py-2.5 text-right text-[12px] font-mono text-[#aaa] font-semibold tabular-nums">
+                    <td className="px-3 py-2.5 text-right text-[12px] tabular-nums text-foreground-light font-semibold tabular-nums">
                       {formatCurrency(sectionSellTotal(sec.id))}
                     </td>
                     {days.map((d) => (
-                      <td key={d} className="bg-[#1b1c1e]" />
+                      <td key={d} className="bg-background" />
                     ))}
                   </tr>
 
                   {items.length === 0 ? (
                     <tr>
-                      <td colSpan={5 + days.length} className="px-4 py-2.5 text-[12px] text-[#555] italic">
+                      <td colSpan={5 + days.length} className="px-4 py-2.5 text-[12px] text-foreground-lighter italic">
                         No tasks
                       </td>
                     </tr>
@@ -1020,20 +1020,20 @@ function SummaryView({ estimate, sections, lineItems, sectionMaterials, onResche
                       const computedLabor = computeLaborCost(item, estimateLaborRate);
                       const laborDisplay = (item.labor_cost ?? 0) > 0 ? item.labor_cost! : computedLabor;
                       return (
-                        <tr key={item.id} className="group hover:bg-[#23252a] transition-colors">
-                          <td className="sticky left-0 z-10 bg-[#202224] group-hover:bg-[#23252a] transition-colors px-4 py-3 pl-8 text-[13px] text-[#888]">
+                        <tr key={item.id} className="group hover:bg-surface-200 transition-colors">
+                          <td className="sticky left-0 z-10 bg-surface-100 group-hover:bg-surface-200 transition-colors px-4 py-3 pl-8 text-[13px] text-foreground-lighter">
                             {item.description || "(untitled)"}
                           </td>
-                          <td className="px-3 py-3 text-right text-[12px] font-mono text-[#aaa] tabular-nums">
+                          <td className="px-3 py-3 text-right text-[12px] tabular-nums text-foreground-light tabular-nums">
                             {laborDisplay > 0 ? formatCurrency(laborDisplay) : "—"}
                           </td>
-                          <td className="px-3 py-3 text-right text-[12px] font-mono text-[#666] tabular-nums">
+                          <td className="px-3 py-3 text-right text-[12px] tabular-nums text-foreground-lighter tabular-nums">
                             {(item.material_cost ?? 0) > 0 ? formatCurrency(item.material_cost!) : "—"}
                           </td>
-                          <td className="px-3 py-3 text-right text-[12px] font-mono text-[#666] tabular-nums">
+                          <td className="px-3 py-3 text-right text-[12px] tabular-nums text-foreground-lighter tabular-nums">
                             {(item.equipment_cost ?? 0) > 0 ? formatCurrency(item.equipment_cost!) : "—"}
                           </td>
-                          <td className="px-3 py-3 text-right text-[13px] font-mono text-[#aaa] font-semibold tabular-nums">
+                          <td className="px-3 py-3 text-right text-[13px] tabular-nums text-foreground-light font-semibold tabular-nums">
                             {formatCurrency(taskLabor(item))}
                           </td>
                           {days.map((d, i) => {
@@ -1051,11 +1051,11 @@ function SummaryView({ estimate, sections, lineItems, sectionMaterials, onResche
                                 key={d}
                                 onMouseDown={isBarCell ? (e) => onBarMouseDown(e, item) : undefined}
                                 className={cn(
-                                  "px-1 py-3 text-center text-[11px] font-mono tabular-nums border-l border-[#23252a] select-none",
-                                  isWeekend ? "bg-[#1b1c1e]/40" : "",
-                                  isBarCell ? "bg-[#2d3035] text-[#F5A623]" : "text-[#3a3d42]",
+                                  "px-1 py-3 text-center text-[11px] tabular-nums tabular-nums border-l border-border select-none",
+                                  isWeekend ? "bg-background/40" : "",
+                                  isBarCell ? "bg-surface-300 text-brand" : "text-foreground-lighter",
                                   isBarCell && !disabled && (isDraggingThis ? "cursor-grabbing" : "cursor-grab"),
-                                  inPreview && "ring-1 ring-inset ring-[#F5A623]/50",
+                                  inPreview && "ring-1 ring-inset ring-primary/50",
                                 )}
                                 style={{ width: 28, minWidth: 28 }}
                               >
@@ -1073,8 +1073,8 @@ function SummaryView({ estimate, sections, lineItems, sectionMaterials, onResche
 
             {looseItems.length > 0 && (
               <Fragment>
-                <tr className="bg-[#1b1c1e]">
-                  <td colSpan={5 + days.length} className="px-4 py-2.5 text-[12px] italic text-[#666]">
+                <tr className="bg-background">
+                  <td colSpan={5 + days.length} className="px-4 py-2.5 text-[12px] italic text-foreground-lighter">
                     Unsectioned line items
                   </td>
                 </tr>
@@ -1082,20 +1082,20 @@ function SummaryView({ estimate, sections, lineItems, sectionMaterials, onResche
                   const computedLabor = computeLaborCost(item, estimateLaborRate);
                   const laborDisplay = (item.labor_cost ?? 0) > 0 ? item.labor_cost! : computedLabor;
                   return (
-                    <tr key={item.id} className="group hover:bg-[#23252a] transition-colors">
-                      <td className="sticky left-0 z-10 bg-[#202224] group-hover:bg-[#23252a] transition-colors px-4 py-3 pl-8 text-[13px] text-[#888]">
+                    <tr key={item.id} className="group hover:bg-surface-200 transition-colors">
+                      <td className="sticky left-0 z-10 bg-surface-100 group-hover:bg-surface-200 transition-colors px-4 py-3 pl-8 text-[13px] text-foreground-lighter">
                         {item.description || "(untitled)"}
                       </td>
-                      <td className="px-3 py-3 text-right text-[12px] font-mono text-[#aaa] tabular-nums">
+                      <td className="px-3 py-3 text-right text-[12px] tabular-nums text-foreground-light tabular-nums">
                         {laborDisplay > 0 ? formatCurrency(laborDisplay) : "—"}
                       </td>
-                      <td className="px-3 py-3 text-right text-[12px] font-mono text-[#666] tabular-nums">
+                      <td className="px-3 py-3 text-right text-[12px] tabular-nums text-foreground-lighter tabular-nums">
                         {(item.material_cost ?? 0) > 0 ? formatCurrency(item.material_cost!) : "—"}
                       </td>
-                      <td className="px-3 py-3 text-right text-[12px] font-mono text-[#666] tabular-nums">
+                      <td className="px-3 py-3 text-right text-[12px] tabular-nums text-foreground-lighter tabular-nums">
                         {(item.equipment_cost ?? 0) > 0 ? formatCurrency(item.equipment_cost!) : "—"}
                       </td>
-                      <td className="px-3 py-3 text-right text-[13px] font-mono text-[#aaa] font-semibold tabular-nums">
+                      <td className="px-3 py-3 text-right text-[13px] tabular-nums text-foreground-light font-semibold tabular-nums">
                         {formatCurrency(taskLabor(item))}
                       </td>
                       {days.map((d, i) => {
@@ -1111,10 +1111,10 @@ function SummaryView({ estimate, sections, lineItems, sectionMaterials, onResche
                             key={d}
                             onMouseDown={isBarCell ? (e) => onBarMouseDown(e, item) : undefined}
                             className={cn(
-                              "px-1 py-3 text-center text-[11px] font-mono tabular-nums border-l border-[#23252a] select-none",
-                              isBarCell ? "bg-[#2d3035] text-[#F5A623]" : "text-[#3a3d42]",
+                              "px-1 py-3 text-center text-[11px] tabular-nums tabular-nums border-l border-border select-none",
+                              isBarCell ? "bg-surface-300 text-brand" : "text-foreground-lighter",
                               isBarCell && !disabled && (isDraggingThis ? "cursor-grabbing" : "cursor-grab"),
-                              inPreview && "ring-1 ring-inset ring-[#F5A623]/50",
+                              inPreview && "ring-1 ring-inset ring-primary/50",
                             )}
                             style={{ width: 28, minWidth: 28 }}
                           >
@@ -1131,7 +1131,7 @@ function SummaryView({ estimate, sections, lineItems, sectionMaterials, onResche
         </table>
       </div>
       {days.length === 0 && (
-        <div className="px-4 py-2.5 border-t border-[#2d3035] text-[11px] font-mono text-[#555]">
+        <div className="px-4 py-2.5 border-t border-border text-[11px] tabular-nums text-foreground-lighter">
           No planned dates on any task — set planned_start / planned_end to populate the Gantt grid.
         </div>
       )}

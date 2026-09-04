@@ -4,23 +4,18 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  "inline-flex items-center rounded-full border px-[6px] py-[3px] text-[10px] font-medium uppercase tracking-[0.06em] transition-colors focus:outline-none focus:ring-2 focus:ring-ring/55 focus:ring-offset-0",
   {
     variants: {
       variant: {
-        default:
-          "border-transparent bg-primary text-primary-foreground hover:bg-primary/80",
-        secondary:
-          "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        default: "bg-surface-200 text-foreground-light border-strong",
+        secondary: "bg-secondary text-secondary-foreground border-border",
         destructive:
-          "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
-        outline: "text-foreground",
-        success:
-          "border-transparent bg-green-100 text-green-800 hover:bg-green-200",
-        warning:
-          "border-transparent bg-yellow-100 text-yellow-800 hover:bg-yellow-200",
-        info:
-          "border-transparent bg-blue-100 text-blue-800 hover:bg-blue-200",
+          "bg-destructive-subtle text-destructive border-destructive-border",
+        outline: "bg-transparent text-foreground border-strong",
+        success: "bg-success-subtle text-success border-success-border",
+        warning: "bg-warning-subtle text-warning border-warning-border",
+        info: "bg-info-subtle text-info border-info-border",
       },
     },
     defaultVariants: {

@@ -297,7 +297,7 @@ function SignupForm() {
 
   if (validatingInvite || validatingCode) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 to-amber-50 dark:from-neutral-950 dark:to-neutral-900 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="w-full max-w-md">
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
@@ -309,7 +309,7 @@ function SignupForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 to-amber-50 dark:from-neutral-950 dark:to-neutral-900 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">TropiTrack v2</CardTitle>
@@ -324,9 +324,9 @@ function SignupForm() {
 
         {inviteToken && invitationValid && invitationData && (
           <div className="px-6 pb-4">
-            <Alert className="bg-blue-50 border-blue-200">
-              <Mail className="h-4 w-4 text-blue-600" />
-              <AlertDescription className="text-blue-900">
+            <Alert className="bg-info-subtle border-info-border">
+              <Mail className="h-4 w-4 text-info" />
+              <AlertDescription className="text-info">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-semibold mb-1">
@@ -336,7 +336,7 @@ function SignupForm() {
                       Role: <Badge variant="secondary">{invitationData.role}</Badge>
                     </p>
                   </div>
-                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  <CheckCircle className="h-5 w-5 text-success" />
                 </div>
               </AlertDescription>
             </Alert>
@@ -345,9 +345,9 @@ function SignupForm() {
 
         {joinCode && codeValid && companyData && (
           <div className="px-6 pb-4">
-            <Alert className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
-              <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
-              <AlertDescription className="text-green-900 dark:text-green-100">
+            <Alert className="bg-success-subtle border-success-border">
+              <CheckCircle className="h-4 w-4 text-success" />
+              <AlertDescription className="text-success">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-semibold mb-1">
@@ -357,7 +357,7 @@ function SignupForm() {
                       Enter your details below to create your account and join the company
                     </p>
                   </div>
-                  <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  <CheckCircle className="h-5 w-5 text-success" />
                 </div>
               </AlertDescription>
             </Alert>
@@ -487,7 +487,7 @@ export default function SignupPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 to-amber-50 dark:from-neutral-950 dark:to-neutral-900 p-4">
+        <div className="min-h-screen flex items-center justify-center bg-background p-4">
           <Card className="w-full max-w-md">
             <CardContent className="flex flex-col items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />

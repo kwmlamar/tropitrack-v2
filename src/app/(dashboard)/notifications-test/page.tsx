@@ -156,7 +156,7 @@ export default function NotificationsTestPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Bell className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                <Bell className="h-5 w-5 text-info" />
                 Send Test Notification
               </CardTitle>
               <CardDescription>

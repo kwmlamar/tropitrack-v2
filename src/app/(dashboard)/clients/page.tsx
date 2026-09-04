@@ -412,8 +412,8 @@ export default function ClientsPage() {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-blue-100 dark:bg-blue-950/50 rounded-lg">
-                  <Users2 className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                <div className="p-3 bg-info-subtle rounded-lg">
+                  <Users2 className="h-6 w-6 text-info" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Total Clients</p>
@@ -425,8 +425,8 @@ export default function ClientsPage() {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-green-100 dark:bg-green-950/50 rounded-lg">
-                  <DollarSign className="h-6 w-6 text-green-600 dark:text-green-400" />
+                <div className="p-3 bg-success-subtle rounded-lg">
+                  <DollarSign className="h-6 w-6 text-success" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Total Outstanding</p>
@@ -438,8 +438,8 @@ export default function ClientsPage() {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-amber-100 dark:bg-amber-950/50 rounded-lg">
-                  <AlertCircle className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                <div className="p-3 bg-warning-subtle rounded-lg">
+                  <AlertCircle className="h-6 w-6 text-warning" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Clients with Overdue</p>
@@ -517,11 +517,11 @@ export default function ClientsPage() {
                       </TableCell>
                       <TableCell className="text-right font-medium">
                         {client.total_outstanding > 0 ? (
-                          <span className="text-amber-600">
+                          <span className="text-warning">
                             {formatCurrency(client.total_outstanding)}
                           </span>
                         ) : (
-                          <span className="text-green-600">{formatCurrency(0)}</span>
+                          <span className="text-success">{formatCurrency(0)}</span>
                         )}
                       </TableCell>
                       <TableCell>
@@ -534,7 +534,7 @@ export default function ClientsPage() {
                             {client.open_invoices} Open
                           </Badge>
                         ) : (
-                          <Badge className="bg-green-100 text-green-800">
+                          <Badge className="bg-success-subtle text-success border border-success-border">
                             Paid Up
                           </Badge>
                         )}

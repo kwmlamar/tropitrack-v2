@@ -34,9 +34,9 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const STATUS_COLOR: Record<string, string> = {
-  active:   "text-[#22C55E] border-[#22C55E]/20 bg-[#22C55E]/5",
-  complete: "text-[#555] border-[#222] bg-transparent",
-  paused:   "text-[#F5A623] border-[#F5A623]/20 bg-[#F5A623]/5",
+  active:   "text-success border-success-border bg-success-subtle",
+  complete: "text-foreground-lighter border-border bg-transparent",
+  paused:   "text-warning border-warning-border bg-warning-subtle",
 };
 
 function blankForm(): GoalForm {
@@ -103,31 +103,31 @@ export default function GoalsPage() {
   const displayed = filter === "active" ? goals.filter((g) => g.status === "active") : goals;
 
   return (
-    <div className="flex flex-col h-full bg-[#18191b] overflow-hidden">
+    <div className="flex flex-col h-full bg-background overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#2b2e33] flex-shrink-0">
+      <div className="flex items-center justify-between px-5 py-3.5 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2">
-          <Target className="h-4 w-4 text-[#F5A623]" />
-          <span className="text-[13px] font-semibold text-[#d0d0d0]">Goals</span>
+          <Target className="h-4 w-4 text-brand" />
+          <span className="text-[13px] font-semibold text-foreground">Goals</span>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex text-[11px] font-mono">
+          <div className="flex text-[11px] tabular-nums">
             <button
               onClick={() => setFilter("active")}
-              className={cn("px-2.5 py-1 rounded-l border border-r-0 border-[#222] transition-colors", filter === "active" ? "bg-[#292c31] text-[#d0d0d0]" : "text-[#444] hover:text-[#666]")}
+              className={cn("px-2.5 py-1 rounded-l-md border border-r-0 border-border transition-colors", filter === "active" ? "bg-surface-100 text-foreground" : "text-foreground-lighter hover:text-foreground-light")}
             >
               Active
             </button>
             <button
               onClick={() => setFilter("all")}
-              className={cn("px-2.5 py-1 rounded-r border border-[#222] transition-colors", filter === "all" ? "bg-[#292c31] text-[#d0d0d0]" : "text-[#444] hover:text-[#666]")}
+              className={cn("px-2.5 py-1 rounded-r-md border border-border transition-colors", filter === "all" ? "bg-surface-100 text-foreground" : "text-foreground-lighter hover:text-foreground-light")}
             >
               All
             </button>
           </div>
           <button
             onClick={() => setEditing(blankForm())}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium bg-[#F5A623] text-[#18191b] rounded hover:bg-[#f5a623cc] transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/80 transition-colors"
           >
             <Plus className="h-3.5 w-3.5" />
             Goal
@@ -140,18 +140,18 @@ export default function GoalsPage() {
         {loading ? (
           <div className="space-y-3">
             {Array(3).fill(0).map((_, i) => (
-              <div key={i} className="h-20 rounded bg-[#202224] animate-pulse" />
+              <div key={i} className="h-20 rounded-lg bg-surface-100 animate-pulse" />
             ))}
           </div>
         ) : displayed.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-3 text-center">
-            <Target className="h-8 w-8 text-[#2b2e33]" />
-            <p className="text-[13px] text-[#333]">
+            <Target className="h-8 w-8 text-border" />
+            <p className="text-[13px] text-foreground-lighter">
               {filter === "active" ? "No active goals" : "No goals yet"}
             </p>
             <button
               onClick={() => setEditing(blankForm())}
-              className="flex items-center gap-1.5 text-[12px] text-[#F5A623] hover:text-[#f5a623cc] transition-colors"
+              className="flex items-center gap-1.5 text-[12px] text-brand hover:opacity-80 transition-colors"
             >
               <Plus className="h-3.5 w-3.5" /> Add first goal
             </button>
@@ -161,19 +161,19 @@ export default function GoalsPage() {
             {displayed.map((goal) => (
               <div
                 key={goal.id}
-                className="rounded border border-[#2b2e33] bg-[#202224] p-4 group"
+                className="rounded-lg border border-border bg-surface-100 p-4 group"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2.5 mb-2">
-                      <span className="text-[14px] font-medium text-[#c8c8c8]">{goal.title}</span>
-                      <span className={cn("text-[10px] font-mono px-1.5 py-0.5 rounded border", STATUS_COLOR[goal.status])}>
+                      <span className="text-[14px] font-medium text-foreground">{goal.title}</span>
+                      <span className={cn("text-[10px] tabular-nums px-1.5 py-0.5 rounded-full border", STATUS_COLOR[goal.status])}>
                         {STATUS_LABEL[goal.status]}
                       </span>
                     </div>
 
                     {goal.description && (
-                      <p className="text-[12px] text-[#555] mb-3">{goal.description}</p>
+                      <p className="text-[12px] text-foreground-lighter mb-3">{goal.description}</p>
                     )}
 
                     {/* Progress bar */}
@@ -182,30 +182,30 @@ export default function GoalsPage() {
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => quickProgress(goal, -10)}
-                            className="text-[10px] font-mono text-[#333] hover:text-[#666] transition-colors px-1"
+                            className="text-[10px] tabular-nums text-foreground-lighter hover:text-foreground-light transition-colors px-1"
                           >
                             −10
                           </button>
                           <button
                             onClick={() => quickProgress(goal, 10)}
-                            className="text-[10px] font-mono text-[#333] hover:text-[#666] transition-colors px-1"
+                            className="text-[10px] tabular-nums text-foreground-lighter hover:text-foreground-light transition-colors px-1"
                           >
                             +10
                           </button>
                           <button
                             onClick={() => quickProgress(goal, 100 - goal.progress)}
-                            className="text-[10px] font-mono text-[#333] hover:text-[#22C55E] transition-colors px-1"
+                            className="text-[10px] tabular-nums text-foreground-lighter hover:text-success transition-colors px-1"
                           >
                             Done
                           </button>
                         </div>
-                        <span className="text-[12px] font-mono text-[#F5A623]">{goal.progress}%</span>
+                        <span className="text-[12px] tabular-nums text-brand">{goal.progress}%</span>
                       </div>
-                      <div className="h-[3px] bg-[#292c31] rounded-full overflow-hidden">
+                      <div className="h-[3px] bg-surface-100 rounded-full overflow-hidden">
                         <div
                           className={cn(
                             "h-full rounded-full transition-all duration-500",
-                            goal.progress === 100 ? "bg-[#22C55E]" : "bg-[#F5A623]"
+                            goal.progress === 100 ? "bg-success" : "bg-primary"
                           )}
                           style={{ width: `${goal.progress}%` }}
                         />
@@ -213,7 +213,7 @@ export default function GoalsPage() {
                     </div>
 
                     {goal.target_date && (
-                      <p className="text-[11px] text-[#333] mt-2 font-mono">
+                      <p className="text-[11px] text-foreground-lighter mt-2 tabular-nums">
                         Target: {new Date(goal.target_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                       </p>
                     )}
@@ -226,7 +226,7 @@ export default function GoalsPage() {
                       status: goal.status, target_date: goal.target_date ?? "",
                       progress: goal.progress, notes: goal.notes ?? "",
                     })}
-                    className="opacity-0 group-hover:opacity-100 text-[#333] hover:text-[#666] transition-all mt-0.5"
+                    className="opacity-0 group-hover:opacity-100 text-foreground-lighter hover:text-foreground-light transition-all mt-0.5"
                   >
                     <Pencil className="h-3.5 w-3.5" />
                   </button>
@@ -240,46 +240,46 @@ export default function GoalsPage() {
       {/* Edit modal */}
       {editing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-[#202224] border border-[#222] rounded-lg w-[440px] shadow-2xl">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[#2b2e33]">
-              <span className="text-[13px] font-semibold text-[#d0d0d0]">
+          <div className="bg-surface-100 border border-border rounded-lg w-[440px] shadow-2xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <span className="text-[13px] font-semibold text-foreground">
                 {editing.id ? "Edit goal" : "New goal"}
               </span>
-              <button onClick={() => setEditing(null)} className="text-[#333] hover:text-[#666]">
+              <button onClick={() => setEditing(null)} className="text-foreground-lighter hover:text-foreground-light">
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             <div className="p-5 space-y-4">
               <div>
-                <label className="block text-[11px] font-mono text-[#444] uppercase tracking-wider mb-1.5">Title</label>
+                <label className="block text-[11px] font-mono text-foreground-lighter uppercase tracking-wider mb-1.5">Title</label>
                 <input
                   value={editing.title}
                   onChange={(e) => setEditing((f) => f && ({ ...f, title: e.target.value }))}
-                  className="w-full bg-[#18191b] border border-[#222] rounded px-3 py-2 text-[13px] text-[#d0d0d0] focus:outline-none focus:border-[#F5A623] transition-colors"
+                  className="w-full bg-background border border-border rounded-md px-3 py-2 text-[13px] text-foreground focus:outline-none focus:border-primary transition-colors"
                   placeholder="e.g. Open the laundromat, Sundays off..."
                   autoFocus
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-mono text-[#444] uppercase tracking-wider mb-1.5">Description</label>
+                <label className="block text-[11px] font-mono text-foreground-lighter uppercase tracking-wider mb-1.5">Description</label>
                 <textarea
                   value={editing.description}
                   onChange={(e) => setEditing((f) => f && ({ ...f, description: e.target.value }))}
                   rows={2}
-                  className="w-full bg-[#18191b] border border-[#222] rounded px-3 py-2 text-[13px] text-[#d0d0d0] focus:outline-none focus:border-[#F5A623] transition-colors resize-none"
+                  className="w-full bg-background border border-border rounded-md px-3 py-2 text-[13px] text-foreground focus:outline-none focus:border-primary transition-colors resize-none"
                   placeholder="What does success look like?"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-mono text-[#444] uppercase tracking-wider mb-1.5">Status</label>
+                  <label className="block text-[11px] font-mono text-foreground-lighter uppercase tracking-wider mb-1.5">Status</label>
                   <select
                     value={editing.status}
                     onChange={(e) => setEditing((f) => f && ({ ...f, status: e.target.value as Goal["status"] }))}
-                    className="w-full bg-[#18191b] border border-[#222] rounded px-3 py-2 text-[13px] text-[#d0d0d0] focus:outline-none focus:border-[#F5A623] transition-colors"
+                    className="w-full bg-background border border-border rounded-md px-3 py-2 text-[13px] text-foreground focus:outline-none focus:border-primary transition-colors"
                   >
                     <option value="active">Active</option>
                     <option value="paused">Paused</option>
@@ -287,18 +287,18 @@ export default function GoalsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[11px] font-mono text-[#444] uppercase tracking-wider mb-1.5">Target date</label>
+                  <label className="block text-[11px] font-mono text-foreground-lighter uppercase tracking-wider mb-1.5">Target date</label>
                   <input
                     type="date"
                     value={editing.target_date}
                     onChange={(e) => setEditing((f) => f && ({ ...f, target_date: e.target.value }))}
-                    className="w-full bg-[#18191b] border border-[#222] rounded px-3 py-2 text-[13px] text-[#d0d0d0] focus:outline-none focus:border-[#F5A623] transition-colors"
+                    className="w-full bg-background border border-border rounded-md px-3 py-2 text-[13px] text-foreground focus:outline-none focus:border-primary transition-colors"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[11px] font-mono text-[#444] uppercase tracking-wider mb-1.5">
+                <label className="block text-[11px] font-mono text-foreground-lighter uppercase tracking-wider mb-1.5">
                   Progress — {editing.progress}%
                 </label>
                 <input
@@ -308,16 +308,16 @@ export default function GoalsPage() {
                   step={5}
                   value={editing.progress}
                   onChange={(e) => setEditing((f) => f && ({ ...f, progress: Number(e.target.value) }))}
-                  className="w-full accent-[#F5A623]"
+                  className="w-full accent-primary"
                 />
               </div>
             </div>
 
-            <div className="flex items-center justify-between px-5 py-4 border-t border-[#2b2e33]">
+            <div className="flex items-center justify-between px-5 py-4 border-t border-border">
               {editing.id ? (
                 <button
                   onClick={() => editing.id && deleteGoal(editing.id)}
-                  className="text-[12px] text-[#EF4444]/60 hover:text-[#EF4444] transition-colors"
+                  className="text-[12px] text-destructive/60 hover:text-destructive transition-colors"
                 >
                   Delete
                 </button>
@@ -325,14 +325,14 @@ export default function GoalsPage() {
               <div className="flex gap-2">
                 <button
                   onClick={() => setEditing(null)}
-                  className="px-3 py-1.5 text-[12px] text-[#555] hover:text-[#888] border border-[#222] rounded transition-colors"
+                  className="px-3 py-1.5 text-[12px] text-foreground-lighter hover:text-foreground-light border border-border rounded-md transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={() => editing && save(editing)}
                   disabled={!editing.title.trim()}
-                  className="px-3 py-1.5 text-[12px] font-medium bg-[#F5A623] text-[#18191b] rounded hover:bg-[#f5a623cc] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="px-3 py-1.5 text-[12px] font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/80 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Save
                 </button>

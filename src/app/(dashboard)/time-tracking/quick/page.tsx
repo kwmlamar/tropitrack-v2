@@ -788,7 +788,7 @@ export default function QuickTimeEntryPage() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="flex items-center gap-2">
-                  <Zap className="h-5 w-5 text-amber-500" />
+                  <Zap className="h-5 w-5 text-brand" />
                   Quick Entry Grid
                 </CardTitle>
                 <CardDescription>
@@ -825,16 +825,16 @@ export default function QuickTimeEntryPage() {
                       key={row.id}
                       className={cn(
                         "border-b transition-colors",
-                        row.status === "saved" && "bg-green-50",
-                        row.status === "error" && "bg-red-50",
-                        existingEntries.has(row.worker_id) && row.status === "new" && "bg-amber-50"
+                        row.status === "saved" && "bg-success-subtle",
+                        row.status === "error" && "bg-destructive-subtle",
+                        existingEntries.has(row.worker_id) && row.status === "new" && "bg-warning-subtle"
                       )}
                     >
                       {/* Worker Selection */}
                       <td className="px-4 py-2">
                         <WorkerCombobox workers={workers} value={row.worker_id} onSelect={(workerId) => handleWorkerSelect(row.id, workerId)} />
                         {existingEntries.has(row.worker_id) && row.status === "new" && (
-                          <div className="flex items-center gap-1 mt-1 text-xs text-amber-600">
+                          <div className="flex items-center gap-1 mt-1 text-xs text-warning">
                             <AlertCircle className="h-3 w-3" />
                             <span>Has {existingEntries.get(row.worker_id)}h logged</span>
                           </div>
@@ -989,7 +989,7 @@ export default function QuickTimeEntryPage() {
           </AlertDialogHeader>
           <div className="my-4 space-y-2">
             {duplicates.map((dup) => (
-              <div key={dup.row_id} className="flex items-center justify-between p-2 bg-amber-50 rounded">
+              <div key={dup.row_id} className="flex items-center justify-between p-2 bg-warning-subtle rounded-md">
                 <span className="font-medium">{dup.worker_name}</span>
                 <span className="text-sm text-muted-foreground">{dup.existing_hours}h already logged</span>
               </div>

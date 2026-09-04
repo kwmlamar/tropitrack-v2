@@ -151,41 +151,41 @@ export default function ClientDetailPage() {
   const getEstimateStatusColor = (status: string) => {
     switch (status) {
       case "draft":
-        return "bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-300";
+        return "bg-surface-200 text-foreground-light border border-strong";
       case "sent":
-        return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300";
+        return "bg-info-subtle text-info border border-info-border";
       case "approved":
-        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300";
+        return "bg-success-subtle text-success border border-success-border";
       case "rejected":
-        return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300";
+        return "bg-destructive-subtle text-destructive border border-destructive-border";
       case "converted":
-        return "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300";
+        return "bg-brand-subtle text-brand border border-brand-border";
       case "expired":
-        return "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300";
+        return "bg-warning-subtle text-warning border border-warning-border";
       default:
-        return "bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-300";
+        return "bg-surface-200 text-foreground-light border border-strong";
     }
   };
 
   const getInvoiceStatusColor = (status: string) => {
     switch (status) {
       case "draft":
-        return "bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-300";
+        return "bg-surface-200 text-foreground-light border border-strong";
       case "sent":
-        return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300";
+        return "bg-info-subtle text-info border border-info-border";
       case "viewed":
-        return "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300";
+        return "bg-info-subtle text-info border border-info-border";
       case "paid":
-        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300";
+        return "bg-success-subtle text-success border border-success-border";
       case "partial":
-        return "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300";
+        return "bg-warning-subtle text-warning border border-warning-border";
       case "overdue":
-        return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300";
+        return "bg-destructive-subtle text-destructive border border-destructive-border";
       case "cancelled":
       case "void":
-        return "bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400";
+        return "bg-surface-200 text-foreground-lighter border border-strong";
       default:
-        return "bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-300";
+        return "bg-surface-200 text-foreground-light border border-strong";
     }
   };
 
@@ -310,7 +310,7 @@ export default function ClientDetailPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Total Paid</span>
-                  <span className="font-medium text-green-600">
+                  <span className="font-medium text-success">
                     {formatCurrency(balance.total_paid)}
                   </span>
                 </div>
@@ -319,7 +319,7 @@ export default function ClientDetailPage() {
                   <span className="font-medium">Outstanding Balance</span>
                   <span
                     className={`font-bold text-lg ${
-                      balance.total_outstanding > 0 ? "text-amber-600" : "text-green-600"
+                      balance.total_outstanding > 0 ? "text-warning" : "text-success"
                     }`}
                   >
                     {formatCurrency(balance.total_outstanding)}
@@ -497,10 +497,10 @@ export default function ClientDetailPage() {
                             <Badge
                               className={
                                 project.status === "completed"
-                                  ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                                  ? "bg-success-subtle text-success border border-success-border"
                                   : project.status === "active"
-                                  ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
-                                  : "bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-300"
+                                  ? "bg-info-subtle text-info border border-info-border"
+                                  : "bg-surface-200 text-foreground-light border border-strong"
                               }
                             >
                               {project.status.replace("_", " ")}

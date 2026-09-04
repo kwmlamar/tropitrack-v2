@@ -53,10 +53,10 @@ interface PayPeriodWithEntries extends PayPeriod {
 }
 
 const PERIOD_DOT: Record<string, string> = {
-  open:       "bg-[#3B82F6]",
-  processing: "bg-[#F5A623]",
-  paid:       "bg-[#22C55E]",
-  cancelled:  "bg-[#EF4444]",
+  open:       "bg-info-solid",
+  processing: "bg-primary",
+  paid:       "bg-success-solid",
+  cancelled:  "bg-destructive-solid",
 };
 
 export default function PayrollPage() {
@@ -352,16 +352,16 @@ export default function PayrollPage() {
   const canSelect = selectedPeriod?.status === "processing" && (unpaidEntries.length > 0 || partialEntries.length > 0);
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-[#18191b]">
+    <div className="flex flex-col h-full overflow-hidden bg-background">
       {/* Top bar */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-[#34373c] flex-shrink-0">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0">
         <div>
-          <p className="text-[11px] font-mono text-[#666] uppercase tracking-widest">Payroll</p>
-          <h1 className="text-[16px] font-semibold text-[#d0d0d0] mt-0.5">Pay Periods</h1>
+          <p className="text-[11px] font-mono text-foreground-lighter uppercase tracking-widest">Payroll</p>
+          <h1 className="text-[16px] font-semibold text-foreground mt-0.5">Pay Periods</h1>
         </div>
         <button
           onClick={() => setCreateDialogOpen(true)}
-          className="text-[12px] font-medium text-[#F5A623] hover:opacity-80 transition-opacity"
+          className="text-[12px] font-medium text-brand hover:opacity-80 transition-opacity"
         >
           + New Period
         </button>
@@ -370,38 +370,38 @@ export default function PayrollPage() {
       {/* Two-panel layout */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left: periods list */}
-        <div className="w-[260px] flex-shrink-0 border-r border-[#34373c] flex flex-col overflow-hidden">
-          <div className="px-4 py-3 border-b border-[#2d3035]">
-            <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Pay Periods</p>
+        <div className="w-[260px] flex-shrink-0 border-r border-border flex flex-col overflow-hidden">
+          <div className="px-4 py-3 border-b border-border">
+            <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Pay Periods</p>
           </div>
           <div className="flex-1 overflow-auto">
             {loading ? (
-              <div className="divide-y divide-[#292c31]">
+              <div className="divide-y divide-border">
                 {Array(4).fill(0).map((_, i) => <div key={i} className="h-16 animate-pulse" />)}
               </div>
             ) : payPeriods.length === 0 ? (
               <div className="px-4 py-8 text-center">
-                <p className="text-[12px] text-[#555]">No pay periods yet</p>
-                <button onClick={() => setCreateDialogOpen(true)} className="mt-2 text-[11px] text-[#F5A623] hover:opacity-80">
+                <p className="text-[12px] text-foreground-lighter">No pay periods yet</p>
+                <button onClick={() => setCreateDialogOpen(true)} className="mt-2 text-[11px] text-brand hover:opacity-80">
                   Create first →
                 </button>
               </div>
             ) : (
-              <div className="divide-y divide-[#292c31]">
+              <div className="divide-y divide-border">
                 {payPeriods.map(period => (
                   <button
                     key={period.id}
                     onClick={() => fetchPeriodEntries(period)}
                     className={cn(
                       "w-full px-4 py-3 text-left transition-colors",
-                      selectedPeriod?.id === period.id ? "bg-[#292c31]" : "hover:bg-[#23252a]"
+                      selectedPeriod?.id === period.id ? "bg-surface-100" : "hover:bg-surface-200"
                     )}
                   >
                     <div className="flex items-center gap-2 mb-1">
-                      <span className={cn("h-1.5 w-1.5 rounded-full flex-shrink-0", PERIOD_DOT[period.status] ?? "bg-[#404040]")} />
-                      <span className="text-[10px] font-mono text-[#555] capitalize">{period.status}</span>
+                      <span className={cn("h-1.5 w-1.5 rounded-full flex-shrink-0", PERIOD_DOT[period.status] ?? "bg-surface-400")} />
+                      <span className="text-[10px] tabular-nums text-foreground-lighter capitalize">{period.status}</span>
                     </div>
-                    <p className="text-[12px] text-[#aaa] font-medium">
+                    <p className="text-[12px] text-foreground-light font-medium">
                       {formatDate(period.start_date)} – {formatDate(period.end_date)}
                     </p>
                   </button>
@@ -416,8 +416,8 @@ export default function PayrollPage() {
           {!selectedPeriod ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
-                <p className="text-[13px] text-[#555]">Select a pay period</p>
-                <button onClick={() => setCreateDialogOpen(true)} className="mt-3 text-[12px] text-[#F5A623] hover:opacity-80">
+                <p className="text-[13px] text-foreground-lighter">Select a pay period</p>
+                <button onClick={() => setCreateDialogOpen(true)} className="mt-3 text-[12px] text-brand hover:opacity-80">
                   or create one →
                 </button>
               </div>
@@ -425,17 +425,17 @@ export default function PayrollPage() {
           ) : (
             <>
               {/* Period header */}
-              <div className="px-6 py-3 border-b border-[#34373c] flex items-center justify-between flex-shrink-0">
+              <div className="px-6 py-3 border-b border-border flex items-center justify-between flex-shrink-0">
                 <div className="flex items-center gap-3">
                   <div>
-                    <p className="text-[10px] font-mono text-[#666] uppercase tracking-widest">
+                    <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">
                       {formatDate(selectedPeriod.start_date)} — {formatDate(selectedPeriod.end_date)}
                     </p>
                     <div className="flex items-center gap-2 mt-0.5">
-                      <span className={cn("h-1.5 w-1.5 rounded-full", PERIOD_DOT[selectedPeriod.status] ?? "bg-[#404040]")} />
-                      <span className="text-[11px] font-mono text-[#666] capitalize">{selectedPeriod.status}</span>
+                      <span className={cn("h-1.5 w-1.5 rounded-full", PERIOD_DOT[selectedPeriod.status] ?? "bg-surface-400")} />
+                      <span className="text-[11px] tabular-nums text-foreground-lighter capitalize">{selectedPeriod.status}</span>
                       {selectedPeriod.status === "cancelled" && selectedPeriod.void_reason && (
-                        <span className="text-[11px] text-[#555]">· {selectedPeriod.void_reason}</span>
+                        <span className="text-[11px] text-foreground-lighter">· {selectedPeriod.void_reason}</span>
                       )}
                     </div>
                   </div>
@@ -443,22 +443,22 @@ export default function PayrollPage() {
 
                 <div className="flex items-center gap-4">
                   {selectedPeriod.status === "open" && (
-                    <button onClick={() => setProcessDialogOpen(true)} className="text-[12px] text-[#F5A623] hover:opacity-80">
+                    <button onClick={() => setProcessDialogOpen(true)} className="text-[12px] text-brand hover:opacity-80">
                       Process payroll
                     </button>
                   )}
                   {selectedPeriod.status === "processing" && (
                     <>
-                      <button onClick={() => setReopenDialogOpen(true)} className="text-[12px] text-[#F5A623] hover:opacity-80">Reopen</button>
-                      <button onClick={() => { fetchAdjustments(selectedPeriod.id); setAdjustmentsListOpen(true); }} className="text-[12px] text-[#666] hover:text-[#aaa] transition-colors">Adjustments</button>
-                      <button onClick={() => setVoidDialogOpen(true)} className="text-[12px] text-[#EF4444] hover:opacity-80">Void</button>
+                      <button onClick={() => setReopenDialogOpen(true)} className="text-[12px] text-brand hover:opacity-80">Reopen</button>
+                      <button onClick={() => { fetchAdjustments(selectedPeriod.id); setAdjustmentsListOpen(true); }} className="text-[12px] text-foreground-lighter hover:text-foreground-light transition-colors">Adjustments</button>
+                      <button onClick={() => setVoidDialogOpen(true)} className="text-[12px] text-destructive hover:opacity-80">Void</button>
                       {unpaidEntries.length > 0 && (
-                        <button onClick={handleMarkPaid} className="text-[12px] text-[#22C55E] hover:opacity-80">
+                        <button onClick={handleMarkPaid} className="text-[12px] text-success hover:opacity-80">
                           Mark all paid
                         </button>
                       )}
                       {selectedEntries.size > 0 && (
-                        <button onClick={() => setPayDialogOpen(true)} className="text-[12px] font-medium text-[#22C55E] hover:opacity-80">
+                        <button onClick={() => setPayDialogOpen(true)} className="text-[12px] font-medium text-success hover:opacity-80">
                           Pay {selectedEntries.size} selected ({formatCurrency(selectedTotal)})
                         </button>
                       )}
@@ -466,9 +466,9 @@ export default function PayrollPage() {
                   )}
                   {selectedPeriod.status === "paid" && (
                     <>
-                      <span className="text-[11px] font-mono text-[#22C55E]">Fully paid</span>
-                      <button onClick={() => { fetchAdjustments(selectedPeriod.id); setAdjustmentsListOpen(true); }} className="text-[12px] text-[#666] hover:text-[#aaa] transition-colors">Adjustments</button>
-                      <button onClick={() => setVoidDialogOpen(true)} className="text-[12px] text-[#EF4444] hover:opacity-80">Void</button>
+                      <span className="text-[11px] tabular-nums text-success">Fully paid</span>
+                      <button onClick={() => { fetchAdjustments(selectedPeriod.id); setAdjustmentsListOpen(true); }} className="text-[12px] text-foreground-lighter hover:text-foreground-light transition-colors">Adjustments</button>
+                      <button onClick={() => setVoidDialogOpen(true)} className="text-[12px] text-destructive hover:opacity-80">Void</button>
                     </>
                   )}
                 </div>
@@ -476,7 +476,7 @@ export default function PayrollPage() {
 
               {/* Stat row */}
               {(selectedPeriod.entries?.length ?? 0) > 0 && (
-                <div className="px-6 py-3 border-b border-[#34373c] grid grid-cols-5 gap-3 flex-shrink-0">
+                <div className="px-6 py-3 border-b border-border grid grid-cols-5 gap-3 flex-shrink-0">
                   {[
                     { label: "Gross",    value: formatCurrency(totalGross) },
                     { label: "NIB-EE",   value: formatCurrency(totalNibEE), muted: true },
@@ -484,11 +484,11 @@ export default function PayrollPage() {
                     { label: "Net Pay",  value: formatCurrency(totalNet), amber: true },
                     { label: "Unpaid",   value: formatCurrency(totalUnpaid), warn: totalUnpaid > 0 },
                   ].map(s => (
-                    <div key={s.label} className="rounded border border-[#2d3035] bg-[#202224] px-3 py-2.5">
-                      <p className="text-[10px] font-mono text-[#555] uppercase tracking-wider">{s.label}</p>
+                    <div key={s.label} className="rounded-lg border border-border bg-surface-100 px-3 py-2.5">
+                      <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-wider">{s.label}</p>
                       <p className={cn(
-                        "text-[15px] font-semibold font-mono mt-0.5 leading-none",
-                        s.amber ? "text-[#F5A623]" : s.warn ? "text-[#EF4444]" : s.muted ? "text-[#555]" : "text-[#d0d0d0]"
+                        "text-[15px] font-semibold tabular-nums mt-0.5 leading-none",
+                        s.amber ? "text-brand" : s.warn ? "text-destructive" : s.muted ? "text-foreground-lighter" : "text-foreground"
                       )}>
                         {s.value}
                       </p>
@@ -501,9 +501,9 @@ export default function PayrollPage() {
               <div className="flex-1 overflow-auto">
                 {!selectedPeriod.entries || selectedPeriod.entries.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full">
-                    <p className="text-[13px] text-[#555]">No payroll entries</p>
+                    <p className="text-[13px] text-foreground-lighter">No payroll entries</p>
                     {selectedPeriod.status === "open" && (
-                      <button onClick={() => setProcessDialogOpen(true)} className="mt-3 text-[12px] text-[#F5A623] hover:opacity-80">
+                      <button onClick={() => setProcessDialogOpen(true)} className="mt-3 text-[12px] text-brand hover:opacity-80">
                         Process payroll to generate →
                       </button>
                     )}
@@ -511,83 +511,83 @@ export default function PayrollPage() {
                 ) : (
                   <table className="w-full">
                     <thead>
-                      <tr className="border-b border-[#2d3035] sticky top-0 bg-[#18191b]">
+                      <tr className="border-b border-border sticky top-0 bg-background">
                         {canSelect && (
                           <th className="px-5 py-2.5 w-10">
                             <Checkbox
                               checked={[...unpaidEntries, ...partialEntries].length > 0 && [...unpaidEntries, ...partialEntries].every(e => selectedEntries.has(e.id))}
                               onCheckedChange={handleSelectAll}
-                              className="border-[#333]"
+                              className="border-strong"
                             />
                           </th>
                         )}
-                        <th className="px-5 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555]">Worker</th>
-                        <th className="px-5 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Reg</th>
-                        <th className="px-5 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">OT</th>
-                        <th className="px-5 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Gross</th>
-                        <th className="px-5 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">NIB-EE</th>
-                        <th className="px-5 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Net Pay</th>
-                        <th className="px-5 py-2.5 text-center text-[10px] font-mono uppercase tracking-widest text-[#555]">Status</th>
+                        <th className="px-5 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">Worker</th>
+                        <th className="px-5 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">Reg</th>
+                        <th className="px-5 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">OT</th>
+                        <th className="px-5 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">Gross</th>
+                        <th className="px-5 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">NIB-EE</th>
+                        <th className="px-5 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">Net Pay</th>
+                        <th className="px-5 py-2.5 text-center text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">Status</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[#292c31]">
+                    <tbody className="divide-y divide-border">
                       {selectedPeriod.entries.map(entry => {
                         const isPaid = entry.is_paid || entry.payment_status === "paid";
                         const isPartial = entry.payment_status === "partial";
                         const hasBalance = !isPaid && (entry.net_pay - (entry.total_paid || 0)) > 0;
                         return (
-                          <tr key={entry.id} className={cn("hover:bg-[#23252a] transition-colors", isPaid && "opacity-60")}>
+                          <tr key={entry.id} className={cn("hover:bg-surface-200 transition-colors", isPaid && "opacity-60")}>
                             {canSelect && (
                               <td className="px-5 py-3">
                                 {hasBalance && (
                                   <Checkbox
                                     checked={selectedEntries.has(entry.id)}
                                     onCheckedChange={() => handleToggleEntry(entry.id)}
-                                    className="border-[#333]"
+                                    className="border-strong"
                                   />
                                 )}
                               </td>
                             )}
                             <td className="px-5 py-3">
-                              <p className="text-[13px] text-[#aaa]">{entry.worker?.first_name} {entry.worker?.last_name}</p>
-                              <p className="text-[10px] font-mono text-[#444] mt-0.5">
+                              <p className="text-[13px] text-foreground-light">{entry.worker?.first_name} {entry.worker?.last_name}</p>
+                              <p className="text-[10px] tabular-nums text-foreground-lighter mt-0.5">
                                 {entry.regular_hours.toFixed(1)} reg + {entry.overtime_hours.toFixed(1)} OT
                               </p>
                             </td>
-                            <td className="px-5 py-3 text-right text-[12px] font-mono text-[#666]">{entry.regular_hours.toFixed(1)}h</td>
-                            <td className="px-5 py-3 text-right text-[12px] font-mono">
-                              {entry.overtime_hours > 0 ? <span className="text-[#F5A623]">{entry.overtime_hours.toFixed(1)}h</span> : <span className="text-[#333]">—</span>}
+                            <td className="px-5 py-3 text-right text-[12px] tabular-nums text-foreground-lighter">{entry.regular_hours.toFixed(1)}h</td>
+                            <td className="px-5 py-3 text-right text-[12px] tabular-nums">
+                              {entry.overtime_hours > 0 ? <span className="text-brand">{entry.overtime_hours.toFixed(1)}h</span> : <span className="text-foreground-lighter">—</span>}
                             </td>
-                            <td className="px-5 py-3 text-right text-[12px] font-mono text-[#666]">{formatCurrency(entry.gross_pay)}</td>
-                            <td className="px-5 py-3 text-right text-[12px] font-mono text-[#555]">
+                            <td className="px-5 py-3 text-right text-[12px] tabular-nums text-foreground-lighter">{formatCurrency(entry.gross_pay)}</td>
+                            <td className="px-5 py-3 text-right text-[12px] tabular-nums text-foreground-lighter">
                               {entry.deduction_details?.nib_employee ? formatCurrency(entry.deduction_details.nib_employee) : "—"}
                             </td>
                             <td className="px-5 py-3 text-right">
-                              <span className="text-[13px] font-mono font-semibold text-[#aaa]">{formatCurrency(entry.net_pay)}</span>
+                              <span className="text-[13px] tabular-nums font-semibold text-foreground-light">{formatCurrency(entry.net_pay)}</span>
                               {isPartial && (
-                                <p className="text-[10px] font-mono text-[#F5A623] mt-0.5">
+                                <p className="text-[10px] tabular-nums text-brand mt-0.5">
                                   bal {formatCurrency(entry.net_pay - (entry.total_paid || 0))}
                                 </p>
                               )}
                             </td>
                             <td className="px-5 py-3 text-center">
                               {isPaid ? (
-                                <span className="text-[11px] font-mono text-[#22C55E]">Paid</span>
+                                <span className="text-[11px] tabular-nums text-success">Paid</span>
                               ) : isPartial ? (
                                 <div className="flex flex-col items-center gap-1">
-                                  <span className="text-[11px] font-mono text-[#F5A623]">Partial</span>
+                                  <span className="text-[11px] tabular-nums text-brand">Partial</span>
                                   {selectedPeriod.status === "processing" && (
-                                    <button onClick={() => openPayDialog(entry)} disabled={payingEntryId !== null || payingBulk} className="text-[10px] text-[#22C55E] hover:opacity-80 disabled:opacity-40">
+                                    <button onClick={() => openPayDialog(entry)} disabled={payingEntryId !== null || payingBulk} className="text-[10px] text-success hover:opacity-80 disabled:opacity-40">
                                       +Pay
                                     </button>
                                   )}
                                 </div>
                               ) : selectedPeriod.status === "processing" ? (
-                                <button onClick={() => openPayDialog(entry)} disabled={payingEntryId !== null || payingBulk} className="text-[11px] text-[#22C55E] hover:opacity-80 disabled:opacity-40">
+                                <button onClick={() => openPayDialog(entry)} disabled={payingEntryId !== null || payingBulk} className="text-[11px] text-success hover:opacity-80 disabled:opacity-40">
                                   Pay
                                 </button>
                               ) : (
-                                <span className="text-[11px] font-mono text-[#444]">Pending</span>
+                                <span className="text-[11px] tabular-nums text-foreground-lighter">Pending</span>
                               )}
                             </td>
                           </tr>
@@ -604,9 +604,9 @@ export default function PayrollPage() {
 
       {/* Create Period Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="max-w-sm bg-[#202224] border-[#34373c] text-[#d0d0d0]">
+        <DialogContent className="max-w-sm bg-surface-100 border-border text-foreground">
           <DialogHeader>
-            <DialogTitle className="text-[#d0d0d0] text-[15px]">Create Pay Period</DialogTitle>
+            <DialogTitle className="text-foreground text-[15px]">Create Pay Period</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleCreatePeriod}>
             <div className="space-y-3 py-2">
@@ -615,9 +615,9 @@ export default function PayrollPage() {
                 { label: "End Date", key: "end_date" },
               ].map(f => (
                 <div key={f.key} className="space-y-1">
-                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">{f.label}</p>
+                  <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">{f.label}</p>
                   <input type="date"
-                    className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors"
+                    className="w-full h-8 px-2.5 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light outline-none focus:border-strong transition-colors"
                     value={(periodForm as any)[f.key]}
                     onChange={e => setPeriodForm(p => ({ ...p, [f.key]: e.target.value }))}
                     required
@@ -626,8 +626,8 @@ export default function PayrollPage() {
               ))}
             </div>
             <DialogFooter>
-              <button type="button" onClick={() => setCreateDialogOpen(false)} className="px-4 py-2 text-[12px] text-[#555] hover:text-[#aaa] transition-colors">Cancel</button>
-              <button type="submit" disabled={submitting} className="flex items-center gap-1.5 px-4 py-2 rounded bg-[#2d3035] border border-[#333] text-[12px] text-[#F5A623] hover:bg-[#353840] transition-colors disabled:opacity-40">
+              <button type="button" onClick={() => setCreateDialogOpen(false)} className="px-4 py-2 text-[12px] text-foreground-lighter hover:text-foreground-light transition-colors">Cancel</button>
+              <button type="submit" disabled={submitting} className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-surface-300 border border-strong text-[12px] text-brand hover:bg-surface-400 transition-colors disabled:opacity-40">
                 {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 Create
               </button>
@@ -638,16 +638,16 @@ export default function PayrollPage() {
 
       {/* Process Payroll Dialog */}
       <Dialog open={processDialogOpen} onOpenChange={setProcessDialogOpen}>
-        <DialogContent className="max-w-sm bg-[#202224] border-[#34373c]">
+        <DialogContent className="max-w-sm bg-surface-100 border-border">
           <DialogHeader>
-            <DialogTitle className="text-[#d0d0d0] text-[15px]">Process Payroll</DialogTitle>
-            <DialogDescription className="text-[#555] text-[12px]">
+            <DialogTitle className="text-foreground text-[15px]">Process Payroll</DialogTitle>
+            <DialogDescription className="text-foreground-lighter text-[12px]">
               Calculates pay for all workers from their time entries. Cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="pt-4">
-            <button onClick={() => setProcessDialogOpen(false)} className="px-4 py-2 text-[12px] text-[#555] hover:text-[#aaa] transition-colors">Cancel</button>
-            <button onClick={handleProcessPayroll} disabled={submitting} className="flex items-center gap-1.5 px-4 py-2 rounded bg-[#2d3035] border border-[#333] text-[12px] text-[#F5A623] hover:bg-[#353840] transition-colors disabled:opacity-40">
+            <button onClick={() => setProcessDialogOpen(false)} className="px-4 py-2 text-[12px] text-foreground-lighter hover:text-foreground-light transition-colors">Cancel</button>
+            <button onClick={handleProcessPayroll} disabled={submitting} className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-surface-300 border border-strong text-[12px] text-brand hover:bg-surface-400 transition-colors disabled:opacity-40">
               {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               Process
             </button>
@@ -657,23 +657,23 @@ export default function PayrollPage() {
 
       {/* Pay Selected Dialog */}
       <Dialog open={payDialogOpen} onOpenChange={setPayDialogOpen}>
-        <DialogContent className="max-w-sm bg-[#202224] border-[#34373c]">
+        <DialogContent className="max-w-sm bg-surface-100 border-border">
           <DialogHeader>
-            <DialogTitle className="text-[#d0d0d0] text-[15px]">Confirm Bulk Payment</DialogTitle>
+            <DialogTitle className="text-foreground text-[15px]">Confirm Bulk Payment</DialogTitle>
           </DialogHeader>
           <div className="py-4 space-y-2">
             <div className="flex justify-between">
-              <span className="text-[12px] text-[#666]">Workers</span>
-              <span className="text-[12px] text-[#aaa]">{selectedEntries.size}</span>
+              <span className="text-[12px] text-foreground-lighter">Workers</span>
+              <span className="text-[12px] text-foreground-light">{selectedEntries.size}</span>
             </div>
-            <div className="flex justify-between border-t border-[#2d3035] pt-2">
-              <span className="text-[12px] font-semibold text-[#d0d0d0]">Total</span>
-              <span className="text-[15px] font-mono font-semibold text-[#22C55E]">{formatCurrency(selectedTotal)}</span>
+            <div className="flex justify-between border-t border-border pt-2">
+              <span className="text-[12px] font-semibold text-foreground">Total</span>
+              <span className="text-[15px] tabular-nums font-semibold text-success">{formatCurrency(selectedTotal)}</span>
             </div>
           </div>
           <DialogFooter>
-            <button onClick={() => setPayDialogOpen(false)} className="px-4 py-2 text-[12px] text-[#555] hover:text-[#aaa] transition-colors">Cancel</button>
-            <button onClick={handlePaySelected} disabled={payingBulk} className="flex items-center gap-1.5 px-4 py-2 rounded bg-[#2d3035] border border-[#333] text-[12px] text-[#22C55E] hover:bg-[#353840] transition-colors disabled:opacity-40">
+            <button onClick={() => setPayDialogOpen(false)} className="px-4 py-2 text-[12px] text-foreground-lighter hover:text-foreground-light transition-colors">Cancel</button>
+            <button onClick={handlePaySelected} disabled={payingBulk} className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-surface-300 border border-strong text-[12px] text-success hover:bg-surface-400 transition-colors disabled:opacity-40">
               {payingBulk && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               Confirm Payment
             </button>
@@ -683,47 +683,47 @@ export default function PayrollPage() {
 
       {/* Single Pay Dialog */}
       <Dialog open={singlePayDialogOpen} onOpenChange={setSinglePayDialogOpen}>
-        <DialogContent className="max-w-sm bg-[#202224] border-[#34373c]">
+        <DialogContent className="max-w-sm bg-surface-100 border-border">
           <DialogHeader>
-            <DialogTitle className="text-[#d0d0d0] text-[15px]">
+            <DialogTitle className="text-foreground text-[15px]">
               Pay {payingEntry?.worker?.first_name} {payingEntry?.worker?.last_name}
             </DialogTitle>
           </DialogHeader>
           {payingEntry && (
             <div className="space-y-3 py-2">
-              <div className="rounded border border-[#2d3035] bg-[#18191b] px-3 py-2.5 space-y-1.5">
+              <div className="rounded-lg border border-border bg-background px-3 py-2.5 space-y-1.5">
                 <div className="flex justify-between">
-                  <span className="text-[11px] font-mono text-[#555]">Net Pay</span>
-                  <span className="text-[12px] font-mono text-[#aaa]">{formatCurrency(payingEntry.net_pay)}</span>
+                  <span className="text-[11px] tabular-nums text-foreground-lighter">Net Pay</span>
+                  <span className="text-[12px] tabular-nums text-foreground-light">{formatCurrency(payingEntry.net_pay)}</span>
                 </div>
                 {(payingEntry.total_paid || 0) > 0 && (
                   <div className="flex justify-between">
-                    <span className="text-[11px] font-mono text-[#555]">Paid so far</span>
-                    <span className="text-[12px] font-mono text-[#22C55E]">{formatCurrency(payingEntry.total_paid || 0)}</span>
+                    <span className="text-[11px] tabular-nums text-foreground-lighter">Paid so far</span>
+                    <span className="text-[12px] tabular-nums text-success">{formatCurrency(payingEntry.total_paid || 0)}</span>
                   </div>
                 )}
-                <div className="flex justify-between border-t border-[#292c31] pt-1.5">
-                  <span className="text-[11px] font-mono text-[#aaa] font-semibold">Balance</span>
-                  <span className="text-[13px] font-mono text-[#d0d0d0] font-semibold">{formatCurrency(payingEntry.net_pay - (payingEntry.total_paid || 0))}</span>
+                <div className="flex justify-between border-t border-border pt-1.5">
+                  <span className="text-[11px] tabular-nums text-foreground-light font-semibold">Balance</span>
+                  <span className="text-[13px] tabular-nums text-foreground font-semibold">{formatCurrency(payingEntry.net_pay - (payingEntry.total_paid || 0))}</span>
                 </div>
               </div>
               <div className="space-y-1">
-                <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Amount</p>
+                <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Amount</p>
                 <input type="number" step="0.01" min="0.01" max={payingEntry.net_pay - (payingEntry.total_paid || 0)}
-                  className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors"
+                  className="w-full h-8 px-2.5 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light outline-none focus:border-strong transition-colors"
                   value={payAmount}
                   onChange={e => setPayAmount(e.target.value)}
                 />
               </div>
               <div className="space-y-1">
-                <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Method</p>
+                <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Method</p>
                 <Select value={payMethod} onValueChange={setPayMethod}>
-                  <SelectTrigger className="h-8 bg-[#292c31] border-[#3a3d42] text-[#aaa] text-[13px] focus:ring-0 focus:border-[#333]">
+                  <SelectTrigger className="h-8 bg-surface-100 border-strong text-foreground-light text-[13px] focus:ring-0 focus:border-strong">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-[#202224] border-[#3a3d42]">
+                  <SelectContent className="bg-surface-100 border-strong">
                     {["cash","check","bank_transfer","other"].map(m => (
-                      <SelectItem key={m} value={m} className="text-[#aaa] focus:bg-[#292c31] focus:text-[#d0d0d0] capitalize">{m.replace("_", " ")}</SelectItem>
+                      <SelectItem key={m} value={m} className="text-foreground-light focus:bg-surface-100 focus:text-foreground capitalize">{m.replace("_", " ")}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -731,8 +731,8 @@ export default function PayrollPage() {
             </div>
           )}
           <DialogFooter>
-            <button onClick={() => setSinglePayDialogOpen(false)} className="px-4 py-2 text-[12px] text-[#555] hover:text-[#aaa] transition-colors">Cancel</button>
-            <button onClick={handlePaySingleEntry} disabled={payingEntryId !== null} className="flex items-center gap-1.5 px-4 py-2 rounded bg-[#2d3035] border border-[#333] text-[12px] text-[#22C55E] hover:bg-[#353840] transition-colors disabled:opacity-40">
+            <button onClick={() => setSinglePayDialogOpen(false)} className="px-4 py-2 text-[12px] text-foreground-lighter hover:text-foreground-light transition-colors">Cancel</button>
+            <button onClick={handlePaySingleEntry} disabled={payingEntryId !== null} className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-surface-300 border border-strong text-[12px] text-success hover:bg-surface-400 transition-colors disabled:opacity-40">
               {payingEntryId && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               Record
             </button>
@@ -742,26 +742,26 @@ export default function PayrollPage() {
 
       {/* Reopen Dialog */}
       <Dialog open={reopenDialogOpen} onOpenChange={setReopenDialogOpen}>
-        <DialogContent className="max-w-sm bg-[#202224] border-[#34373c]">
+        <DialogContent className="max-w-sm bg-surface-100 border-border">
           <DialogHeader>
-            <DialogTitle className="text-[#F5A623] text-[15px]">Reopen Pay Period</DialogTitle>
-            <DialogDescription className="text-[#555] text-[12px]">
+            <DialogTitle className="text-brand text-[15px]">Reopen Pay Period</DialogTitle>
+            <DialogDescription className="text-foreground-lighter text-[12px]">
               Deletes all payroll entries so you can correct timesheets and re-process.
             </DialogDescription>
           </DialogHeader>
           <div className="py-2 space-y-2">
-            <p className="text-[11px] text-[#666] bg-[#F5A623]/5 border border-[#F5A623]/20 rounded px-3 py-2">
+            <p className="text-[11px] text-foreground-lighter bg-primary/5 border border-primary/20 rounded-lg px-3 py-2">
               Only use if no actual payments have been made yet.
             </p>
             <div className="space-y-1">
-              <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Reason *</p>
+              <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Reason *</p>
               <textarea rows={2} value={reopenReason} onChange={e => setReopenReason(e.target.value)} placeholder="e.g. Timesheet errors..."
-                className="w-full px-2.5 py-2 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#333] resize-none" />
+                className="w-full px-2.5 py-2 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light placeholder:text-foreground-lighter outline-none focus:border-strong resize-none" />
             </div>
           </div>
           <DialogFooter>
-            <button onClick={() => setReopenDialogOpen(false)} className="px-4 py-2 text-[12px] text-[#555] hover:text-[#aaa] transition-colors">Cancel</button>
-            <button onClick={handleReopenPeriod} disabled={submitting || !reopenReason.trim()} className="flex items-center gap-1.5 px-4 py-2 rounded bg-[#F5A623]/10 border border-[#F5A623]/30 text-[12px] text-[#F5A623] hover:bg-[#F5A623]/20 transition-colors disabled:opacity-40">
+            <button onClick={() => setReopenDialogOpen(false)} className="px-4 py-2 text-[12px] text-foreground-lighter hover:text-foreground-light transition-colors">Cancel</button>
+            <button onClick={handleReopenPeriod} disabled={submitting || !reopenReason.trim()} className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-primary/10 border border-primary/30 text-[12px] text-brand hover:bg-primary/20 transition-colors disabled:opacity-40">
               {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               Reopen
             </button>
@@ -771,26 +771,26 @@ export default function PayrollPage() {
 
       {/* Void Dialog */}
       <Dialog open={voidDialogOpen} onOpenChange={setVoidDialogOpen}>
-        <DialogContent className="max-w-sm bg-[#202224] border-[#34373c]">
+        <DialogContent className="max-w-sm bg-surface-100 border-border">
           <DialogHeader>
-            <DialogTitle className="text-[#EF4444] text-[15px]">Void Pay Period</DialogTitle>
-            <DialogDescription className="text-[#555] text-[12px]">
+            <DialogTitle className="text-destructive text-[15px]">Void Pay Period</DialogTitle>
+            <DialogDescription className="text-foreground-lighter text-[12px]">
               Marks this period as cancelled. Records are kept for audit purposes.
             </DialogDescription>
           </DialogHeader>
           <div className="py-2 space-y-2">
-            <p className="text-[11px] text-[#666] bg-[#EF4444]/5 border border-[#EF4444]/20 rounded px-3 py-2">
+            <p className="text-[11px] text-foreground-lighter bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2">
               This cannot be undone. Use adjustments in a new period to correct issues.
             </p>
             <div className="space-y-1">
-              <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Reason *</p>
+              <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Reason *</p>
               <textarea rows={2} value={voidReason} onChange={e => setVoidReason(e.target.value)} placeholder="e.g. Duplicate, major errors..."
-                className="w-full px-2.5 py-2 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#333] resize-none" />
+                className="w-full px-2.5 py-2 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light placeholder:text-foreground-lighter outline-none focus:border-strong resize-none" />
             </div>
           </div>
           <DialogFooter>
-            <button onClick={() => setVoidDialogOpen(false)} className="px-4 py-2 text-[12px] text-[#555] hover:text-[#aaa] transition-colors">Cancel</button>
-            <button onClick={handleVoidPeriod} disabled={submitting || !voidReason.trim()} className="flex items-center gap-1.5 px-4 py-2 rounded bg-[#EF4444]/10 border border-[#EF4444]/30 text-[12px] text-[#EF4444] hover:bg-[#EF4444]/20 transition-colors disabled:opacity-40">
+            <button onClick={() => setVoidDialogOpen(false)} className="px-4 py-2 text-[12px] text-foreground-lighter hover:text-foreground-light transition-colors">Cancel</button>
+            <button onClick={handleVoidPeriod} disabled={submitting || !voidReason.trim()} className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-destructive/10 border border-destructive/30 text-[12px] text-destructive hover:bg-destructive/20 transition-colors disabled:opacity-40">
               {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               Void Period
             </button>
@@ -800,38 +800,38 @@ export default function PayrollPage() {
 
       {/* Adjustments List Dialog */}
       <Dialog open={adjustmentsListOpen} onOpenChange={setAdjustmentsListOpen}>
-        <DialogContent className="max-w-2xl bg-[#202224] border-[#34373c]">
+        <DialogContent className="max-w-2xl bg-surface-100 border-border">
           <DialogHeader>
-            <DialogTitle className="text-[#d0d0d0] text-[15px]">Payroll Adjustments</DialogTitle>
-            <DialogDescription className="text-[#555] text-[12px]">Applied in subsequent pay periods.</DialogDescription>
+            <DialogTitle className="text-foreground text-[15px]">Payroll Adjustments</DialogTitle>
+            <DialogDescription className="text-foreground-lighter text-[12px]">Applied in subsequent pay periods.</DialogDescription>
           </DialogHeader>
           <div className="py-2 space-y-3">
-            <button onClick={() => setAdjustmentDialogOpen(true)} className="text-[12px] text-[#F5A623] hover:opacity-80">
+            <button onClick={() => setAdjustmentDialogOpen(true)} className="text-[12px] text-brand hover:opacity-80">
               + Create Adjustment
             </button>
             {adjustments.length === 0 ? (
-              <p className="text-[13px] text-[#555] py-4 text-center">No adjustments yet</p>
+              <p className="text-[13px] text-foreground-lighter py-4 text-center">No adjustments yet</p>
             ) : (
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-[#2d3035]">
+                  <tr className="border-b border-border">
                     {["Worker","Type","Hours","Amount","Reason"].map(h => (
-                      <th key={h} className={cn("py-2.5 text-[10px] font-mono uppercase tracking-widest text-[#555]", h === "Reason" ? "text-left px-2" : "text-right px-2")}>{h}</th>
+                      <th key={h} className={cn("py-2.5 text-[10px] font-mono uppercase tracking-widest text-foreground-lighter", h === "Reason" ? "text-left px-2" : "text-right px-2")}>{h}</th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#292c31]">
+                <tbody className="divide-y divide-border">
                   {adjustments.map(adj => (
                     <tr key={adj.id}>
-                      <td className="px-2 py-2.5 text-right text-[12px] text-[#aaa]">{adj.worker?.first_name} {adj.worker?.last_name}</td>
-                      <td className="px-2 py-2.5 text-right text-[11px] font-mono text-[#666] capitalize">{adj.adjustment_type}</td>
-                      <td className={cn("px-2 py-2.5 text-right text-[12px] font-mono", adj.hours_adjustment > 0 ? "text-[#22C55E]" : adj.hours_adjustment < 0 ? "text-[#EF4444]" : "text-[#444]")}>
+                      <td className="px-2 py-2.5 text-right text-[12px] text-foreground-light">{adj.worker?.first_name} {adj.worker?.last_name}</td>
+                      <td className="px-2 py-2.5 text-right text-[11px] tabular-nums text-foreground-lighter capitalize">{adj.adjustment_type}</td>
+                      <td className={cn("px-2 py-2.5 text-right text-[12px] tabular-nums", adj.hours_adjustment > 0 ? "text-success" : adj.hours_adjustment < 0 ? "text-destructive" : "text-foreground-lighter")}>
                         {adj.hours_adjustment !== 0 ? `${adj.hours_adjustment > 0 ? "+" : ""}${adj.hours_adjustment}h` : "—"}
                       </td>
-                      <td className={cn("px-2 py-2.5 text-right text-[12px] font-mono", adj.amount_adjustment > 0 ? "text-[#22C55E]" : adj.amount_adjustment < 0 ? "text-[#EF4444]" : "text-[#444]")}>
+                      <td className={cn("px-2 py-2.5 text-right text-[12px] tabular-nums", adj.amount_adjustment > 0 ? "text-success" : adj.amount_adjustment < 0 ? "text-destructive" : "text-foreground-lighter")}>
                         {adj.amount_adjustment !== 0 ? `${adj.amount_adjustment > 0 ? "+" : ""}${formatCurrency(adj.amount_adjustment)}` : "—"}
                       </td>
-                      <td className="px-2 py-2.5 text-left text-[12px] text-[#666] max-w-xs truncate">{adj.reason}</td>
+                      <td className="px-2 py-2.5 text-left text-[12px] text-foreground-lighter max-w-xs truncate">{adj.reason}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -839,73 +839,73 @@ export default function PayrollPage() {
             )}
           </div>
           <DialogFooter>
-            <button onClick={() => setAdjustmentsListOpen(false)} className="px-4 py-2 text-[12px] text-[#555] hover:text-[#aaa] transition-colors">Close</button>
+            <button onClick={() => setAdjustmentsListOpen(false)} className="px-4 py-2 text-[12px] text-foreground-lighter hover:text-foreground-light transition-colors">Close</button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Create Adjustment Dialog */}
       <Dialog open={adjustmentDialogOpen} onOpenChange={setAdjustmentDialogOpen}>
-        <DialogContent className="max-w-sm bg-[#202224] border-[#34373c]">
+        <DialogContent className="max-w-sm bg-surface-100 border-border">
           <DialogHeader>
-            <DialogTitle className="text-[#d0d0d0] text-[15px]">Create Adjustment</DialogTitle>
+            <DialogTitle className="text-foreground text-[15px]">Create Adjustment</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div className="space-y-1">
-              <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Worker *</p>
+              <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Worker *</p>
               <Select value={adjustmentForm.worker_id} onValueChange={v => setAdjustmentForm(f => ({ ...f, worker_id: v }))}>
-                <SelectTrigger className="h-8 bg-[#292c31] border-[#3a3d42] text-[#aaa] text-[13px] focus:ring-0 focus:border-[#333]">
+                <SelectTrigger className="h-8 bg-surface-100 border-strong text-foreground-light text-[13px] focus:ring-0 focus:border-strong">
                   <SelectValue placeholder="Select worker..." />
                 </SelectTrigger>
-                <SelectContent className="bg-[#202224] border-[#3a3d42]">
+                <SelectContent className="bg-surface-100 border-strong">
                   {workers.map(w => (
-                    <SelectItem key={w.id} value={w.id} className="text-[#aaa] focus:bg-[#292c31] focus:text-[#d0d0d0]">{w.first_name} {w.last_name}</SelectItem>
+                    <SelectItem key={w.id} value={w.id} className="text-foreground-light focus:bg-surface-100 focus:text-foreground">{w.first_name} {w.last_name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1">
-              <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Type *</p>
+              <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Type *</p>
               <Select value={adjustmentForm.adjustment_type} onValueChange={v => setAdjustmentForm(f => ({ ...f, adjustment_type: v as PayrollAdjustmentType }))}>
-                <SelectTrigger className="h-8 bg-[#292c31] border-[#3a3d42] text-[#aaa] text-[13px] focus:ring-0 focus:border-[#333]">
+                <SelectTrigger className="h-8 bg-surface-100 border-strong text-foreground-light text-[13px] focus:ring-0 focus:border-strong">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-[#202224] border-[#3a3d42]">
+                <SelectContent className="bg-surface-100 border-strong">
                   {["correction","bonus","deduction","reversal","hours_correction"].map(t => (
-                    <SelectItem key={t} value={t} className="text-[#aaa] focus:bg-[#292c31] focus:text-[#d0d0d0] capitalize">{t.replace("_", " ")}</SelectItem>
+                    <SelectItem key={t} value={t} className="text-foreground-light focus:bg-surface-100 focus:text-foreground capitalize">{t.replace("_", " ")}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Hours Adj</p>
+                <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Hours Adj</p>
                 <input type="number" step="0.5"
-                  className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors"
+                  className="w-full h-8 px-2.5 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light outline-none focus:border-strong transition-colors"
                   value={adjustmentForm.hours_adjustment}
                   onChange={e => setAdjustmentForm(f => ({ ...f, hours_adjustment: e.target.value }))}
                 />
-                <p className="text-[9px] font-mono text-[#444]">Neg = reduction</p>
+                <p className="text-[9px] tabular-nums text-foreground-lighter">Neg = reduction</p>
               </div>
               <div className="space-y-1">
-                <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Amount Adj</p>
+                <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Amount Adj</p>
                 <input type="number" step="0.01"
-                  className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors"
+                  className="w-full h-8 px-2.5 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light outline-none focus:border-strong transition-colors"
                   value={adjustmentForm.amount_adjustment}
                   onChange={e => setAdjustmentForm(f => ({ ...f, amount_adjustment: e.target.value }))}
                 />
-                <p className="text-[9px] font-mono text-[#444]">Neg = deduction</p>
+                <p className="text-[9px] tabular-nums text-foreground-lighter">Neg = deduction</p>
               </div>
             </div>
             <div className="space-y-1">
-              <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Reason *</p>
+              <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Reason *</p>
               <textarea rows={2} value={adjustmentForm.reason} onChange={e => setAdjustmentForm(f => ({ ...f, reason: e.target.value }))} placeholder="Explain the adjustment..."
-                className="w-full px-2.5 py-2 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#333] resize-none" />
+                className="w-full px-2.5 py-2 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light placeholder:text-foreground-lighter outline-none focus:border-strong resize-none" />
             </div>
           </div>
           <DialogFooter>
-            <button onClick={() => setAdjustmentDialogOpen(false)} className="px-4 py-2 text-[12px] text-[#555] hover:text-[#aaa] transition-colors">Cancel</button>
-            <button onClick={handleCreateAdjustment} disabled={submitting || !adjustmentForm.worker_id || !adjustmentForm.reason.trim()} className="flex items-center gap-1.5 px-4 py-2 rounded bg-[#2d3035] border border-[#333] text-[12px] text-[#F5A623] hover:bg-[#353840] transition-colors disabled:opacity-40">
+            <button onClick={() => setAdjustmentDialogOpen(false)} className="px-4 py-2 text-[12px] text-foreground-lighter hover:text-foreground-light transition-colors">Cancel</button>
+            <button onClick={handleCreateAdjustment} disabled={submitting || !adjustmentForm.worker_id || !adjustmentForm.reason.trim()} className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-surface-300 border border-strong text-[12px] text-brand hover:bg-surface-400 transition-colors disabled:opacity-40">
               {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               Create
             </button>

@@ -207,22 +207,22 @@ export default function InvoicesPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "draft":
-        return "bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-300";
+        return "bg-surface-200 text-foreground-light border border-strong";
       case "sent":
-        return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300";
+        return "bg-info-subtle text-info border border-info-border";
       case "viewed":
-        return "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300";
+        return "bg-info-subtle text-info border border-info-border";
       case "paid":
-        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300";
+        return "bg-success-subtle text-success border border-success-border";
       case "partial":
-        return "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300";
+        return "bg-warning-subtle text-warning border border-warning-border";
       case "overdue":
-        return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300";
+        return "bg-destructive-subtle text-destructive border border-destructive-border";
       case "cancelled":
       case "void":
-        return "bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400";
+        return "bg-surface-200 text-foreground-lighter border border-strong";
       default:
-        return "bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-300";
+        return "bg-surface-200 text-foreground-light border border-strong";
     }
   };
 
@@ -264,8 +264,8 @@ export default function InvoicesPage() {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-blue-100 dark:bg-blue-950/50 rounded-lg">
-                  <Receipt className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                <div className="p-3 bg-info-subtle rounded-lg">
+                  <Receipt className="h-6 w-6 text-info" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Total Invoices</p>
@@ -277,8 +277,8 @@ export default function InvoicesPage() {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-amber-100 dark:bg-amber-950/50 rounded-lg">
-                  <Clock className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                <div className="p-3 bg-warning-subtle rounded-lg">
+                  <Clock className="h-6 w-6 text-warning" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Outstanding</p>
@@ -290,8 +290,8 @@ export default function InvoicesPage() {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-red-100 dark:bg-red-950/50 rounded-lg">
-                  <AlertCircle className="h-6 w-6 text-red-600 dark:text-red-400" />
+                <div className="p-3 bg-destructive-subtle rounded-lg">
+                  <AlertCircle className="h-6 w-6 text-destructive" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Overdue</p>
@@ -303,8 +303,8 @@ export default function InvoicesPage() {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-green-100 dark:bg-green-950/50 rounded-lg">
-                  <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
+                <div className="p-3 bg-success-subtle rounded-lg">
+                  <CheckCircle className="h-6 w-6 text-success" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Collected</p>
@@ -337,16 +337,16 @@ export default function InvoicesPage() {
               <TabsList className="h-12">
                 <TabsTrigger value="all">All ({agingCounts.all})</TabsTrigger>
                 <TabsTrigger value="current">Current ({agingCounts.current})</TabsTrigger>
-                <TabsTrigger value="1-30" className="text-amber-600 dark:text-amber-400">
+                <TabsTrigger value="1-30" className="text-warning">
                   1-30 Days ({agingCounts["1-30"]})
                 </TabsTrigger>
-                <TabsTrigger value="31-60" className="text-orange-600 dark:text-orange-400">
+                <TabsTrigger value="31-60" className="text-warning">
                   31-60 Days ({agingCounts["31-60"]})
                 </TabsTrigger>
-                <TabsTrigger value="61-90" className="text-red-600 dark:text-red-400">
+                <TabsTrigger value="61-90" className="text-destructive">
                   61-90 Days ({agingCounts["61-90"]})
                 </TabsTrigger>
-                <TabsTrigger value="90+" className="text-red-700 dark:text-red-400">
+                <TabsTrigger value="90+" className="text-destructive">
                   90+ Days ({agingCounts["90+"]})
                 </TabsTrigger>
               </TabsList>
@@ -389,7 +389,7 @@ export default function InvoicesPage() {
                           <span
                             className={
                               getAgingBucket(invoice) !== "current" && invoice.status !== "paid"
-                                ? "text-red-600 dark:text-red-400 font-medium"
+                                ? "text-destructive font-medium"
                                 : ""
                             }
                           >
@@ -401,11 +401,11 @@ export default function InvoicesPage() {
                         </TableCell>
                         <TableCell className="text-right font-medium">
                           {invoice.balance_due > 0 ? (
-                            <span className="text-amber-600 dark:text-amber-400">
+                            <span className="text-warning">
                               {formatCurrency(invoice.balance_due)}
                             </span>
                           ) : (
-                            <span className="text-green-600 dark:text-green-400">{formatCurrency(0)}</span>
+                            <span className="text-success">{formatCurrency(0)}</span>
                           )}
                         </TableCell>
                         <TableCell>
@@ -466,7 +466,7 @@ export default function InvoicesPage() {
                 </Table>
               ) : (
                 <div className="p-12 text-center">
-                  <Receipt className="h-12 w-12 mx-auto text-blue-600 dark:text-blue-400 mb-4" />
+                  <Receipt className="h-12 w-12 mx-auto text-info mb-4" />
                   <h3 className="text-lg font-semibold mb-2">No invoices found</h3>
                   <p className="text-muted-foreground mb-4">
                     {searchTerm

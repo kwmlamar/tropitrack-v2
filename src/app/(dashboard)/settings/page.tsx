@@ -382,18 +382,18 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="flex flex-col h-full overflow-auto bg-[#18191b]">
+    <div className="flex flex-col h-full overflow-auto bg-background">
       {/* Top bar */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-[#34373c] flex-shrink-0">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0">
         <div>
-          <p className="text-[11px] font-mono text-[#666] uppercase tracking-widest">Settings</p>
-          <h1 className="text-[16px] font-semibold text-[#d0d0d0] mt-0.5">Account & Preferences</h1>
+          <p className="text-[11px] font-mono text-foreground-lighter uppercase tracking-widest">Settings</p>
+          <h1 className="text-[16px] font-semibold text-foreground mt-0.5">Account & Preferences</h1>
         </div>
       </div>
 
       <div className="flex-1 p-6 space-y-5">
         {/* Navigation Tabs */}
-        <div className="flex items-center gap-1 border-b border-[#34373c] pb-2 flex-wrap">
+        <div className="flex items-center gap-1 border-b border-border pb-2 flex-wrap">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -402,13 +402,13 @@ export default function SettingsPage() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  "px-3 py-1.5 rounded text-[10px] font-mono uppercase tracking-wider transition-colors flex items-center gap-2",
+                  "px-3 py-1.5 rounded-md text-[10px] font-mono uppercase tracking-wider transition-colors flex items-center gap-2",
                   isActive
-                    ? "bg-[#2d3035] text-[#F5A623] border border-[#333]"
-                    : "text-[#555] hover:text-[#999]"
+                    ? "bg-surface-300 text-brand border border-strong"
+                    : "text-foreground-lighter hover:text-foreground-light"
                 )}
               >
-                <Icon className={cn("h-3.5 w-3.5", isActive ? "text-[#F5A623]" : "text-[#555]")} />
+                <Icon className={cn("h-3.5 w-3.5", isActive ? "text-brand" : "text-foreground-lighter")} />
                 {tab.name}
               </button>
             );
@@ -417,54 +417,54 @@ export default function SettingsPage() {
 
         {/* Tab Contents */}
         {activeTab === "profile" && (
-          <div className="rounded border border-[#34373c] bg-[#202224] p-5 space-y-6 max-w-4xl">
+          <div className="rounded-lg border border-border bg-surface-100 p-5 space-y-6 max-w-4xl">
             <div>
-              <h2 className="text-[14px] font-semibold text-[#d0d0d0] uppercase tracking-wider font-mono">Profile Information</h2>
-              <p className="text-[11px] text-[#555] mt-1">Update your personal details and contact information</p>
+              <h2 className="text-[14px] font-semibold text-foreground uppercase tracking-wider font-mono">Profile Information</h2>
+              <p className="text-[11px] text-foreground-lighter mt-1">Update your personal details and contact information</p>
             </div>
 
             <div className="flex items-center gap-5">
-              <div className="h-14 w-14 rounded-full bg-[#3a3d42] flex items-center justify-center text-[16px] font-mono font-semibold text-[#aaa] flex-shrink-0">
+              <div className="h-14 w-14 rounded-full bg-surface-400 flex items-center justify-center text-[16px] tabular-nums font-semibold text-foreground-light flex-shrink-0">
                 {profile?.full_name ? getInitials(profile.full_name) : "U"}
               </div>
               <div>
-                <h3 className="font-semibold text-[14px] text-[#d0d0d0]">{profile?.full_name}</h3>
-                <p className="text-[12px] text-[#888]">{profile?.email}</p>
-                <p className="text-[11px] text-[#555] capitalize font-mono mt-0.5">
+                <h3 className="font-semibold text-[14px] text-foreground">{profile?.full_name}</h3>
+                <p className="text-[12px] text-foreground-lighter">{profile?.email}</p>
+                <p className="text-[11px] text-foreground-lighter capitalize tabular-nums mt-0.5">
                   {profile?.role?.replace("_", " ")}
                 </p>
               </div>
             </div>
 
-            <div className="border-b border-[#2d3035]" />
+            <div className="border-b border-border" />
 
             <form onSubmit={handleProfileUpdate} className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-1">
-                  <label htmlFor="full_name" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">Full Name</label>
+                  <label htmlFor="full_name" className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest block">Full Name</label>
                   <input
                     id="full_name"
                     value={profileForm.full_name}
                     onChange={(e) =>
                       setProfileForm({ ...profileForm, full_name: e.target.value })
                     }
-                    className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors placeholder:text-[#444]"
+                    className="w-full h-8 px-2.5 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light outline-none focus:border-strong transition-colors placeholder:text-foreground-lighter"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label htmlFor="email" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">Email</label>
+                  <label htmlFor="email" className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest block">Email</label>
                   <input
                     id="email"
                     value={profile?.email || ""}
                     disabled
-                    className="w-full h-8 px-2.5 rounded bg-[#202224] border border-[#3a3d42]/30 text-[13px] text-[#555] cursor-not-allowed outline-none"
+                    className="w-full h-8 px-2.5 rounded-md bg-surface-100 border border-strong/30 text-[13px] text-foreground-lighter cursor-not-allowed outline-none"
                   />
-                  <p className="text-[10px] text-[#444] font-mono mt-1">
+                  <p className="text-[10px] text-foreground-lighter tabular-nums mt-1">
                     Email cannot be changed
                   </p>
                 </div>
                 <div className="space-y-1">
-                  <label htmlFor="phone" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">Phone</label>
+                  <label htmlFor="phone" className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest block">Phone</label>
                   <input
                     id="phone"
                     placeholder="(242) 555-1234"
@@ -472,16 +472,16 @@ export default function SettingsPage() {
                     onChange={(e) =>
                       setProfileForm({ ...profileForm, phone: e.target.value })
                     }
-                    className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors placeholder:text-[#444]"
+                    className="w-full h-8 px-2.5 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light outline-none focus:border-strong transition-colors placeholder:text-foreground-lighter"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label htmlFor="role" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">Role</label>
+                  <label htmlFor="role" className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest block">Role</label>
                   <input
                     id="role"
                     value={profile?.role?.replace("_", " ") || ""}
                     disabled
-                    className="w-full h-8 px-2.5 rounded bg-[#202224] border border-[#3a3d42]/30 text-[13px] text-[#555] cursor-not-allowed outline-none capitalize"
+                    className="w-full h-8 px-2.5 rounded-md bg-surface-100 border border-strong/30 text-[13px] text-foreground-lighter cursor-not-allowed outline-none capitalize"
                   />
                 </div>
               </div>
@@ -490,7 +490,7 @@ export default function SettingsPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded bg-[#2d3035] border border-[#333] text-[12px] font-medium text-[#F5A623] hover:bg-[#353840] transition-colors disabled:opacity-40"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-surface-300 border border-strong text-[12px] font-medium text-brand hover:bg-surface-400 transition-colors disabled:opacity-40"
                 >
                   {loading && <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />}
                   Save Changes
@@ -501,15 +501,15 @@ export default function SettingsPage() {
         )}
 
         {activeTab === "security" && (
-          <div className="rounded border border-[#34373c] bg-[#202224] p-5 space-y-6 max-w-xl">
+          <div className="rounded-lg border border-border bg-surface-100 p-5 space-y-6 max-w-xl">
             <div>
-              <h2 className="text-[14px] font-semibold text-[#d0d0d0] uppercase tracking-wider font-mono">Change Password</h2>
-              <p className="text-[11px] text-[#555] mt-1">Update your password to keep your account secure</p>
+              <h2 className="text-[14px] font-semibold text-foreground uppercase tracking-wider font-mono">Change Password</h2>
+              <p className="text-[11px] text-foreground-lighter mt-1">Update your password to keep your account secure</p>
             </div>
 
             <form onSubmit={handlePasswordUpdate} className="space-y-4">
               <div className="space-y-1">
-                <label htmlFor="new_password" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">New Password</label>
+                <label htmlFor="new_password" className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest block">New Password</label>
                 <input
                   id="new_password"
                   type="password"
@@ -518,11 +518,11 @@ export default function SettingsPage() {
                   onChange={(e) =>
                     setPasswordForm({ ...passwordForm, new_password: e.target.value })
                   }
-                  className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors placeholder:text-[#444]"
+                  className="w-full h-8 px-2.5 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light outline-none focus:border-strong transition-colors placeholder:text-foreground-lighter"
                 />
               </div>
               <div className="space-y-1">
-                <label htmlFor="confirm_password" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">Confirm New Password</label>
+                <label htmlFor="confirm_password" className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest block">Confirm New Password</label>
                 <input
                   id="confirm_password"
                   type="password"
@@ -531,7 +531,7 @@ export default function SettingsPage() {
                   onChange={(e) =>
                     setPasswordForm({ ...passwordForm, confirm_password: e.target.value })
                   }
-                  className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors placeholder:text-[#444]"
+                  className="w-full h-8 px-2.5 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light outline-none focus:border-strong transition-colors placeholder:text-foreground-lighter"
                 />
               </div>
 
@@ -539,7 +539,7 @@ export default function SettingsPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded bg-[#2d3035] border border-[#333] text-[12px] font-medium text-[#F5A623] hover:bg-[#353840] transition-colors disabled:opacity-40"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-surface-300 border border-strong text-[12px] font-medium text-brand hover:bg-surface-400 transition-colors disabled:opacity-40"
                 >
                   {loading && <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />}
                   Update Password
@@ -550,26 +550,26 @@ export default function SettingsPage() {
         )}
 
         {activeTab === "appearance" && (
-          <div className="rounded border border-[#34373c] bg-[#202224] p-5 space-y-6 max-w-4xl">
+          <div className="rounded-lg border border-border bg-surface-100 p-5 space-y-6 max-w-4xl">
             <div>
-              <h2 className="text-[14px] font-semibold text-[#d0d0d0] uppercase tracking-wider font-mono">Appearance</h2>
-              <p className="text-[11px] text-[#555] mt-1">Customize how Bedrock looks on your device</p>
+              <h2 className="text-[14px] font-semibold text-foreground uppercase tracking-wider font-mono">Appearance</h2>
+              <p className="text-[11px] text-foreground-lighter mt-1">Customize how Bedrock looks on your device</p>
             </div>
 
             <div>
-              <h3 className="text-[11px] font-mono text-[#555] uppercase tracking-widest mb-3">Theme Selection</h3>
+              <h3 className="text-[11px] font-mono text-foreground-lighter uppercase tracking-widest mb-3">Theme Selection</h3>
               <div className="grid gap-3 sm:grid-cols-3 max-w-lg">
                 <button
                   onClick={() => setTheme("light")}
                   className={cn(
-                    "flex flex-col items-center gap-2 p-4 rounded border transition-all text-center",
+                    "flex flex-col items-center gap-2 p-4 rounded-md border transition-all text-center",
                     theme === "light"
-                      ? "border-[#F5A623] bg-[#F5A623]/10 dark:bg-[#2d3035]/30 text-[#F5A623]"
-                      : "border-[#34373c] bg-[#202224] hover:bg-[#2d3035] hover:border-[#34373c] dark:hover:bg-[#272a2c] dark:hover:border-[#333] text-[#888] hover:text-[#b8b8b8]"
+                      ? "border-primary bg-primary/10 text-brand"
+                      : "border-border bg-surface-100 hover:bg-surface-300 hover:border-strong text-foreground-lighter hover:text-foreground-light"
                   )}
                 >
-                  <div className="p-2.5 rounded-full bg-[#18191b] mb-1">
-                    <Sun className="h-5 w-5 text-amber-500" />
+                  <div className="p-2.5 rounded-full bg-background mb-1">
+                    <Sun className="h-5 w-5 text-warning" />
                   </div>
                   <span className="font-medium text-[13px]">Light</span>
                   <span className="text-[10px] opacity-75">Bright and clear</span>
@@ -578,14 +578,14 @@ export default function SettingsPage() {
                 <button
                   onClick={() => setTheme("dark")}
                   className={cn(
-                    "flex flex-col items-center gap-2 p-4 rounded border transition-all text-center",
+                    "flex flex-col items-center gap-2 p-4 rounded-md border transition-all text-center",
                     theme === "dark"
-                      ? "border-[#F5A623] bg-[#F5A623]/10 dark:bg-[#2d3035]/30 text-[#F5A623]"
-                      : "border-[#34373c] bg-[#202224] hover:bg-[#2d3035] hover:border-[#34373c] dark:hover:bg-[#272a2c] dark:hover:border-[#333] text-[#888] hover:text-[#b8b8b8]"
+                      ? "border-primary bg-primary/10 text-brand"
+                      : "border-border bg-surface-100 hover:bg-surface-300 hover:border-strong text-foreground-lighter hover:text-foreground-light"
                   )}
                 >
-                  <div className="p-2.5 rounded-full bg-[#18191b] mb-1">
-                    <Moon className="h-5 w-5 text-indigo-400" />
+                  <div className="p-2.5 rounded-full bg-background mb-1">
+                    <Moon className="h-5 w-5 text-info" />
                   </div>
                   <span className="font-medium text-[13px]">Dark</span>
                   <span className="text-[10px] opacity-75">Easy on the eyes</span>
@@ -594,14 +594,14 @@ export default function SettingsPage() {
                 <button
                   onClick={() => setTheme("system")}
                   className={cn(
-                    "flex flex-col items-center gap-2 p-4 rounded border transition-all text-center",
+                    "flex flex-col items-center gap-2 p-4 rounded-md border transition-all text-center",
                     theme === "system"
-                      ? "border-[#F5A623] bg-[#F5A623]/10 dark:bg-[#2d3035]/30 text-[#F5A623]"
-                      : "border-[#34373c] bg-[#202224] hover:bg-[#2d3035] hover:border-[#34373c] dark:hover:bg-[#272a2c] dark:hover:border-[#333] text-[#888] hover:text-[#b8b8b8]"
+                      ? "border-primary bg-primary/10 text-brand"
+                      : "border-border bg-surface-100 hover:bg-surface-300 hover:border-strong text-foreground-lighter hover:text-foreground-light"
                   )}
                 >
-                  <div className="p-2.5 rounded-full bg-[#18191b] mb-1">
-                    <Monitor className="h-5 w-5 text-blue-400" />
+                  <div className="p-2.5 rounded-full bg-background mb-1">
+                    <Monitor className="h-5 w-5 text-info" />
                   </div>
                   <span className="font-medium text-[13px]">System</span>
                   <span className="text-[10px] opacity-75">Match device settings</span>
@@ -609,12 +609,12 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <div className="border-b border-[#2d3035]" />
+            <div className="border-b border-border" />
 
-            <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 rounded p-4 max-w-lg flex gap-3">
-              <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-              <div className="text-[12px] text-blue-800 dark:text-blue-200">
-                <p className="font-semibold text-blue-900 dark:text-blue-100 mb-0.5">About System Theme</p>
+            <div className="bg-info-subtle border border-info-border rounded-lg p-4 max-w-lg flex gap-3">
+              <Info className="h-4 w-4 text-info flex-shrink-0 mt-0.5" />
+              <div className="text-[12px] text-info">
+                <p className="font-semibold text-info mb-0.5">About System Theme</p>
                 <p>When set to System, Bedrock will automatically switch between light and dark modes based on your device display settings.</p>
               </div>
             </div>
@@ -623,16 +623,16 @@ export default function SettingsPage() {
 
         {activeTab === "company" && (
           <div className="space-y-5 max-w-4xl">
-            <div className="rounded border border-[#34373c] bg-[#202224] p-5 space-y-6">
+            <div className="rounded-lg border border-border bg-surface-100 p-5 space-y-6">
               <div>
-                <h2 className="text-[14px] font-semibold text-[#d0d0d0] uppercase tracking-wider font-mono">Company Information</h2>
-                <p className="text-[11px] text-[#555] mt-1">Update your company details that appear on invoices and estimates</p>
+                <h2 className="text-[14px] font-semibold text-foreground uppercase tracking-wider font-mono">Company Information</h2>
+                <p className="text-[11px] text-foreground-lighter mt-1">Update your company details that appear on invoices and estimates</p>
               </div>
 
               <form onSubmit={handleCompanyUpdate} className="space-y-4">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-1">
-                    <label htmlFor="company_name" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">Company Name</label>
+                    <label htmlFor="company_name" className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest block">Company Name</label>
                     <input
                       id="company_name"
                       placeholder="Your Company Ltd."
@@ -641,11 +641,11 @@ export default function SettingsPage() {
                         setCompanyForm({ ...companyForm, name: e.target.value })
                       }
                       disabled={companyLoading}
-                      className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors placeholder:text-[#444]"
+                      className="w-full h-8 px-2.5 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light outline-none focus:border-strong transition-colors placeholder:text-foreground-lighter"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label htmlFor="company_email" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">Company Email</label>
+                    <label htmlFor="company_email" className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest block">Company Email</label>
                     <input
                       id="company_email"
                       type="email"
@@ -655,11 +655,11 @@ export default function SettingsPage() {
                         setCompanyForm({ ...companyForm, email: e.target.value })
                       }
                       disabled={companyLoading}
-                      className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors placeholder:text-[#444]"
+                      className="w-full h-8 px-2.5 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light outline-none focus:border-strong transition-colors placeholder:text-foreground-lighter"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label htmlFor="company_phone" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">Company Phone</label>
+                    <label htmlFor="company_phone" className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest block">Company Phone</label>
                     <input
                       id="company_phone"
                       placeholder="(242) 555-1234"
@@ -668,11 +668,11 @@ export default function SettingsPage() {
                         setCompanyForm({ ...companyForm, phone: e.target.value })
                       }
                       disabled={companyLoading}
-                      className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors placeholder:text-[#444]"
+                      className="w-full h-8 px-2.5 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light outline-none focus:border-strong transition-colors placeholder:text-foreground-lighter"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label htmlFor="city" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">City</label>
+                    <label htmlFor="city" className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest block">City</label>
                     <input
                       id="city"
                       placeholder="Nassau"
@@ -681,13 +681,13 @@ export default function SettingsPage() {
                         setCompanyForm({ ...companyForm, city: e.target.value })
                       }
                       disabled={companyLoading}
-                      className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors placeholder:text-[#444]"
+                      className="w-full h-8 px-2.5 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light outline-none focus:border-strong transition-colors placeholder:text-foreground-lighter"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-1">
-                  <label htmlFor="company_address" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">Business Address</label>
+                  <label htmlFor="company_address" className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest block">Business Address</label>
                   <input
                     id="company_address"
                     placeholder="123 Main Street"
@@ -696,15 +696,15 @@ export default function SettingsPage() {
                       setCompanyForm({ ...companyForm, address: e.target.value })
                     }
                     disabled={companyLoading}
-                    className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors placeholder:text-[#444]"
+                    className="w-full h-8 px-2.5 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light outline-none focus:border-strong transition-colors placeholder:text-foreground-lighter"
                   />
                 </div>
 
-                <div className="border-b border-[#2d3035]" />
+                <div className="border-b border-border" />
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-1">
-                    <label htmlFor="vat_number" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">VAT/Tax ID Number <span className="text-[#444] font-normal font-sans">(Optional)</span></label>
+                    <label htmlFor="vat_number" className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest block">VAT/Tax ID Number <span className="text-foreground-lighter font-normal font-sans">(Optional)</span></label>
                     <input
                       id="vat_number"
                       placeholder="VAT-XXXXXX"
@@ -713,11 +713,11 @@ export default function SettingsPage() {
                         setCompanyForm({ ...companyForm, vat_number: e.target.value })
                       }
                       disabled={companyLoading}
-                      className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors placeholder:text-[#444]"
+                      className="w-full h-8 px-2.5 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light outline-none focus:border-strong transition-colors placeholder:text-foreground-lighter"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label htmlFor="business_number" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">Business Registration Number <span className="text-[#444] font-normal font-sans">(Optional)</span></label>
+                    <label htmlFor="business_number" className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest block">Business Registration Number <span className="text-foreground-lighter font-normal font-sans">(Optional)</span></label>
                     <input
                       id="business_number"
                       placeholder="BRN-XXXXXX"
@@ -726,33 +726,33 @@ export default function SettingsPage() {
                         setCompanyForm({ ...companyForm, business_registration: e.target.value })
                       }
                       disabled={companyLoading}
-                      className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors placeholder:text-[#444]"
+                      className="w-full h-8 px-2.5 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light outline-none focus:border-strong transition-colors placeholder:text-foreground-lighter"
                     />
                   </div>
                 </div>
 
-                <div className="border-b border-[#2d3035]" />
+                <div className="border-b border-border" />
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-1">
-                    <label htmlFor="currency" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">Currency</label>
+                    <label htmlFor="currency" className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest block">Currency</label>
                     <input
                       id="currency"
                       value="BSD (Bahamian Dollar)"
                       disabled
-                      className="w-full h-8 px-2.5 rounded bg-[#202224] border border-[#3a3d42]/30 text-[13px] text-[#555] cursor-not-allowed outline-none"
+                      className="w-full h-8 px-2.5 rounded-md bg-surface-100 border border-strong/30 text-[13px] text-foreground-lighter cursor-not-allowed outline-none"
                     />
-                    <p className="text-[10px] text-[#444] font-mono">Currency settings cannot be changed</p>
+                    <p className="text-[10px] text-foreground-lighter tabular-nums">Currency settings cannot be changed</p>
                   </div>
                   <div className="space-y-1">
-                    <label htmlFor="timezone" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">Timezone</label>
+                    <label htmlFor="timezone" className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest block">Timezone</label>
                     <input
                       id="timezone"
                       value="America/Nassau (EST)"
                       disabled
-                      className="w-full h-8 px-2.5 rounded bg-[#202224] border border-[#3a3d42]/30 text-[13px] text-[#555] cursor-not-allowed outline-none"
+                      className="w-full h-8 px-2.5 rounded-md bg-surface-100 border border-strong/30 text-[13px] text-foreground-lighter cursor-not-allowed outline-none"
                     />
-                    <p className="text-[10px] text-[#444] font-mono">Timezone settings cannot be changed</p>
+                    <p className="text-[10px] text-foreground-lighter tabular-nums">Timezone settings cannot be changed</p>
                   </div>
                 </div>
 
@@ -760,7 +760,7 @@ export default function SettingsPage() {
                   <button
                     type="submit"
                     disabled={companyLoading}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded bg-[#2d3035] border border-[#333] text-[12px] font-medium text-[#F5A623] hover:bg-[#353840] transition-colors disabled:opacity-40"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-surface-300 border border-strong text-[12px] font-medium text-brand hover:bg-surface-400 transition-colors disabled:opacity-40"
                   >
                     {companyLoading && <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />}
                     Save Company Settings
@@ -769,36 +769,36 @@ export default function SettingsPage() {
               </form>
             </div>
 
-            <div className="rounded border border-[#34373c] bg-[#202224] p-5 space-y-4">
+            <div className="rounded-lg border border-border bg-surface-100 p-5 space-y-4">
               <div>
-                <h3 className="text-[13px] font-semibold text-[#d0d0d0] uppercase tracking-wider font-mono">Additional Settings</h3>
-                <p className="text-[11px] text-[#555] mt-1">Manage team members and invoice payment configurations</p>
+                <h3 className="text-[13px] font-semibold text-foreground uppercase tracking-wider font-mono">Additional Settings</h3>
+                <p className="text-[11px] text-foreground-lighter mt-1">Manage team members and invoice payment configurations</p>
               </div>
 
               <div className="grid gap-3 md:grid-cols-2">
                 <button
-                  className="flex items-center gap-3 w-full p-4 rounded border border-[#34373c] bg-[#202224] hover:bg-[#2d3035] hover:border-[#34373c] dark:hover:bg-[#272a2c] dark:hover:border-[#333] text-left transition-colors group"
+                  className="flex items-center gap-3 w-full p-4 rounded-md border border-border bg-surface-100 hover:bg-surface-300 hover:border-strong text-left transition-colors group"
                   onClick={() => router.push("/settings/team")}
                 >
-                  <div className="p-2 rounded bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/30">
+                  <div className="p-2 rounded-md bg-info-subtle text-info border border-info-border">
                     <Users className="h-4 w-4" />
                   </div>
                   <div className="flex-1">
-                    <p className="font-semibold text-[13px] text-[#d0d0d0] group-hover:text-white transition-colors">Team Management</p>
-                    <p className="text-[11px] text-[#555] mt-0.5">Invite and manage team members</p>
+                    <p className="font-semibold text-[13px] text-foreground group-hover:text-white transition-colors">Team Management</p>
+                    <p className="text-[11px] text-foreground-lighter mt-0.5">Invite and manage team members</p>
                   </div>
                 </button>
 
                 <button
-                  className="flex items-center gap-3 w-full p-4 rounded border border-[#34373c] bg-[#202224] hover:bg-[#2d3035] hover:border-[#34373c] dark:hover:bg-[#272a2c] dark:hover:border-[#333] text-left transition-colors group"
+                  className="flex items-center gap-3 w-full p-4 rounded-md border border-border bg-surface-100 hover:bg-surface-300 hover:border-strong text-left transition-colors group"
                   onClick={() => router.push("/settings/payment")}
                 >
-                  <div className="p-2 rounded bg-green-50 dark:bg-green-950/40 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-900/30">
+                  <div className="p-2 rounded-md bg-success-subtle text-success border border-success-border">
                     <Wallet className="h-4 w-4" />
                   </div>
                   <div className="flex-1">
-                    <p className="font-semibold text-[13px] text-[#d0d0d0] group-hover:text-white transition-colors">Payment Instructions</p>
-                    <p className="text-[11px] text-[#555] mt-0.5">Configure invoice payment details</p>
+                    <p className="font-semibold text-[13px] text-foreground group-hover:text-white transition-colors">Payment Instructions</p>
+                    <p className="text-[11px] text-foreground-lighter mt-0.5">Configure invoice payment details</p>
                   </div>
                 </button>
               </div>
@@ -807,75 +807,75 @@ export default function SettingsPage() {
         )}
 
         {activeTab === "payroll" && (
-          <div className="rounded border border-[#34373c] bg-[#202224] p-5 space-y-6 max-w-4xl">
+          <div className="rounded-lg border border-border bg-surface-100 p-5 space-y-6 max-w-4xl">
             <div>
-              <h2 className="text-[14px] font-semibold text-[#d0d0d0] uppercase tracking-wider font-mono">Payroll Settings</h2>
-              <p className="text-[11px] text-[#555] mt-1">National Insurance Board (NIB) deduction rates and payroll configurations</p>
+              <h2 className="text-[14px] font-semibold text-foreground uppercase tracking-wider font-mono">Payroll Settings</h2>
+              <p className="text-[11px] text-foreground-lighter mt-1">National Insurance Board (NIB) deduction rates and payroll configurations</p>
             </div>
 
             <div className="space-y-4">
-              <h3 className="text-[12px] font-semibold text-[#d0d0d0] uppercase tracking-wider font-mono flex items-center gap-2">
-                <Wallet className="h-4 w-4 text-[#F5A623]" />
+              <h3 className="text-[12px] font-semibold text-foreground uppercase tracking-wider font-mono flex items-center gap-2">
+                <Wallet className="h-4 w-4 text-brand" />
                 NIB (National Insurance Board) Contributions
               </h3>
 
-              <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 rounded p-4 flex gap-3">
-                <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-                <div className="text-[12px] text-blue-800 dark:text-blue-200">
-                  <p className="font-semibold text-blue-900 dark:text-blue-100 mb-0.5">Mandatory Payroll Deductions</p>
+              <div className="bg-info-subtle border border-info-border rounded-lg p-4 flex gap-3">
+                <Info className="h-4 w-4 text-info flex-shrink-0 mt-0.5" />
+                <div className="text-[12px] text-info">
+                  <p className="font-semibold text-info mb-0.5">Mandatory Payroll Deductions</p>
                   <p>NIB contributions are mandatory for all employed persons in The Bahamas. The rates below are set by law and apply to all workers.</p>
                 </div>
               </div>
 
               <div className="grid gap-3 md:grid-cols-3">
-                <div className="bg-[#18191b] border border-[#34373c] rounded p-4 text-center">
-                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-wider">Employee Contribution</p>
-                  <p className="text-2xl font-bold font-mono text-[#F5A623] mt-1">4.65%</p>
-                  <p className="text-[10px] text-[#555] mt-1">Deducted from gross wages</p>
+                <div className="bg-background border border-border rounded-lg p-4 text-center">
+                  <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-wider">Employee Contribution</p>
+                  <p className="text-2xl font-bold tabular-nums text-brand mt-1">4.65%</p>
+                  <p className="text-[10px] text-foreground-lighter mt-1">Deducted from gross wages</p>
                 </div>
-                <div className="bg-[#18191b] border border-[#34373c] rounded p-4 text-center">
-                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-wider">Employer Contribution</p>
-                  <p className="text-2xl font-bold font-mono text-[#F5A623] mt-1">6.65%</p>
-                  <p className="text-[10px] text-[#555] mt-1">Paid by employer</p>
+                <div className="bg-background border border-border rounded-lg p-4 text-center">
+                  <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-wider">Employer Contribution</p>
+                  <p className="text-2xl font-bold tabular-nums text-brand mt-1">6.65%</p>
+                  <p className="text-[10px] text-foreground-lighter mt-1">Paid by employer</p>
                 </div>
-                <div className="bg-[#18191b] border border-[#34373c] rounded p-4 text-center">
-                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-wider">Weekly Max Insurable</p>
-                  <p className="text-2xl font-bold font-mono text-[#F5A623] mt-1">$550</p>
-                  <p className="text-[10px] text-[#555] mt-1">Maximum weekly wages capped</p>
+                <div className="bg-background border border-border rounded-lg p-4 text-center">
+                  <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-wider">Weekly Max Insurable</p>
+                  <p className="text-2xl font-bold tabular-nums text-brand mt-1">$550</p>
+                  <p className="text-[10px] text-foreground-lighter mt-1">Maximum weekly wages capped</p>
                 </div>
               </div>
             </div>
 
-            <div className="border-b border-[#2d3035]" />
+            <div className="border-b border-border" />
 
             <div>
-              <h4 className="text-[11px] font-mono text-[#555] uppercase tracking-widest mb-3">How NIB Deductions Are Calculated</h4>
-              <div className="space-y-3 text-[12px] text-[#aaa]">
+              <h4 className="text-[11px] font-mono text-foreground-lighter uppercase tracking-widest mb-3">How NIB Deductions Are Calculated</h4>
+              <div className="space-y-3 text-[12px] text-foreground-light">
                 <div className="flex items-start gap-2">
-                  <span className="bg-[#2d3035] text-[#F5A623] border border-[#333] rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5 text-[10px] font-mono font-medium">1</span>
+                  <span className="bg-surface-300 text-brand border border-strong rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5 text-[10px] tabular-nums font-medium">1</span>
                   <p className="pt-0.5">Calculate gross wages for the pay period (regular hours × rate + overtime hours × OT rate)</p>
                 </div>
                 <div className="flex items-start gap-2">
-                  <span className="bg-[#2d3035] text-[#F5A623] border border-[#333] rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5 text-[10px] font-mono font-medium">2</span>
+                  <span className="bg-surface-300 text-brand border border-strong rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5 text-[10px] tabular-nums font-medium">2</span>
                   <p className="pt-0.5">Cap weekly wages at $550 for NIB calculation purposes</p>
                 </div>
                 <div className="flex items-start gap-2">
-                  <span className="bg-[#2d3035] text-[#F5A623] border border-[#333] rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5 text-[10px] font-mono font-medium">3</span>
+                  <span className="bg-surface-300 text-brand border border-strong rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5 text-[10px] tabular-nums font-medium">3</span>
                   <p className="pt-0.5">Employee deduction: Capped wages × 4.65% (deducted from paycheck)</p>
                 </div>
                 <div className="flex items-start gap-2">
-                  <span className="bg-[#2d3035] text-[#F5A623] border border-[#333] rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5 text-[10px] font-mono font-medium">4</span>
+                  <span className="bg-surface-300 text-brand border border-strong rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5 text-[10px] tabular-nums font-medium">4</span>
                   <p className="pt-0.5">Employer contribution: Capped wages × 6.65% (company expense, not deducted)</p>
                 </div>
               </div>
             </div>
 
-            <div className="border-b border-[#2d3035]" />
+            <div className="border-b border-border" />
 
-            <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded p-4 flex gap-3">
-              <Info className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-              <div className="text-[12px] text-amber-800 dark:text-amber-200">
-                <p className="font-semibold text-amber-900 dark:text-amber-100 mb-0.5">Per-Worker NIB Settings</p>
+            <div className="bg-warning-subtle border border-warning-border rounded-lg p-4 flex gap-3">
+              <Info className="h-4 w-4 text-warning flex-shrink-0 mt-0.5" />
+              <div className="text-[12px] text-warning">
+                <p className="font-semibold text-warning mb-0.5">Per-Worker NIB Settings</p>
                 <p>NIB deductions can be enabled or disabled for individual workers in their profile. Go to Crew → Edit Worker to manage NIB settings and enter their NIB number.</p>
               </div>
             </div>
@@ -883,10 +883,10 @@ export default function SettingsPage() {
         )}
 
         {activeTab === "notifications" && (
-          <div className="rounded border border-[#34373c] bg-[#202224] p-5 space-y-6 max-w-2xl">
+          <div className="rounded-lg border border-border bg-surface-100 p-5 space-y-6 max-w-2xl">
             <div>
-              <h2 className="text-[14px] font-semibold text-[#d0d0d0] uppercase tracking-wider font-mono">Notification Preferences</h2>
-              <p className="text-[11px] text-[#555] mt-1">Choose what notifications you want to receive</p>
+              <h2 className="text-[14px] font-semibold text-foreground uppercase tracking-wider font-mono">Notification Preferences</h2>
+              <p className="text-[11px] text-foreground-lighter mt-1">Choose what notifications you want to receive</p>
             </div>
 
             <div className="space-y-2">
@@ -900,10 +900,10 @@ export default function SettingsPage() {
                 { key: "team_notifications", label: "Team Notifications", desc: "Updates about team invitations and changes" },
                 { key: "payment_notifications", label: "Payment Notifications", desc: "Alerts when payments are received" },
               ].map((item) => (
-                <div key={item.key} className="flex items-center justify-between py-3 border-b border-[#2d3035] last:border-0">
+                <div key={item.key} className="flex items-center justify-between py-3 border-b border-border last:border-0">
                   <div>
-                    <p className="font-medium text-[13px] text-[#d0d0d0]">{item.label}</p>
-                    <p className="text-[11px] text-[#555]">{item.desc}</p>
+                    <p className="font-medium text-[13px] text-foreground">{item.label}</p>
+                    <p className="text-[11px] text-foreground-lighter">{item.desc}</p>
                   </div>
                   <input
                     type="checkbox"
@@ -914,7 +914,7 @@ export default function SettingsPage() {
                         [item.key]: e.target.checked,
                       })
                     }
-                    className="h-4 w-4 rounded bg-[#292c31] border-[#3a3d42] text-[#F5A623] focus:ring-0 focus:ring-offset-0"
+                    className="h-4 w-4 rounded-md bg-surface-100 border-strong text-brand focus:ring-0 focus:ring-offset-0"
                   />
                 </div>
               ))}
@@ -924,7 +924,7 @@ export default function SettingsPage() {
               <button
                 onClick={handleNotificationPrefsUpdate}
                 disabled={notificationLoading}
-                className="flex items-center gap-1.5 px-4 py-2 rounded bg-[#2d3035] border border-[#333] text-[12px] font-medium text-[#F5A623] hover:bg-[#353840] transition-colors disabled:opacity-40"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-surface-300 border border-strong text-[12px] font-medium text-brand hover:bg-surface-400 transition-colors disabled:opacity-40"
               >
                 {notificationLoading && <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />}
                 Save Preferences
@@ -934,48 +934,48 @@ export default function SettingsPage() {
         )}
 
         {activeTab === "ai" && (
-          <div className="rounded border border-[#34373c] bg-[#202224] p-5 space-y-6 max-w-2xl">
+          <div className="rounded-lg border border-border bg-surface-100 p-5 space-y-6 max-w-2xl">
             <div>
-              <h2 className="text-[14px] font-semibold text-[#d0d0d0] uppercase tracking-wider font-mono">AI Features</h2>
-              <p className="text-[11px] text-[#555] mt-1">Configure AI-powered search and content generation</p>
+              <h2 className="text-[14px] font-semibold text-foreground uppercase tracking-wider font-mono">AI Features</h2>
+              <p className="text-[11px] text-foreground-lighter mt-1">Configure AI-powered search and content generation</p>
             </div>
 
             <div className="space-y-4 max-w-md">
               <div className="space-y-1.5">
-                <label htmlFor="ai_tone" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">Default Writing Tone</label>
+                <label htmlFor="ai_tone" className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest block">Default Writing Tone</label>
                 <Select
                   value={aiPreferences.tone}
                   onValueChange={(value: AITone) =>
                     setAiPreferences({ ...aiPreferences, tone: value })
                   }
                 >
-                  <SelectTrigger id="ai_tone" className="h-8 bg-[#292c31] border-[#3a3d42] text-[#aaa] text-[13px] focus:ring-0 focus:border-[#333]">
+                  <SelectTrigger id="ai_tone" className="h-8 bg-surface-100 border-strong text-foreground-light text-[13px] focus:ring-0 focus:border-strong">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-[#202224] border-[#3a3d42]">
-                    <SelectItem value="professional" className="text-[#aaa] focus:bg-[#292c31] focus:text-[#d0d0d0]">
+                  <SelectContent className="bg-surface-100 border-strong">
+                    <SelectItem value="professional" className="text-foreground-light focus:bg-surface-100 focus:text-foreground">
                       Professional - Formal business language
                     </SelectItem>
-                    <SelectItem value="concise" className="text-[#aaa] focus:bg-[#292c31] focus:text-[#d0d0d0]">
+                    <SelectItem value="concise" className="text-foreground-light focus:bg-surface-100 focus:text-foreground">
                       Concise - Brief and to-the-point
                     </SelectItem>
-                    <SelectItem value="detailed" className="text-[#aaa] focus:bg-[#292c31] focus:text-[#d0d0d0]">
+                    <SelectItem value="detailed" className="text-foreground-light focus:bg-surface-100 focus:text-foreground">
                       Detailed - Comprehensive with technical details
                     </SelectItem>
                   </SelectContent>
                 </Select>
-                <p className="text-[10px] text-[#444] font-mono mt-1">
+                <p className="text-[10px] text-foreground-lighter tabular-nums mt-1">
                   This affects how AI generates descriptions for estimates, invoices, and other content
                 </p>
               </div>
 
-              <div className="border-b border-[#2d3035]" />
+              <div className="border-b border-border" />
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-medium text-[13px] text-[#d0d0d0]">Smart Search History</p>
-                    <p className="text-[11px] text-[#555]">
+                    <p className="font-medium text-[13px] text-foreground">Smart Search History</p>
+                    <p className="text-[11px] text-foreground-lighter">
                       Save your search queries for quick access
                     </p>
                   </div>
@@ -988,14 +988,14 @@ export default function SettingsPage() {
                         search_history_enabled: e.target.checked,
                       })
                     }
-                    className="h-4 w-4 rounded bg-[#292c31] border-[#3a3d42] text-[#F5A623] focus:ring-0 focus:ring-offset-0"
+                    className="h-4 w-4 rounded-md bg-surface-100 border-strong text-brand focus:ring-0 focus:ring-offset-0"
                   />
                 </div>
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-medium text-[13px] text-[#d0d0d0]">Auto-Draft Descriptions</p>
-                    <p className="text-[11px] text-[#555]">
+                    <p className="font-medium text-[13px] text-foreground">Auto-Draft Descriptions</p>
+                    <p className="text-[11px] text-foreground-lighter">
                       Show AI generation button on description fields
                     </p>
                   </div>
@@ -1008,16 +1008,16 @@ export default function SettingsPage() {
                         auto_draft_enabled: e.target.checked,
                       })
                     }
-                    className="h-4 w-4 rounded bg-[#292c31] border-[#3a3d42] text-[#F5A623] focus:ring-0 focus:ring-offset-0"
+                    className="h-4 w-4 rounded-md bg-surface-100 border-strong text-brand focus:ring-0 focus:ring-offset-0"
                   />
                 </div>
               </div>
 
-              <div className="border-b border-[#2d3035]" />
+              <div className="border-b border-border" />
 
-              <div className="bg-[#18191b] border border-[#34373c] rounded p-4 space-y-1">
-                <p className="text-[11px] font-mono text-[#555] uppercase tracking-wider">Usage Limits</p>
-                <div className="text-[12px] text-[#aaa] space-y-0.5 pt-1">
+              <div className="bg-background border border-border rounded-lg p-4 space-y-1">
+                <p className="text-[11px] font-mono text-foreground-lighter uppercase tracking-wider">Usage Limits</p>
+                <div className="text-[12px] text-foreground-light space-y-0.5 pt-1">
                   <p>Smart searches: 50 per day</p>
                   <p>Content generations: 100 per day</p>
                 </div>
@@ -1027,7 +1027,7 @@ export default function SettingsPage() {
                 <button
                   onClick={handleAiPreferencesUpdate}
                   disabled={aiLoading}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded bg-[#2d3035] border border-[#333] text-[12px] font-medium text-[#F5A623] hover:bg-[#353840] transition-colors disabled:opacity-40"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-surface-300 border border-strong text-[12px] font-medium text-brand hover:bg-surface-400 transition-colors disabled:opacity-40"
                 >
                   {aiLoading && <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />}
                   Save AI Settings

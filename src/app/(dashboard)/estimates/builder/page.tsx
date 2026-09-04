@@ -755,8 +755,8 @@ export default function CreateEstimateBuilderPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#18191b]">
-        <div className="h-5 w-5 rounded-full border border-[#333] border-t-[#F5A623] animate-spin" />
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="h-5 w-5 rounded-full border border-strong border-t-primary animate-spin" />
       </div>
     );
   }
@@ -764,22 +764,22 @@ export default function CreateEstimateBuilderPage() {
   // ─── Render ────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#18191b]">
+    <div className="flex flex-col min-h-screen bg-background">
       {/* ── Top Bar ── */}
-      <div className="border-b border-[#34373c] bg-[#202224] sticky top-0 z-20">
+      <div className="border-b border-border bg-surface-100 sticky top-0 z-20">
         <div className="px-4 py-3">
           <div className="flex items-center gap-3 mb-2">
-            <Link href="/estimates" className="text-[11px] font-mono text-[#555] hover:text-[#999] transition-colors">
+            <Link href="/estimates" className="text-[11px] tabular-nums text-foreground-lighter hover:text-foreground-light transition-colors">
               ← Estimates
             </Link>
-            <div className="h-3 w-px bg-[#3a3d42]" />
+            <div className="h-3 w-px bg-surface-400" />
             <div className="flex-1 min-w-0">
-              <div className="text-[10px] font-mono text-[#666] uppercase tracking-widest">New Estimate</div>
-              <h1 className="text-[15px] font-semibold text-[#d0d0d0] truncate mt-0.5">
+              <div className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">New Estimate</div>
+              <h1 className="text-[15px] font-semibold text-foreground truncate mt-0.5">
                 {detailsForm.title || "Untitled"}
               </h1>
             </div>
-            <span className="text-[10px] font-mono text-[#555] uppercase tracking-widest border border-[#3a3d42] rounded px-2 py-0.5">
+            <span className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest border border-strong rounded-full px-2 py-0.5">
               Draft
             </span>
           </div>
@@ -787,34 +787,34 @@ export default function CreateEstimateBuilderPage() {
           {/* Summary metrics row */}
           <div className="flex items-center gap-5 text-[12px]">
             <div>
-              <span className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Builder Cost</span>
-              <p className="text-[15px] font-mono font-semibold text-[#aaa]">{formatCurrency(totalBuilderCost)}</p>
+              <span className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Builder Cost</span>
+              <p className="text-[15px] tabular-nums font-semibold text-foreground-light">{formatCurrency(totalBuilderCost)}</p>
             </div>
-            <span className="text-[#333]">→</span>
+            <span className="text-foreground-lighter">→</span>
             <div>
-              <span className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Client Price</span>
-              <p className="text-[15px] font-mono font-semibold text-[#d0d0d0]">{formatCurrency(totalClientPrice)}</p>
+              <span className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Client Price</span>
+              <p className="text-[15px] tabular-nums font-semibold text-foreground">{formatCurrency(totalClientPrice)}</p>
             </div>
-            <span className="text-[#333]">·</span>
+            <span className="text-foreground-lighter">·</span>
             <div>
-              <span className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Profit</span>
-              <p className="text-[15px] font-mono font-semibold text-[#22C55E]">
+              <span className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Profit</span>
+              <p className="text-[15px] tabular-nums font-semibold text-success">
                 {formatCurrency(totalProfit)}
-                <span className="text-[10px] font-normal text-[#555] ml-1">({profitMargin.toFixed(1)}%)</span>
+                <span className="text-[10px] font-normal text-foreground-lighter ml-1">({profitMargin.toFixed(1)}%)</span>
               </p>
             </div>
 
             <div className="ml-auto flex items-center gap-3">
               <button
                 onClick={() => router.push("/estimates")}
-                className="text-[12px] text-[#555] hover:text-[#999] transition-colors"
+                className="text-[12px] text-foreground-lighter hover:text-foreground-light transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveEstimate}
                 disabled={saving}
-                className="flex items-center gap-1.5 px-4 py-1.5 rounded bg-[#2d3035] border border-[#333] text-[12px] text-[#F5A623] hover:bg-[#353840] transition-colors disabled:opacity-40"
+                className="flex items-center gap-1.5 px-4 py-1.5 rounded-md bg-surface-300 border border-strong text-[12px] text-brand hover:bg-surface-400 transition-colors disabled:opacity-40"
               >
                 {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 Save Estimate
@@ -825,34 +825,34 @@ export default function CreateEstimateBuilderPage() {
       </div>
 
       {/* ── Collapsible Estimate Details ── */}
-      <div className="border-b border-[#34373c]">
+      <div className="border-b border-border">
         <button
           onClick={() => setDetailsOpen(!detailsOpen)}
-          className="w-full px-4 py-2.5 flex items-center gap-2 text-[12px] font-mono hover:bg-[#202224] transition-colors"
+          className="w-full px-4 py-2.5 flex items-center gap-2 text-[12px] tabular-nums hover:bg-surface-100 transition-colors"
         >
-          <span className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Estimate Details</span>
+          <span className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Estimate Details</span>
           {detailsForm.client_name && (
-            <span className="text-[11px] text-[#444]">— {detailsForm.client_name}</span>
+            <span className="text-[11px] text-foreground-lighter">— {detailsForm.client_name}</span>
           )}
           <div className="flex-1" />
           <ChevronUp
-            className={`h-3.5 w-3.5 text-[#444] transition-transform ${detailsOpen ? "" : "rotate-180"}`}
+            className={`h-3.5 w-3.5 text-foreground-lighter transition-transform ${detailsOpen ? "" : "rotate-180"}`}
           />
         </button>
 
         {detailsOpen && (
-          <div className="px-4 pb-4 pt-2 space-y-3 bg-[#202224]">
+          <div className="px-4 pb-4 pt-2 space-y-3 bg-surface-100">
             {/* Client + Title row */}
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1">
-                <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Client</p>
+                <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Client</p>
                 <Select value={detailsForm.client_id} onValueChange={handleClientSelect}>
-                  <SelectTrigger className="h-8 bg-[#202224] border-[#3a3d42] text-[#aaa] text-[13px] focus:ring-0 focus:border-[#333]">
+                  <SelectTrigger className="h-8 bg-surface-100 border-strong text-foreground-light text-[13px] focus:ring-0 focus:border-strong">
                     <SelectValue placeholder="Select client..." />
                   </SelectTrigger>
-                  <SelectContent className="bg-[#202224] border-[#3a3d42]">
+                  <SelectContent className="bg-surface-100 border-strong">
                     {clients.map((c) => (
-                      <SelectItem key={c.id} value={c.id} className="text-[#aaa] focus:bg-[#292c31] focus:text-[#d0d0d0]">
+                      <SelectItem key={c.id} value={c.id} className="text-foreground-light focus:bg-surface-100 focus:text-foreground">
                         {c.name}
                       </SelectItem>
                     ))}
@@ -860,18 +860,18 @@ export default function CreateEstimateBuilderPage() {
                 </Select>
               </div>
               <div className="space-y-1">
-                <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Client Name *</p>
+                <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Client Name *</p>
                 <input
-                  className="w-full h-8 px-2.5 rounded bg-[#202224] border border-[#3a3d42] text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#333] transition-colors"
+                  className="w-full h-8 px-2.5 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light placeholder:text-foreground-lighter outline-none focus:border-strong transition-colors"
                   value={detailsForm.client_name}
                   onChange={(e) => setDetailsForm({ ...detailsForm, client_name: e.target.value })}
                   placeholder="Client name"
                 />
               </div>
               <div className="space-y-1">
-                <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Project Title *</p>
+                <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Project Title *</p>
                 <input
-                  className="w-full h-8 px-2.5 rounded bg-[#202224] border border-[#3a3d42] text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#333] transition-colors"
+                  className="w-full h-8 px-2.5 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light placeholder:text-foreground-lighter outline-none focus:border-strong transition-colors"
                   value={detailsForm.title}
                   onChange={(e) => setDetailsForm({ ...detailsForm, title: e.target.value })}
                   placeholder="e.g. Roof Repair — Governor's Harbour"
@@ -888,10 +888,10 @@ export default function CreateEstimateBuilderPage() {
                 { label: "Valid Until", key: "valid_until", placeholder: "", type: "date" },
               ].map((f) => (
                 <div key={f.key} className="space-y-1">
-                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">{f.label}</p>
+                  <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">{f.label}</p>
                   <input
                     type={f.type}
-                    className="w-full h-8 px-2.5 rounded bg-[#202224] border border-[#3a3d42] text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#333] transition-colors"
+                    className="w-full h-8 px-2.5 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light placeholder:text-foreground-lighter outline-none focus:border-strong transition-colors"
                     value={(detailsForm as any)[f.key]}
                     onChange={(e) => setDetailsForm({ ...detailsForm, [f.key]: e.target.value })}
                     placeholder={f.placeholder}
@@ -902,9 +902,9 @@ export default function CreateEstimateBuilderPage() {
 
             {/* Description */}
             <div className="space-y-1">
-              <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Description</p>
+              <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Description</p>
               <textarea
-                className="w-full px-2.5 py-2 rounded bg-[#202224] border border-[#3a3d42] text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#333] transition-colors resize-none"
+                className="w-full px-2.5 py-2 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light placeholder:text-foreground-lighter outline-none focus:border-strong transition-colors resize-none"
                 value={detailsForm.description}
                 onChange={(e) => setDetailsForm({ ...detailsForm, description: e.target.value })}
                 placeholder="Brief project description..."
@@ -915,9 +915,9 @@ export default function CreateEstimateBuilderPage() {
             {/* Notes + Terms */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Notes (internal)</p>
+                <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Notes (internal)</p>
                 <textarea
-                  className="w-full px-2.5 py-2 rounded bg-[#202224] border border-[#3a3d42] text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#333] transition-colors resize-none"
+                  className="w-full px-2.5 py-2 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light placeholder:text-foreground-lighter outline-none focus:border-strong transition-colors resize-none"
                   value={detailsForm.notes}
                   onChange={(e) => setDetailsForm({ ...detailsForm, notes: e.target.value })}
                   placeholder="Internal notes..."
@@ -925,9 +925,9 @@ export default function CreateEstimateBuilderPage() {
                 />
               </div>
               <div className="space-y-1">
-                <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Terms & Conditions</p>
+                <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Terms & Conditions</p>
                 <textarea
-                  className="w-full px-2.5 py-2 rounded bg-[#202224] border border-[#3a3d42] text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#333] transition-colors resize-none"
+                  className="w-full px-2.5 py-2 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light placeholder:text-foreground-lighter outline-none focus:border-strong transition-colors resize-none"
                   value={detailsForm.terms_and_conditions}
                   onChange={(e) => setDetailsForm({ ...detailsForm, terms_and_conditions: e.target.value })}
                   placeholder="Payment terms, warranty info..."
@@ -944,33 +944,32 @@ export default function CreateEstimateBuilderPage() {
         <div
           className="border-b"
           style={{
-            background: "var(--card)",
+            background: "hsl(var(--card))",
           }}
         >
           {/* Panel header */}
           <div className="px-4 pt-3 pb-2 flex items-center gap-2.5">
             <div className="flex items-center gap-1.5">
               <ClaudeIcon
-                className="h-3.5 w-3.5"
-                style={{ color: "#f59e0b" }}
+                className="h-3.5 w-3.5 text-warning"
               />
               <span
-                className="text-xs font-bold tracking-widest uppercase"
-                style={{ color: "#f59e0b", fontFamily: "monospace" }}
+                className="text-xs font-bold tracking-widest uppercase text-warning"
+                style={{ fontFamily: "monospace" }}
               >
                 AI Generate
               </span>
             </div>
             <span
               className="text-xs"
-              style={{ color: "var(--muted-foreground)" }}
+              style={{ color: "hsl(var(--muted-foreground))" }}
             >
               — describe the job, Claude fills in trade sections with real Eleuthera prices
             </span>
             <button
               onClick={() => { setAiPanelOpen(false); setAiDescription(""); }}
-              className="ml-auto p-1 rounded hover:bg-white/10 transition-colors"
-              style={{ color: "var(--muted-foreground)" }}
+              className="ml-auto p-1 rounded-md hover:bg-accent transition-colors"
+              style={{ color: "hsl(var(--muted-foreground))" }}
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -989,20 +988,19 @@ export default function CreateEstimateBuilderPage() {
               rows={3}
               className="w-full rounded-md px-3 py-2.5 text-sm resize-none outline-none transition-all"
               style={{
-                background: "var(--input)",
-                border: "1px solid var(--border)",
-                color: "var(--foreground)",
+                background: "hsl(var(--input))",
+                border: "1px solid hsl(var(--border))",
+                color: "hsl(var(--foreground))",
                 fontFamily: "monospace",
                 lineHeight: "1.6",
               }}
-              onFocus={(e) => { e.currentTarget.style.borderColor = "var(--primary)"; }}
-              onBlur={(e) => { e.currentTarget.style.borderColor = "var(--border)"; }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = "hsl(var(--border))"; }}
             />
 
             <div className="flex items-center justify-between mt-2">
               <span
-                className="text-xs"
-                style={{ color: "#4b5563" }}
+                className="text-xs text-foreground-lighter"
               >
                 ⌘↵ to generate · uses 165-item Eleuthera materials DB
               </span>
@@ -1010,13 +1008,14 @@ export default function CreateEstimateBuilderPage() {
               <button
                 onClick={handleAIGenerate}
                 disabled={!aiDescription.trim() || aiGenerating}
-                className="flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-semibold text-primary-foreground transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                // Brand gradient + glow. Built from the theme's own brand scale rather
+                // than literals, so the CTA tracks the orange in both themes. The
+                // disabled:opacity above covers the generating state.
                 style={{
-                  background: aiGenerating
-                    ? "#78350f"
-                    : "linear-gradient(135deg, #d97706 0%, #ea580c 100%)",
-                  color: "#fff",
-                  boxShadow: aiGenerating ? "none" : "0 0 16px #d9770640",
+                  background:
+                    "linear-gradient(135deg, hsl(var(--brand-500)) 0%, hsl(var(--primary)) 100%)",
+                  boxShadow: aiGenerating ? "none" : "0 0 16px hsl(var(--primary) / 0.25)",
                 }}
               >
                 {aiGenerating ? (
@@ -1039,31 +1038,31 @@ export default function CreateEstimateBuilderPage() {
       {/* ── Main Content ── */}
       <div className="flex-1 overflow-auto">
         {/* Action bar */}
-        <div className="bg-[#202224] border-b border-[#34373c] px-4 py-2 flex items-center gap-4">
+        <div className="bg-surface-100 border-b border-border px-4 py-2 flex items-center gap-4">
           <button
             onClick={() => setAddCategoryOpen(true)}
-            className="text-[11px] font-mono text-[#888] hover:text-[#d0d0d0] transition-colors"
+            className="text-[11px] tabular-nums text-foreground-lighter hover:text-foreground transition-colors"
           >
             + Section
           </button>
           <button
             onClick={() => { setAddingToCategoryId(categories[0]?.id || null); setCatalogOpen(true); }}
             disabled={categories.length === 0}
-            className="text-[11px] font-mono text-[#888] hover:text-[#d0d0d0] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            className="text-[11px] tabular-nums text-foreground-lighter hover:text-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
             Catalog
           </button>
           <button
             onClick={() => setAiPanelOpen(!aiPanelOpen)}
             className={cn(
-              "text-[11px] font-mono transition-colors",
-              aiPanelOpen ? "text-[#F5A623]" : "text-[#888] hover:text-[#F5A623]"
+              "text-[11px] tabular-nums transition-colors",
+              aiPanelOpen ? "text-brand" : "text-foreground-lighter hover:text-brand"
             )}
           >
             AI Generate
           </button>
           <div className="flex-1" />
-          <span className="text-[10px] font-mono text-[#444]">
+          <span className="text-[10px] tabular-nums text-foreground-lighter">
             {categories.reduce((s, c) => s + ((c.items as any[])?.length || 0), 0)} items · {categories.length} sections
           </span>
         </div>
@@ -1072,13 +1071,13 @@ export default function CreateEstimateBuilderPage() {
         <div className="px-4 pb-8">
           {categories.length === 0 ? (
             <div className="text-center py-32">
-              <p className="text-[13px] text-[#555]">No sections yet</p>
-              <p className="text-[12px] text-[#444] mt-1 mb-4">
+              <p className="text-[13px] text-foreground-lighter">No sections yet</p>
+              <p className="text-[12px] text-foreground-lighter mt-1 mb-4">
                 Add a category manually or use AI Generate
               </p>
               <button
                 onClick={() => setAddCategoryOpen(true)}
-                className="text-[12px] text-[#F5A623] hover:opacity-80 transition-opacity"
+                className="text-[12px] text-brand hover:opacity-80 transition-opacity"
               >
                 + Add category
               </button>
@@ -1086,14 +1085,14 @@ export default function CreateEstimateBuilderPage() {
           ) : (
             <Table>
               <TableHeader>
-                <TableRow className="bg-[#202224] border-b border-[#2d3035]">
-                  <TableHead className="w-[40%] text-[10px] font-mono uppercase tracking-widest text-[#555]">Items</TableHead>
-                  <TableHead className="text-right w-[10%] text-[10px] font-mono uppercase tracking-widest text-[#555]">Unit Cost</TableHead>
-                  <TableHead className="text-right w-[8%] text-[10px] font-mono uppercase tracking-widest text-[#555]">Qty</TableHead>
-                  <TableHead className="text-right w-[8%] text-[10px] font-mono uppercase tracking-widest text-[#555]">Unit</TableHead>
-                  <TableHead className="text-right w-[12%] text-[10px] font-mono uppercase tracking-widest text-[#555]">Builder Cost</TableHead>
-                  <TableHead className="text-right w-[12%] text-[10px] font-mono uppercase tracking-widest text-[#555]">Client Price</TableHead>
-                  <TableHead className="text-right w-[10%] text-[10px] font-mono uppercase tracking-widest text-[#555]">Profit</TableHead>
+                <TableRow className="bg-surface-100 border-b border-border">
+                  <TableHead className="w-[40%] text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">Items</TableHead>
+                  <TableHead className="text-right w-[10%] text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">Unit Cost</TableHead>
+                  <TableHead className="text-right w-[8%] text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">Qty</TableHead>
+                  <TableHead className="text-right w-[8%] text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">Unit</TableHead>
+                  <TableHead className="text-right w-[12%] text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">Builder Cost</TableHead>
+                  <TableHead className="text-right w-[12%] text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">Client Price</TableHead>
+                  <TableHead className="text-right w-[10%] text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">Profit</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1113,20 +1112,20 @@ export default function CreateEstimateBuilderPage() {
                 ))}
 
                 {/* Totals footer row */}
-                <TableRow className="bg-[#202224] border-t border-[#34373c]">
+                <TableRow className="bg-surface-100 border-t border-border">
                   <TableCell className="py-3">
-                    <span className="text-[11px] font-mono text-[#666] uppercase tracking-widest">Estimate Total</span>
+                    <span className="text-[11px] font-mono text-foreground-lighter uppercase tracking-widest">Estimate Total</span>
                   </TableCell>
                   <TableCell />
                   <TableCell />
                   <TableCell />
-                  <TableCell className="text-right text-[14px] font-mono font-semibold text-[#aaa]">
+                  <TableCell className="text-right text-[14px] tabular-nums font-semibold text-foreground-light">
                     {formatCurrency(totalBuilderCost)}
                   </TableCell>
-                  <TableCell className="text-right text-[14px] font-mono font-semibold text-[#d0d0d0]">
+                  <TableCell className="text-right text-[14px] tabular-nums font-semibold text-foreground">
                     {formatCurrency(totalClientPrice)}
                   </TableCell>
-                  <TableCell className="text-right text-[14px] font-mono font-semibold text-[#22C55E]">
+                  <TableCell className="text-right text-[14px] tabular-nums font-semibold text-success">
                     {formatCurrency(totalProfit)}
                   </TableCell>
                 </TableRow>
@@ -1138,16 +1137,16 @@ export default function CreateEstimateBuilderPage() {
 
       {/* ── Add Category Dialog ── */}
       <Dialog open={addCategoryOpen} onOpenChange={setAddCategoryOpen}>
-        <DialogContent className="max-w-md bg-[#202224] border-[#34373c] text-[#d0d0d0]">
+        <DialogContent className="max-w-md bg-surface-100 border-border text-foreground">
           <DialogHeader>
-            <DialogTitle className="text-[#d0d0d0] text-[15px]">Add Section</DialogTitle>
-            <DialogDescription className="text-[#555] text-[12px]">
+            <DialogTitle className="text-foreground text-[15px]">Add Section</DialogTitle>
+            <DialogDescription className="text-foreground-lighter text-[12px]">
               Organize your estimate by trade or cost code
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div className="space-y-1.5">
-              <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Cost Code (optional)</p>
+              <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Cost Code (optional)</p>
               <Select
                 value={newCategoryForm.cost_code_id}
                 onValueChange={(val) => {
@@ -1155,12 +1154,12 @@ export default function CreateEstimateBuilderPage() {
                   setNewCategoryForm({ cost_code_id: val, name: code ? `${code.code} - ${code.name}` : newCategoryForm.name });
                 }}
               >
-                <SelectTrigger className="bg-[#292c31] border-[#3a3d42] text-[#aaa] text-[13px] focus:ring-0 focus:border-[#333]">
+                <SelectTrigger className="bg-surface-100 border-strong text-foreground-light text-[13px] focus:ring-0 focus:border-strong">
                   <SelectValue placeholder="Select a cost code..." />
                 </SelectTrigger>
-                <SelectContent className="bg-[#202224] border-[#3a3d42] max-h-60 overflow-y-auto">
+                <SelectContent className="bg-surface-100 border-strong max-h-60 overflow-y-auto">
                   {costCodes.map((code) => (
-                    <SelectItem key={code.id} value={code.id} className="text-[#aaa] focus:bg-[#292c31] focus:text-[#d0d0d0]">
+                    <SelectItem key={code.id} value={code.id} className="text-foreground-light focus:bg-surface-100 focus:text-foreground">
                       {code.code} - {code.name}
                     </SelectItem>
                   ))}
@@ -1168,9 +1167,9 @@ export default function CreateEstimateBuilderPage() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Section Name</p>
+              <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Section Name</p>
               <input
-                className="w-full h-9 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#333] transition-colors"
+                className="w-full h-9 px-2.5 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light placeholder:text-foreground-lighter outline-none focus:border-strong transition-colors"
                 value={newCategoryForm.name}
                 onChange={(e) => setNewCategoryForm({ ...newCategoryForm, name: e.target.value })}
                 placeholder="e.g. ROOF REPAIRS, MASONRY, CARPENTRY…"
@@ -1179,13 +1178,13 @@ export default function CreateEstimateBuilderPage() {
             </div>
           </div>
           <DialogFooter>
-            <button onClick={() => setAddCategoryOpen(false)} className="px-4 py-2 text-[12px] text-[#555] hover:text-[#aaa] transition-colors">
+            <button onClick={() => setAddCategoryOpen(false)} className="px-4 py-2 text-[12px] text-foreground-lighter hover:text-foreground-light transition-colors">
               Cancel
             </button>
             <button
               onClick={handleAddCategory}
               disabled={!newCategoryForm.name.trim()}
-              className="px-4 py-2 rounded bg-[#2d3035] border border-[#333] text-[12px] text-[#F5A623] hover:bg-[#353840] transition-colors disabled:opacity-40"
+              className="px-4 py-2 rounded-md bg-surface-300 border border-strong text-[12px] text-brand hover:bg-surface-400 transition-colors disabled:opacity-40"
             >
               Add Section
             </button>
@@ -1195,32 +1194,32 @@ export default function CreateEstimateBuilderPage() {
 
       {/* ── Item Detail Modal ── */}
       <Dialog open={itemModalOpen} onOpenChange={setItemModalOpen}>
-        <DialogContent className="max-w-xl bg-[#202224] border-[#34373c] text-[#d0d0d0]">
+        <DialogContent className="max-w-xl bg-surface-100 border-border text-foreground">
           <DialogHeader>
-            <DialogTitle className="text-[#d0d0d0] text-[15px]">
+            <DialogTitle className="text-foreground text-[15px]">
               {editingItem ? "Edit Item" : "Add Item"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2 max-h-[70vh] overflow-y-auto pr-1">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Title</p>
+                <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Title</p>
                 <input
-                  className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#333] transition-colors"
+                  className="w-full h-8 px-2.5 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light placeholder:text-foreground-lighter outline-none focus:border-strong transition-colors"
                   value={itemForm.title}
                   onChange={(e) => setItemForm({ ...itemForm, title: e.target.value })}
                   placeholder="e.g. Ondura Roofing Sheet"
                 />
               </div>
               <div className="space-y-1">
-                <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Cost Type</p>
+                <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Cost Type</p>
                 <Select value={itemForm.cost_type} onValueChange={(val: CostType) => setItemForm({ ...itemForm, cost_type: val })}>
-                  <SelectTrigger className="h-8 bg-[#292c31] border-[#3a3d42] text-[#aaa] text-[13px] focus:ring-0 focus:border-[#333]">
+                  <SelectTrigger className="h-8 bg-surface-100 border-strong text-foreground-light text-[13px] focus:ring-0 focus:border-strong">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-[#202224] border-[#3a3d42]">
+                  <SelectContent className="bg-surface-100 border-strong">
                     {["material","labor","equipment","subcontractor","other"].map((v) => (
-                      <SelectItem key={v} value={v} className="text-[#aaa] focus:bg-[#292c31] focus:text-[#d0d0d0] capitalize">{v}</SelectItem>
+                      <SelectItem key={v} value={v} className="text-foreground-light focus:bg-surface-100 focus:text-foreground capitalize">{v}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -1228,14 +1227,14 @@ export default function CreateEstimateBuilderPage() {
             </div>
 
             <div className="space-y-1">
-              <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Cost Code</p>
+              <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Cost Code</p>
               <Select value={itemForm.cost_code} onValueChange={(val) => setItemForm({ ...itemForm, cost_code: val })}>
-                <SelectTrigger className="h-8 bg-[#292c31] border-[#3a3d42] text-[#aaa] text-[13px] focus:ring-0 focus:border-[#333]">
+                <SelectTrigger className="h-8 bg-surface-100 border-strong text-foreground-light text-[13px] focus:ring-0 focus:border-strong">
                   <SelectValue placeholder="Select cost code..." />
                 </SelectTrigger>
-                <SelectContent className="bg-[#202224] border-[#3a3d42]">
+                <SelectContent className="bg-surface-100 border-strong">
                   {costCodes.map((code) => (
-                    <SelectItem key={code.id} value={code.code} className="text-[#aaa] focus:bg-[#292c31] focus:text-[#d0d0d0]">
+                    <SelectItem key={code.id} value={code.code} className="text-foreground-light focus:bg-surface-100 focus:text-foreground">
                       {code.code} - {code.name}
                     </SelectItem>
                   ))}
@@ -1244,9 +1243,9 @@ export default function CreateEstimateBuilderPage() {
             </div>
 
             <div className="space-y-1">
-              <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Description</p>
+              <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Description</p>
               <textarea
-                className="w-full px-2.5 py-2 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#333] transition-colors resize-none"
+                className="w-full px-2.5 py-2 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light placeholder:text-foreground-lighter outline-none focus:border-strong transition-colors resize-none"
                 value={itemForm.description}
                 onChange={(e) => setItemForm({ ...itemForm, description: e.target.value })}
                 placeholder="Item details..."
@@ -1254,39 +1253,39 @@ export default function CreateEstimateBuilderPage() {
               />
             </div>
 
-            <div className="border-t border-[#2d3035] pt-3">
-              <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest mb-3">Cost</p>
+            <div className="border-t border-border pt-3">
+              <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest mb-3">Cost</p>
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">
-                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Unit Cost</p>
+                  <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Unit Cost</p>
                   <div className="relative">
-                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#555] text-[12px]">$</span>
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-foreground-lighter text-[12px]">$</span>
                     <input
                       type="number" step="0.01" min="0"
-                      className="w-full h-8 pl-6 pr-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors"
+                      className="w-full h-8 pl-6 pr-2.5 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light outline-none focus:border-strong transition-colors"
                       value={itemForm.unit_cost || ""}
                       onChange={(e) => setItemForm({ ...itemForm, unit_cost: parseFloat(e.target.value) || 0 })}
                     />
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Qty</p>
+                  <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Qty</p>
                   <input
                     type="number" step="0.01" min="0"
-                    className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors"
+                    className="w-full h-8 px-2.5 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light outline-none focus:border-strong transition-colors"
                     value={itemForm.quantity || ""}
                     onChange={(e) => setItemForm({ ...itemForm, quantity: parseFloat(e.target.value) || 0 })}
                   />
                 </div>
                 <div className="space-y-1">
-                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Unit</p>
+                  <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Unit</p>
                   <Select value={itemForm.unit} onValueChange={(val) => setItemForm({ ...itemForm, unit: val })}>
-                    <SelectTrigger className="h-8 bg-[#292c31] border-[#3a3d42] text-[#aaa] text-[13px] focus:ring-0 focus:border-[#333]">
+                    <SelectTrigger className="h-8 bg-surface-100 border-strong text-foreground-light text-[13px] focus:ring-0 focus:border-strong">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-[#202224] border-[#3a3d42]">
+                    <SelectContent className="bg-surface-100 border-strong">
                       {["EACH","sqft","lnft","CU YD","hour","day","sheet","bag","ton","gallon","LS"].map((u) => (
-                        <SelectItem key={u} value={u} className="text-[#aaa] focus:bg-[#292c31] focus:text-[#d0d0d0]">{u}</SelectItem>
+                        <SelectItem key={u} value={u} className="text-foreground-light focus:bg-surface-100 focus:text-foreground">{u}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -1295,40 +1294,40 @@ export default function CreateEstimateBuilderPage() {
 
               <div className="grid grid-cols-3 gap-3 mt-3">
                 <div className="space-y-1">
-                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Builder Cost</p>
-                  <div className="h-8 px-2.5 flex items-center rounded border border-[#2d3035] bg-[#202224] font-mono text-[13px] text-[#aaa]">
+                  <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Builder Cost</p>
+                  <div className="h-8 px-2.5 flex items-center rounded-md border border-border bg-surface-100 tabular-nums text-[13px] text-foreground-light">
                     {formatCurrency(formBuilderCost)}
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Markup %</p>
+                  <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Markup %</p>
                   <div className="relative">
                     <input
                       type="number" step="0.5" min="0"
-                      className="w-full h-8 px-2.5 pr-6 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors"
+                      className="w-full h-8 px-2.5 pr-6 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light outline-none focus:border-strong transition-colors"
                       value={itemForm.markup_percent || ""}
                       onChange={(e) => setItemForm({ ...itemForm, markup_percent: parseFloat(e.target.value) || 0 })}
                     />
-                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#555] text-[12px]">%</span>
+                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-foreground-lighter text-[12px]">%</span>
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Client Price</p>
-                  <div className="h-8 px-2.5 flex items-center rounded border border-[#2d3035] bg-[#202224] font-mono text-[13px] text-[#F5A623] font-semibold">
+                  <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Client Price</p>
+                  <div className="h-8 px-2.5 flex items-center rounded-md border border-border bg-surface-100 tabular-nums text-[13px] text-brand font-semibold">
                     {formatCurrency(formClientPrice)}
                   </div>
                 </div>
               </div>
 
               {formBuilderCost > 0 && (
-                <div className="mt-3 px-3 py-2 rounded border border-[#22C55E]/20 bg-[#22C55E]/5 flex items-center justify-between">
-                  <span className="text-[11px] font-mono text-[#22C55E]/70">Profit</span>
-                  <span className="text-[13px] font-mono font-semibold text-[#22C55E]">{formatCurrency(formMarkupAmount)}</span>
+                <div className="mt-3 px-3 py-2 rounded-lg border border-success/20 bg-success/5 flex items-center justify-between">
+                  <span className="text-[11px] tabular-nums text-success/70">Profit</span>
+                  <span className="text-[13px] tabular-nums font-semibold text-success">{formatCurrency(formMarkupAmount)}</span>
                 </div>
               )}
             </div>
 
-            <div className="flex items-center gap-5 border-t border-[#2d3035] pt-3">
+            <div className="flex items-center gap-5 border-t border-border pt-3">
               {[
                 { id: "show_to_client", label: "Show to client", checked: itemForm.show_to_client, key: "show_to_client" },
                 { id: "save_to_catalog", label: "Save to catalog", checked: itemForm.save_to_catalog, key: "save_to_catalog" },
@@ -1338,21 +1337,21 @@ export default function CreateEstimateBuilderPage() {
                     type="checkbox"
                     checked={opt.checked}
                     onChange={(e) => setItemForm({ ...itemForm, [opt.key]: e.target.checked })}
-                    className="accent-[#F5A623] h-3.5 w-3.5"
+                    className="accent-primary h-3.5 w-3.5"
                   />
-                  <span className="text-[11px] font-mono text-[#666]">{opt.label}</span>
+                  <span className="text-[11px] tabular-nums text-foreground-lighter">{opt.label}</span>
                 </label>
               ))}
             </div>
           </div>
 
           <DialogFooter>
-            <button onClick={() => setItemModalOpen(false)} className="px-4 py-2 text-[12px] text-[#555] hover:text-[#aaa] transition-colors">
+            <button onClick={() => setItemModalOpen(false)} className="px-4 py-2 text-[12px] text-foreground-lighter hover:text-foreground-light transition-colors">
               Cancel
             </button>
             <button
               onClick={handleSaveItem}
-              className="px-4 py-2 rounded bg-[#2d3035] border border-[#333] text-[12px] text-[#F5A623] hover:bg-[#353840] transition-colors"
+              className="px-4 py-2 rounded-md bg-surface-300 border border-strong text-[12px] text-brand hover:bg-surface-400 transition-colors"
             >
               {editingItem ? "Update" : "Add Item"}
             </button>
@@ -1362,10 +1361,10 @@ export default function CreateEstimateBuilderPage() {
 
       {/* ── Catalog Modal ── */}
       <Dialog open={catalogOpen} onOpenChange={setCatalogOpen}>
-        <DialogContent className="max-w-3xl max-h-[80vh] flex flex-col bg-[#202224] border-[#34373c]">
+        <DialogContent className="max-w-3xl max-h-[80vh] flex flex-col bg-surface-100 border-border">
           <DialogHeader>
-            <DialogTitle className="text-[#d0d0d0] text-[15px]">Cost Catalog</DialogTitle>
-            <DialogDescription className="text-[#555] text-[12px]">Quick-add items from your catalog library</DialogDescription>
+            <DialogTitle className="text-foreground text-[15px]">Cost Catalog</DialogTitle>
+            <DialogDescription className="text-foreground-lighter text-[12px]">Quick-add items from your catalog library</DialogDescription>
           </DialogHeader>
 
           <div className="flex gap-2 py-2">
@@ -1373,7 +1372,7 @@ export default function CreateEstimateBuilderPage() {
               value={catalogSearch}
               onChange={(e) => setCatalogSearch(e.target.value)}
               placeholder="Search items..."
-              className="flex-1 h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#333] transition-colors"
+              className="flex-1 h-8 px-2.5 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light placeholder:text-foreground-lighter outline-none focus:border-strong transition-colors"
             />
             <div className="flex items-center gap-1">
               {["all","material","labor","equipment","subcontractor"].map((f) => (
@@ -1381,8 +1380,8 @@ export default function CreateEstimateBuilderPage() {
                   key={f}
                   onClick={() => setCatalogFilter(f)}
                   className={cn(
-                    "px-2.5 py-1.5 rounded text-[10px] font-mono uppercase tracking-wide transition-colors",
-                    catalogFilter === f ? "bg-[#2d3035] text-[#F5A623] border border-[#333]" : "text-[#555] hover:text-[#999]"
+                    "px-2.5 py-1.5 rounded-md text-[10px] font-mono uppercase tracking-wide transition-colors",
+                    catalogFilter === f ? "bg-surface-300 text-brand border border-strong" : "text-foreground-lighter hover:text-foreground-light"
                   )}
                 >
                   {f}
@@ -1391,38 +1390,38 @@ export default function CreateEstimateBuilderPage() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-auto rounded border border-[#2d3035]">
+          <div className="flex-1 overflow-auto rounded-lg border border-border">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-[#2d3035]">
-                  <th className="px-4 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555]">Item</th>
-                  <th className="px-4 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Unit Cost</th>
-                  <th className="px-4 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Unit</th>
-                  <th className="px-4 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Markup</th>
+                <tr className="border-b border-border">
+                  <th className="px-4 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">Item</th>
+                  <th className="px-4 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">Unit Cost</th>
+                  <th className="px-4 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">Unit</th>
+                  <th className="px-4 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">Markup</th>
                   <th className="w-16 px-4 py-2.5" />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#292c31]">
+              <tbody className="divide-y divide-border">
                 {filteredCatalog.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="text-center py-10 text-[13px] text-[#555]">No catalog items found</td>
+                    <td colSpan={5} className="text-center py-10 text-[13px] text-foreground-lighter">No catalog items found</td>
                   </tr>
                 ) : filteredCatalog.map((item) => (
-                  <tr key={item.id} className="group hover:bg-[#23252a] transition-colors">
+                  <tr key={item.id} className="group hover:bg-surface-200 transition-colors">
                     <td className="px-4 py-3">
-                      <p className="text-[13px] text-[#aaa]">{item.title}</p>
+                      <p className="text-[13px] text-foreground-light">{item.title}</p>
                       {item.description && (
-                        <p className="text-[11px] text-[#555] truncate max-w-xs">{item.description}</p>
+                        <p className="text-[11px] text-foreground-lighter truncate max-w-xs">{item.description}</p>
                       )}
-                      <span className="text-[10px] font-mono text-[#444] capitalize">{item.cost_type}</span>
+                      <span className="text-[10px] tabular-nums text-foreground-lighter capitalize">{item.cost_type}</span>
                     </td>
-                    <td className="px-4 py-3 text-right text-[12px] font-mono text-[#aaa]">{formatCurrency(item.unit_cost)}</td>
-                    <td className="px-4 py-3 text-right text-[11px] font-mono text-[#555]">{item.unit}</td>
-                    <td className="px-4 py-3 text-right text-[11px] font-mono text-[#555]">{item.default_markup_percent}%</td>
+                    <td className="px-4 py-3 text-right text-[12px] tabular-nums text-foreground-light">{formatCurrency(item.unit_cost)}</td>
+                    <td className="px-4 py-3 text-right text-[11px] tabular-nums text-foreground-lighter">{item.unit}</td>
+                    <td className="px-4 py-3 text-right text-[11px] tabular-nums text-foreground-lighter">{item.default_markup_percent}%</td>
                     <td className="px-4 py-3 text-right">
                       <button
                         onClick={() => addFromCatalog(item)}
-                        className="text-[11px] text-[#F5A623] hover:opacity-80 transition-opacity opacity-0 group-hover:opacity-100"
+                        className="text-[11px] text-brand hover:opacity-80 transition-opacity opacity-0 group-hover:opacity-100"
                       >
                         + Add
                       </button>
@@ -1468,31 +1467,31 @@ function CategorySection({
   return (
     <>
       {/* Category Header Row */}
-      <TableRow className="group bg-[#202224] hover:bg-[#272a2c] border-b border-[#2d3035]">
+      <TableRow className="group bg-surface-100 hover:bg-surface-200 border-b border-border">
         <TableCell className="py-2.5">
           <div className="flex items-center gap-2">
-            <button onClick={onToggle} className="p-0.5 rounded hover:bg-[#292c31] transition-colors">
+            <button onClick={onToggle} className="p-0.5 rounded-md hover:bg-surface-100 transition-colors">
               {isExpanded ? (
-                <ChevronDown className="h-3.5 w-3.5 text-[#555]" />
+                <ChevronDown className="h-3.5 w-3.5 text-foreground-lighter" />
               ) : (
-                <ChevronRight className="h-3.5 w-3.5 text-[#555]" />
+                <ChevronRight className="h-3.5 w-3.5 text-foreground-lighter" />
               )}
             </button>
-            <span className="text-[12px] font-mono font-semibold text-[#b8b8b8] uppercase tracking-wide">{category.name}</span>
-            <span className="text-[10px] font-mono text-[#444]">
+            <span className="text-[12px] font-mono font-semibold text-foreground-light uppercase tracking-wide">{category.name}</span>
+            <span className="text-[10px] tabular-nums text-foreground-lighter">
               {items.length} item{items.length !== 1 ? "s" : ""}
             </span>
             {!isLocked && (
               <div className="flex items-center gap-2 ml-2 opacity-0 group-hover:opacity-100">
                 <button
                   onClick={(e) => { e.stopPropagation(); onAddItem(); }}
-                  className="text-[10px] font-mono text-[#555] hover:text-[#F5A623] transition-colors"
+                  className="text-[10px] tabular-nums text-foreground-lighter hover:text-brand transition-colors"
                 >
                   + item
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); onAddFromCatalog(); }}
-                  className="text-[10px] font-mono text-[#555] hover:text-[#aaa] transition-colors"
+                  className="text-[10px] tabular-nums text-foreground-lighter hover:text-foreground-light transition-colors"
                 >
                   catalog
                 </button>
@@ -1503,33 +1502,33 @@ function CategorySection({
         <TableCell />
         <TableCell />
         <TableCell />
-        <TableCell className="text-right text-[12px] font-mono text-[#666]">
+        <TableCell className="text-right text-[12px] tabular-nums text-foreground-lighter">
           {formatCurrency(category.builder_cost || 0)}
         </TableCell>
-        <TableCell className="text-right text-[12px] font-mono text-[#aaa] font-semibold">
+        <TableCell className="text-right text-[12px] tabular-nums text-foreground-light font-semibold">
           {formatCurrency(category.client_price || 0)}
         </TableCell>
         <TableCell className="text-right">
           <div className="flex items-center justify-end gap-3">
-            <span className="text-[12px] font-mono text-[#22C55E]">
+            <span className="text-[12px] tabular-nums text-success">
               {formatCurrency((category.client_price || 0) - (category.builder_cost || 0))}
             </span>
             {!isLocked && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="p-1 rounded hover:bg-[#292c31] transition-colors">
-                    <MoreHorizontal className="h-3.5 w-3.5 text-[#444]" />
+                  <button className="p-1 rounded-md hover:bg-surface-100 transition-colors">
+                    <MoreHorizontal className="h-3.5 w-3.5 text-foreground-lighter" />
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-[#202224] border-[#34373c]">
-                  <DropdownMenuItem onClick={onAddItem} className="text-[12px] text-[#aaa] focus:bg-[#292c31] focus:text-[#d0d0d0]">
+                <DropdownMenuContent align="end" className="bg-surface-100 border-border">
+                  <DropdownMenuItem onClick={onAddItem} className="text-[12px] text-foreground-light focus:bg-surface-100 focus:text-foreground">
                     Add item
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={onAddFromCatalog} className="text-[12px] text-[#aaa] focus:bg-[#292c31] focus:text-[#d0d0d0]">
+                  <DropdownMenuItem onClick={onAddFromCatalog} className="text-[12px] text-foreground-light focus:bg-surface-100 focus:text-foreground">
                     Add from catalog
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator className="bg-[#34373c]" />
-                  <DropdownMenuItem onClick={onDeleteCategory} className="text-[12px] text-[#EF4444] focus:bg-[#292c31] focus:text-[#EF4444]">
+                  <DropdownMenuSeparator className="bg-surface-300" />
+                  <DropdownMenuItem onClick={onDeleteCategory} className="text-[12px] text-destructive focus:bg-surface-100 focus:text-destructive">
                     Delete section
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -1543,46 +1542,46 @@ function CategorySection({
       {isExpanded && items.map((item) => (
         <TableRow
           key={item.id}
-          className="hover:bg-[#23252a] cursor-pointer group border-b border-[#272a2c]"
+          className="hover:bg-surface-200 cursor-pointer group border-b border-border"
           onClick={() => !isLocked && onEditItem(item)}
         >
           <TableCell className="pl-10 py-2.5">
             <div>
-              <span className="text-[13px] text-[#888] group-hover:text-[#b0b0b0] transition-colors">
+              <span className="text-[13px] text-foreground-lighter group-hover:text-foreground-light transition-colors">
                 {item.title || item.description}
               </span>
               {item.cost_code && (
-                <span className="text-[10px] font-mono text-[#444] ml-2">[{item.cost_code}]</span>
+                <span className="text-[10px] tabular-nums text-foreground-lighter ml-2">[{item.cost_code}]</span>
               )}
               {item.description && item.title && item.description !== item.title && (
-                <div className="text-[11px] text-[#444] truncate max-w-xs">{item.description}</div>
+                <div className="text-[11px] text-foreground-lighter truncate max-w-xs">{item.description}</div>
               )}
             </div>
           </TableCell>
-          <TableCell className="text-right text-[12px] font-mono text-[#555]">
+          <TableCell className="text-right text-[12px] tabular-nums text-foreground-lighter">
             {formatCurrency(item.unit_cost || 0)}
           </TableCell>
-          <TableCell className="text-right text-[12px] font-mono text-[#555]">
+          <TableCell className="text-right text-[12px] tabular-nums text-foreground-lighter">
             {(item.quantity || 0) % 1 === 0 ? item.quantity : (item.quantity || 0).toFixed(2)}
           </TableCell>
-          <TableCell className="text-right text-[11px] font-mono text-[#444]">
+          <TableCell className="text-right text-[11px] tabular-nums text-foreground-lighter">
             {item.unit || "EACH"}
           </TableCell>
-          <TableCell className="text-right text-[12px] font-mono text-[#666]">
+          <TableCell className="text-right text-[12px] tabular-nums text-foreground-lighter">
             {formatCurrency(item.builder_cost || 0)}
           </TableCell>
-          <TableCell className="text-right text-[12px] font-mono text-[#aaa]">
+          <TableCell className="text-right text-[12px] tabular-nums text-foreground-light">
             {formatCurrency(item.client_price || 0)}
           </TableCell>
           <TableCell className="text-right">
             <div className="flex items-center justify-end gap-2">
-              <span className="text-[12px] font-mono text-[#22C55E]">{formatCurrency(item.profit || 0)}</span>
+              <span className="text-[12px] tabular-nums text-success">{formatCurrency(item.profit || 0)}</span>
               {!isLocked && (
                 <button
-                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-[#292c31]"
+                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-surface-100"
                   onClick={(e) => { e.stopPropagation(); onDeleteItem(item.id); }}
                 >
-                  <Trash2 className="h-3 w-3 text-[#EF4444]" />
+                  <Trash2 className="h-3 w-3 text-destructive" />
                 </button>
               )}
             </div>
@@ -1591,14 +1590,14 @@ function CategorySection({
       ))}
 
       {isExpanded && items.length === 0 && (
-        <TableRow className="border-b border-[#272a2c]">
-          <TableCell colSpan={7} className="text-center py-5 text-[12px] text-[#444]">
+        <TableRow className="border-b border-border">
+          <TableCell colSpan={7} className="text-center py-5 text-[12px] text-foreground-lighter">
             No items.{" "}
             {!isLocked && (
               <>
-                <button onClick={onAddItem} className="text-[#F5A623] hover:opacity-80">Add item</button>
+                <button onClick={onAddItem} className="text-brand hover:opacity-80">Add item</button>
                 {" "}or{" "}
-                <button onClick={onAddFromCatalog} className="text-[#666] hover:text-[#aaa]">browse catalog</button>
+                <button onClick={onAddFromCatalog} className="text-foreground-lighter hover:text-foreground-light">browse catalog</button>
               </>
             )}
           </TableCell>

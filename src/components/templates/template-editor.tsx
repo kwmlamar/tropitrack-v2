@@ -162,26 +162,26 @@ export function TemplateEditor({ templateId }: TemplateEditorProps) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-[#18191b]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#F5A623]" />
+      <div className="flex items-center justify-center h-screen bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-brand" />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full overflow-auto bg-[#18191b]">
+    <div className="flex flex-col h-full overflow-auto bg-background">
       {/* Top bar */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-[#34373c] flex-shrink-0">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0">
         <div>
-          <p className="text-[11px] font-mono text-[#666] uppercase tracking-widest">Templates</p>
-          <h1 className="text-[16px] font-semibold text-[#d0d0d0] mt-0.5">
+          <p className="text-[11px] font-mono text-foreground-lighter uppercase tracking-widest">Templates</p>
+          <h1 className="text-[16px] font-semibold text-foreground mt-0.5">
             {templateId ? "Edit Template" : "Create Template"}
           </h1>
         </div>
         <div className="flex gap-2">
           <button
             onClick={() => router.push("/settings/templates")}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-[#34373c] bg-[#202224] hover:bg-[#272a2c] hover:border-[#333] text-[11px] font-medium text-[#888] hover:text-[#b8b8b8] transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border bg-surface-100 hover:bg-surface-200 hover:border-strong text-[11px] font-medium text-foreground-lighter hover:text-foreground-light transition-colors"
           >
             <X className="h-3.5 w-3.5" />
             Cancel
@@ -189,7 +189,7 @@ export function TemplateEditor({ templateId }: TemplateEditorProps) {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#2d3035] border border-[#333] text-[11px] font-mono uppercase tracking-wider text-[#F5A623] hover:bg-[#353840] transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-surface-300 border border-strong text-[11px] font-mono uppercase tracking-wider text-brand hover:bg-surface-400 transition-colors"
           >
             <Save className="h-3.5 w-3.5" />
             {saving ? "Saving..." : "Save Template"}
@@ -202,28 +202,28 @@ export function TemplateEditor({ templateId }: TemplateEditorProps) {
           {/* Settings Panel */}
           <div className="space-y-5">
             {/* Basic Info */}
-            <div className="rounded border border-[#34373c] bg-[#202224] p-5 space-y-4">
+            <div className="rounded-lg border border-border bg-surface-100 p-5 space-y-4">
               <div>
-                <h2 className="text-[13px] font-semibold text-[#d0d0d0] uppercase tracking-wider font-mono">Template Info</h2>
-                <p className="text-[11px] text-[#555] mt-1">Configure basic information</p>
+                <h2 className="text-[13px] font-semibold text-foreground uppercase tracking-wider font-mono">Template Info</h2>
+                <p className="text-[11px] text-foreground-lighter mt-1">Configure basic information</p>
               </div>
 
               <div className="space-y-4">
                 <div className="space-y-1">
-                  <label htmlFor="name" className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">Template Name</label>
+                  <label htmlFor="name" className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest block">Template Name</label>
                   <input
                     id="name"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="e.g., Detailed Breakdown"
-                    className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors placeholder:text-[#444]"
+                    className="w-full h-8 px-2.5 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light outline-none focus:border-strong transition-colors placeholder:text-foreground-lighter"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">Template Type</label>
+                  <label className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest block">Template Type</label>
                   <div className="flex items-center gap-4">
-                    <label className="flex items-center gap-2 text-[13px] text-[#aaa] cursor-pointer">
+                    <label className="flex items-center gap-2 text-[13px] text-foreground-light cursor-pointer">
                       <input
                         type="radio"
                         name="type"
@@ -231,11 +231,11 @@ export function TemplateEditor({ templateId }: TemplateEditorProps) {
                         checked={formData.type === "estimate"}
                         onChange={() => setFormData({ ...formData, type: "estimate" })}
                         disabled={!!templateId}
-                        className="h-4 w-4 bg-[#292c31] border-[#3a3d42] text-[#F5A623] focus:ring-0 focus:ring-offset-0"
+                        className="h-4 w-4 bg-surface-100 border-strong text-brand focus:ring-0 focus:ring-offset-0"
                       />
                       Estimate
                     </label>
-                    <label className="flex items-center gap-2 text-[13px] text-[#aaa] cursor-pointer">
+                    <label className="flex items-center gap-2 text-[13px] text-foreground-light cursor-pointer">
                       <input
                         type="radio"
                         name="type"
@@ -243,37 +243,37 @@ export function TemplateEditor({ templateId }: TemplateEditorProps) {
                         checked={formData.type === "invoice"}
                         onChange={() => setFormData({ ...formData, type: "invoice" })}
                         disabled={!!templateId}
-                        className="h-4 w-4 bg-[#292c31] border-[#3a3d42] text-[#F5A623] focus:ring-0 focus:ring-offset-0"
+                        className="h-4 w-4 bg-surface-100 border-strong text-brand focus:ring-0 focus:ring-offset-0"
                       />
                       Invoice
                     </label>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between border-t border-[#2d3035] pt-3">
+                <div className="flex items-center justify-between border-t border-border pt-3">
                   <div>
-                    <span className="text-[13px] text-[#aaa]">Set as default template</span>
-                    <p className="text-[10px] text-[#555] font-mono">Use this template for all new documents</p>
+                    <span className="text-[13px] text-foreground-light">Set as default template</span>
+                    <p className="text-[10px] text-foreground-lighter tabular-nums">Use this template for all new documents</p>
                   </div>
                   <input
                     type="checkbox"
                     id="is_default"
                     checked={formData.is_default}
                     onChange={(e) => setFormData({ ...formData, is_default: e.target.checked })}
-                    className="h-4 w-4 rounded bg-[#292c31] border-[#3a3d42] text-[#F5A623] focus:ring-0 focus:ring-offset-0"
+                    className="h-4 w-4 rounded-md bg-surface-100 border-strong text-brand focus:ring-0 focus:ring-offset-0"
                   />
                 </div>
               </div>
             </div>
 
             {/* Load Preset */}
-            <div className="rounded border border-[#34373c] bg-[#202224] p-5 space-y-4">
+            <div className="rounded-lg border border-border bg-surface-100 p-5 space-y-4">
               <div>
-                <h2 className="text-[13px] font-semibold text-[#d0d0d0] uppercase tracking-wider font-mono flex items-center gap-2">
-                  <Lightbulb className="h-4 w-4 text-blue-400" />
+                <h2 className="text-[13px] font-semibold text-foreground uppercase tracking-wider font-mono flex items-center gap-2">
+                  <Lightbulb className="h-4 w-4 text-info" />
                   Quick Start with Presets
                 </h2>
-                <p className="text-[11px] text-[#555] mt-1">Load pre-configured settings for common use cases</p>
+                <p className="text-[11px] text-foreground-lighter mt-1">Load pre-configured settings for common use cases</p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -282,12 +282,12 @@ export function TemplateEditor({ templateId }: TemplateEditorProps) {
                     <button
                       key={preset.name}
                       onClick={() => loadPreset(preset.name)}
-                      className="flex flex-col items-start gap-1 p-3 rounded border border-[#34373c] bg-[#18191b] hover:bg-[#2d3035] hover:border-[#34373c] dark:hover:bg-[#272a2c] dark:hover:border-[#333] text-left transition-colors group"
+                      className="flex flex-col items-start gap-1 p-3 rounded-md border border-border bg-background hover:bg-surface-300 hover:border-strong text-left transition-colors group"
                     >
-                      <span className="font-semibold text-[12px] text-[#d0d0d0] group-hover:text-white transition-colors">
+                      <span className="font-semibold text-[12px] text-foreground group-hover:text-foreground transition-colors">
                         {preset.name}
                       </span>
-                      <span className="text-[10px] text-[#555]">
+                      <span className="text-[10px] text-foreground-lighter">
                         {preset.useCase}
                       </span>
                     </button>
@@ -297,10 +297,10 @@ export function TemplateEditor({ templateId }: TemplateEditorProps) {
             </div>
 
             {/* Display Settings */}
-            <div className="rounded border border-[#34373c] bg-[#202224] p-5 space-y-4">
+            <div className="rounded-lg border border-border bg-surface-100 p-5 space-y-4">
               <div>
-                <h2 className="text-[13px] font-semibold text-[#d0d0d0] uppercase tracking-wider font-mono">Line Item Display</h2>
-                <p className="text-[11px] text-[#555] mt-1">Choose what information to show</p>
+                <h2 className="text-[13px] font-semibold text-foreground uppercase tracking-wider font-mono">Line Item Display</h2>
+                <p className="text-[11px] text-foreground-lighter mt-1">Choose what information to show</p>
               </div>
 
               <div className="space-y-2.5">
@@ -312,13 +312,13 @@ export function TemplateEditor({ templateId }: TemplateEditorProps) {
                   { key: "show_line_item_descriptions", label: "Show line item descriptions" },
                 ].map(({ key, label }) => (
                   <div key={key} className="flex items-center justify-between">
-                    <label htmlFor={key} className="text-[13px] text-[#aaa] cursor-pointer">{label}</label>
+                    <label htmlFor={key} className="text-[13px] text-foreground-light cursor-pointer">{label}</label>
                     <input
                       type="checkbox"
                       id={key}
                       checked={formData[key as keyof typeof formData] as boolean}
                       onChange={(e) => setFormData({ ...formData, [key]: e.target.checked })}
-                      className="h-4 w-4 rounded bg-[#292c31] border-[#3a3d42] text-[#F5A623] focus:ring-0 focus:ring-offset-0"
+                      className="h-4 w-4 rounded-md bg-surface-100 border-strong text-brand focus:ring-0 focus:ring-offset-0"
                     />
                   </div>
                 ))}
@@ -326,10 +326,10 @@ export function TemplateEditor({ templateId }: TemplateEditorProps) {
             </div>
 
             {/* Financial Details */}
-            <div className="rounded border border-[#34373c] bg-[#202224] p-5 space-y-4">
+            <div className="rounded-lg border border-border bg-surface-100 p-5 space-y-4">
               <div>
-                <h2 className="text-[13px] font-semibold text-[#d0d0d0] uppercase tracking-wider font-mono">Financial Details</h2>
-                <p className="text-[11px] text-[#555] mt-1">Control visibility of costs and margins</p>
+                <h2 className="text-[13px] font-semibold text-foreground uppercase tracking-wider font-mono">Financial Details</h2>
+                <p className="text-[11px] text-foreground-lighter mt-1">Control visibility of costs and margins</p>
               </div>
 
               <div className="space-y-2.5">
@@ -339,13 +339,13 @@ export function TemplateEditor({ templateId }: TemplateEditorProps) {
                   { key: "show_profit_margin", label: "Show profit margin" },
                 ].map(({ key, label }) => (
                   <div key={key} className="flex items-center justify-between">
-                    <label htmlFor={key} className="text-[13px] text-[#aaa] cursor-pointer">{label}</label>
+                    <label htmlFor={key} className="text-[13px] text-foreground-light cursor-pointer">{label}</label>
                     <input
                       type="checkbox"
                       id={key}
                       checked={formData[key as keyof typeof formData] as boolean}
                       onChange={(e) => setFormData({ ...formData, [key]: e.target.checked })}
-                      className="h-4 w-4 rounded bg-[#292c31] border-[#3a3d42] text-[#F5A623] focus:ring-0 focus:ring-offset-0"
+                      className="h-4 w-4 rounded-md bg-surface-100 border-strong text-brand focus:ring-0 focus:ring-offset-0"
                     />
                   </div>
                 ))}
@@ -353,15 +353,15 @@ export function TemplateEditor({ templateId }: TemplateEditorProps) {
             </div>
 
             {/* Grouping & Organization */}
-            <div className="rounded border border-[#34373c] bg-[#202224] p-5 space-y-4">
+            <div className="rounded-lg border border-border bg-surface-100 p-5 space-y-4">
               <div>
-                <h2 className="text-[13px] font-semibold text-[#d0d0d0] uppercase tracking-wider font-mono">Grouping & Organization</h2>
-                <p className="text-[11px] text-[#555] mt-1">How to organize line items</p>
+                <h2 className="text-[13px] font-semibold text-foreground uppercase tracking-wider font-mono">Grouping & Organization</h2>
+                <p className="text-[11px] text-foreground-lighter mt-1">How to organize line items</p>
               </div>
 
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">Group line items by</label>
+                  <label className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest block">Group line items by</label>
                   <div className="space-y-2">
                     {[
                       { value: "none", label: "None - Flat list" },
@@ -369,14 +369,14 @@ export function TemplateEditor({ templateId }: TemplateEditorProps) {
                       { value: "phase", label: "Phase (Foundation, Framing, Finishing)" },
                       { value: "custom", label: "Custom groups" },
                     ].map((g) => (
-                      <label key={g.value} className="flex items-center gap-2 text-[13px] text-[#aaa] cursor-pointer">
+                      <label key={g.value} className="flex items-center gap-2 text-[13px] text-foreground-light cursor-pointer">
                         <input
                           type="radio"
                           name="group_by"
                           value={g.value}
                           checked={formData.group_by === g.value}
                           onChange={() => setFormData({ ...formData, group_by: g.value as any })}
-                          className="h-4 w-4 bg-[#292c31] border-[#3a3d42] text-[#F5A623] focus:ring-0 focus:ring-offset-0"
+                          className="h-4 w-4 bg-surface-100 border-strong text-brand focus:ring-0 focus:ring-offset-0"
                         />
                         {g.label}
                       </label>
@@ -385,14 +385,14 @@ export function TemplateEditor({ templateId }: TemplateEditorProps) {
                 </div>
 
                 {formData.group_by !== "none" && (
-                  <div className="flex items-center justify-between border-t border-[#2d3035] pt-3">
-                    <label htmlFor="show_group_subtotals" className="text-[13px] text-[#aaa] cursor-pointer">Show subtotals for each group</label>
+                  <div className="flex items-center justify-between border-t border-border pt-3">
+                    <label htmlFor="show_group_subtotals" className="text-[13px] text-foreground-light cursor-pointer">Show subtotals for each group</label>
                     <input
                       type="checkbox"
                       id="show_group_subtotals"
                       checked={formData.show_group_subtotals}
                       onChange={(e) => setFormData({ ...formData, show_group_subtotals: e.target.checked })}
-                      className="h-4 w-4 rounded bg-[#292c31] border-[#3a3d42] text-[#F5A623] focus:ring-0 focus:ring-offset-0"
+                      className="h-4 w-4 rounded-md bg-surface-100 border-strong text-brand focus:ring-0 focus:ring-offset-0"
                     />
                   </div>
                 )}
@@ -400,29 +400,29 @@ export function TemplateEditor({ templateId }: TemplateEditorProps) {
             </div>
 
             {/* Format Settings */}
-            <div className="rounded border border-[#34373c] bg-[#202224] p-5 space-y-4">
+            <div className="rounded-lg border border-border bg-surface-100 p-5 space-y-4">
               <div>
-                <h2 className="text-[13px] font-semibold text-[#d0d0d0] uppercase tracking-wider font-mono">Format Settings</h2>
-                <p className="text-[11px] text-[#555] mt-1">Control presentation style</p>
+                <h2 className="text-[13px] font-semibold text-foreground uppercase tracking-wider font-mono">Format Settings</h2>
+                <p className="text-[11px] text-foreground-lighter mt-1">Control presentation style</p>
               </div>
 
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">Line Item Format</label>
+                  <label className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest block">Line Item Format</label>
                   <div className="space-y-2">
                     {[
                       { value: "detailed", label: "Detailed - Full breakdown" },
                       { value: "summary", label: "Summary - Condensed view" },
                       { value: "minimal", label: "Minimal - Just totals" },
                     ].map((f) => (
-                      <label key={f.value} className="flex items-center gap-2 text-[13px] text-[#aaa] cursor-pointer">
+                      <label key={f.value} className="flex items-center gap-2 text-[13px] text-foreground-light cursor-pointer">
                         <input
                           type="radio"
                           name="line_item_format"
                           value={f.value}
                           checked={formData.line_item_format === f.value}
                           onChange={() => setFormData({ ...formData, line_item_format: f.value as any })}
-                          className="h-4 w-4 bg-[#292c31] border-[#3a3d42] text-[#F5A623] focus:ring-0 focus:ring-offset-0"
+                          className="h-4 w-4 bg-surface-100 border-strong text-brand focus:ring-0 focus:ring-offset-0"
                         />
                         {f.label}
                       </label>
@@ -430,24 +430,24 @@ export function TemplateEditor({ templateId }: TemplateEditorProps) {
                   </div>
                 </div>
 
-                <div className="border-t border-[#2d3035] my-2" />
+                <div className="border-t border-border my-2" />
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-mono text-[#555] uppercase tracking-widest block">Total Format</label>
+                  <label className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest block">Total Format</label>
                   <div className="space-y-2">
                     {[
                       { value: "standard", label: "Standard - Subtotal, tax, total" },
                       { value: "detailed", label: "Detailed - All calculations shown" },
                       { value: "minimal", label: "Minimal - Just final total" },
                     ].map((t) => (
-                      <label key={t.value} className="flex items-center gap-2 text-[13px] text-[#aaa] cursor-pointer">
+                      <label key={t.value} className="flex items-center gap-2 text-[13px] text-foreground-light cursor-pointer">
                         <input
                           type="radio"
                           name="total_format"
                           value={t.value}
                           checked={formData.total_format === t.value}
                           onChange={() => setFormData({ ...formData, total_format: t.value as any })}
-                          className="h-4 w-4 bg-[#292c31] border-[#3a3d42] text-[#F5A623] focus:ring-0 focus:ring-offset-0"
+                          className="h-4 w-4 bg-surface-100 border-strong text-brand focus:ring-0 focus:ring-offset-0"
                         />
                         {t.label}
                       </label>
@@ -460,10 +460,10 @@ export function TemplateEditor({ templateId }: TemplateEditorProps) {
 
           {/* Live Preview */}
           <div className="lg:sticky lg:top-6 lg:self-start space-y-4">
-            <div className="rounded border border-[#34373c] bg-[#202224] p-5 space-y-4">
+            <div className="rounded-lg border border-border bg-surface-100 p-5 space-y-4">
               <div>
-                <h2 className="text-[13px] font-semibold text-[#d0d0d0] uppercase tracking-wider font-mono">Live Preview</h2>
-                <p className="text-[11px] text-[#555] mt-1">See how your {formData.type} will look to clients</p>
+                <h2 className="text-[13px] font-semibold text-foreground uppercase tracking-wider font-mono">Live Preview</h2>
+                <p className="text-[11px] text-foreground-lighter mt-1">See how your {formData.type} will look to clients</p>
               </div>
               <TemplatePreview template={formData} />
             </div>
