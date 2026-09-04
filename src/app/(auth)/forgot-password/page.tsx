@@ -53,7 +53,7 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 to-amber-50 dark:from-neutral-950 dark:to-neutral-900 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
@@ -77,8 +77,8 @@ export default function ForgotPasswordPage() {
 
         {sent ? (
           <CardContent className="text-center space-y-4">
-            <div className="p-4 rounded-full bg-green-100 dark:bg-green-900/30 w-fit mx-auto">
-              <Mail className="h-8 w-8 text-green-600 dark:text-green-400" />
+            <div className="p-4 rounded-full bg-success-subtle w-fit mx-auto">
+              <Mail className="h-8 w-8 text-success" />
             </div>
             <p className="text-muted-foreground">
               We've sent a password reset link to <strong>{email}</strong>

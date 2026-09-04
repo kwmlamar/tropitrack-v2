@@ -417,7 +417,7 @@ export default function WorkerDetailPage() {
                 <Separator />
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Total Earnings</span>
-                  <span className="font-bold text-lg text-green-600">
+                  <span className="font-bold text-lg text-success">
                     {formatCurrency(stats?.totalEarningsAllTime || 0)}
                   </span>
                 </div>
@@ -546,7 +546,7 @@ export default function WorkerDetailPage() {
                           <TableCell className="font-medium">
                             {((entry.regular_hours || 0) + (entry.overtime_hours || 0)).toFixed(1)}
                           </TableCell>
-                          <TableCell className="text-right font-medium text-green-600">
+                          <TableCell className="text-right font-medium text-success">
                             {formatCurrency(totalPay)}
                           </TableCell>
                         </TableRow>

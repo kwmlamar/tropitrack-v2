@@ -278,22 +278,22 @@ export default function InvoiceDetailPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "draft":
-        return "bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-300";
+        return "bg-surface-200 text-foreground-light border border-strong";
       case "sent":
-        return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300";
+        return "bg-info-subtle text-info border border-info-border";
       case "viewed":
-        return "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300";
+        return "bg-info-subtle text-info border border-info-border";
       case "paid":
-        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300";
+        return "bg-success-subtle text-success border border-success-border";
       case "partial":
-        return "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300";
+        return "bg-warning-subtle text-warning border border-warning-border";
       case "overdue":
-        return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300";
+        return "bg-destructive-subtle text-destructive border border-destructive-border";
       case "cancelled":
       case "void":
-        return "bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400";
+        return "bg-surface-200 text-foreground-lighter border border-strong";
       default:
-        return "bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-300";
+        return "bg-surface-200 text-foreground-light border border-strong";
     }
   };
 
@@ -388,9 +388,9 @@ export default function InvoiceDetailPage() {
         <Card
           className={
             invoice.status === "paid"
-              ? "border-green-200 bg-green-50"
+              ? "border-success-border bg-success-subtle"
               : invoice.status === "overdue"
-              ? "border-red-200 bg-red-50"
+              ? "border-destructive-border bg-destructive-subtle"
               : ""
           }
         >
@@ -482,14 +482,14 @@ export default function InvoiceDetailPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Amount Paid</span>
-                <span className="text-green-600">{formatCurrency(invoice.amount_paid)}</span>
+                <span className="text-success">{formatCurrency(invoice.amount_paid)}</span>
               </div>
               <Separator />
               <div className="flex justify-between text-lg font-bold">
                 <span>Balance Due</span>
                 <span
                   className={
-                    invoice.balance_due > 0 ? "text-amber-600" : "text-green-600"
+                    invoice.balance_due > 0 ? "text-warning" : "text-success"
                   }
                 >
                   {formatCurrency(invoice.balance_due)}
@@ -592,7 +592,7 @@ export default function InvoiceDetailPage() {
                         {payment.payment_method.replace("_", " ")}
                       </TableCell>
                       <TableCell>{payment.reference_number || "-"}</TableCell>
-                      <TableCell className="text-right font-medium text-green-600">
+                      <TableCell className="text-right font-medium text-success">
                         {formatCurrency(payment.amount)}
                       </TableCell>
                     </TableRow>

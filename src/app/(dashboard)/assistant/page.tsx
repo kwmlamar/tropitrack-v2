@@ -41,7 +41,9 @@ interface Skill {
   tag: string;
   description: string;
   placeholder: string;
-  color: string;
+  /** Theme token name (brand | info | success | warning | destructive),
+   *  resolved as hsl(var(--<color>)) so the accent tracks light/dark. */
+  color: "brand" | "info" | "success" | "warning" | "destructive";
 }
 
 // ─── Skills ───────────────────────────────────────────────────────────────────
@@ -53,7 +55,7 @@ const SKILLS: Skill[] = [
     tag: "ESTIMATE",
     description: "Build a priced estimate with Eleuthera trade sections",
     placeholder: "Describe the job — e.g. 'repair hurricane damage at Governor's Harbour, replace roof sections and repaint exterior'",
-    color: "#F5A623",
+    color: "brand",
   },
   {
     id: "timesheet",
@@ -61,7 +63,7 @@ const SKILLS: Skill[] = [
     tag: "TIMESHEET",
     description: "Log crew hours or review daily time entries",
     placeholder: "Tell me who worked, on which job, and for how long — e.g. 'Omar and Marcus on laundromat, full day today'",
-    color: "#3B82F6",
+    color: "info",
   },
   {
     id: "payroll",
@@ -69,7 +71,7 @@ const SKILLS: Skill[] = [
     tag: "PAYROLL",
     description: "Calculate pay, NIB deductions, and net amounts",
     placeholder: "Give me hours and rates — e.g. 'Marcus worked 42 hours this week at $18/hr'",
-    color: "#22C55E",
+    color: "success",
   },
   {
     id: "client_update",
@@ -77,7 +79,7 @@ const SKILLS: Skill[] = [
     tag: "CLIENT MSG",
     description: "Draft a professional update or message for a client",
     placeholder: "Rough notes are fine — e.g. 'framing done, plumbing starts Monday, need client to pick tile by Friday'",
-    color: "#A855F7",
+    color: "destructive",
   },
   {
     id: "job_status",
@@ -85,7 +87,7 @@ const SKILLS: Skill[] = [
     tag: "JOB STATUS",
     description: "Review progress and flag blockers on active jobs",
     placeholder: "Which job? — e.g. 'Sotheby's caretaking properties' or 'laundromat build-out'",
-    color: "#06B6D4",
+    color: "warning",
   },
 ];
 
@@ -106,15 +108,15 @@ function renderContent(text: string) {
     }
     if (line.startsWith("### ")) {
       elements.push(
-        <p key={i} className="text-[13px] font-semibold text-[#c4c4c4] mt-3 mb-1">{line.slice(4)}</p>
+        <p key={i} className="text-[13px] font-semibold text-foreground mt-3 mb-1">{line.slice(4)}</p>
       );
     } else if (line.startsWith("## ")) {
       elements.push(
-        <p key={i} className="text-[14px] font-semibold text-[#c4c4c4] mt-4 mb-1">{line.slice(3)}</p>
+        <p key={i} className="text-[14px] font-semibold text-foreground mt-4 mb-1">{line.slice(3)}</p>
       );
     } else if (line.startsWith("**") && line.endsWith("**") && line.length > 4) {
       elements.push(
-        <p key={i} className="text-[13px] font-medium text-[#bcbcbc] mt-2">{line.slice(2, -2)}</p>
+        <p key={i} className="text-[13px] font-medium text-foreground-light mt-2">{line.slice(2, -2)}</p>
       );
     } else if (line.match(/^\|.+\|$/)) {
       // Table row
@@ -123,11 +125,11 @@ function renderContent(text: string) {
       if (isHeader) {
         elements.push(
           <div key={i} className="overflow-x-auto mt-2">
-            <table className="w-full text-[12px] font-mono">
+            <table className="w-full text-[12px] tabular-nums">
               <thead>
-                <tr className="border-b border-[#34373c]">
+                <tr className="border-b border-border">
                   {cells.map((c, ci) => (
-                    <th key={ci} className="text-left py-1.5 px-2 text-[#666] uppercase tracking-wide font-normal">
+                    <th key={ci} className="text-left py-1.5 px-2 text-foreground-lighter uppercase tracking-wide font-normal">
                       {c.trim()}
                     </th>
                   ))}
@@ -147,21 +149,21 @@ function renderContent(text: string) {
           const lastEl = elements[elements.length - 1] as any;
           elements[elements.length - 1] = (
             <div key={`t${i}`} className="overflow-x-auto mt-2">
-              <table className="w-full text-[12px] font-mono border border-[#2d3035] rounded">
+              <table className="w-full text-[12px] tabular-nums border border-border rounded-lg">
                 <thead>
-                  <tr className="border-b border-[#2d3035] bg-[#202224]">
+                  <tr className="border-b border-border bg-surface-100">
                     {cells.map((c, ci) => (
-                      <th key={ci} className="text-left py-1.5 px-3 text-[#666] uppercase tracking-wide font-normal">
+                      <th key={ci} className="text-left py-1.5 px-3 text-foreground-lighter uppercase tracking-wide font-normal">
                         {c.trim()}
                       </th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#2d3035]">
+                <tbody className="divide-y divide-border">
                   {bodyRows.map((row, ri) => (
-                    <tr key={ri} className="hover:bg-[#202224]">
+                    <tr key={ri} className="hover:bg-surface-100">
                       {row.map((c, ci) => (
-                        <td key={ci} className="py-1.5 px-3 text-[#aaa]">{c.trim()}</td>
+                        <td key={ci} className="py-1.5 px-3 text-foreground-light">{c.trim()}</td>
                       ))}
                     </tr>
                   ))}
@@ -173,7 +175,7 @@ function renderContent(text: string) {
         continue;
       } else {
         elements.push(
-          <div key={i} className="flex gap-3 text-[12px] font-mono text-[#888]">
+          <div key={i} className="flex gap-3 text-[12px] tabular-nums text-foreground-lighter">
             {cells.map((c, ci) => <span key={ci} className="px-1">{c.trim()}</span>)}
           </div>
         );
@@ -181,8 +183,8 @@ function renderContent(text: string) {
     } else if (line.match(/^[-*] /) || line.startsWith("• ")) {
       const content = line.replace(/^[-*•] /, "");
       elements.push(
-        <div key={i} className="flex gap-2 text-[13px] text-[#b0b0b0] leading-relaxed">
-          <span className="text-[#555] mt-px flex-shrink-0">·</span>
+        <div key={i} className="flex gap-2 text-[13px] text-foreground-light leading-relaxed">
+          <span className="text-foreground-lighter mt-px flex-shrink-0">·</span>
           <span>{content}</span>
         </div>
       );
@@ -190,7 +192,7 @@ function renderContent(text: string) {
       elements.push(<div key={i} className="h-2" />);
     } else {
       elements.push(
-        <p key={i} className="text-[13px] text-[#b0b0b0] leading-relaxed">{line}</p>
+        <p key={i} className="text-[13px] text-foreground-light leading-relaxed">{line}</p>
       );
     }
     i++;
@@ -207,7 +209,7 @@ function TypingDots() {
       {[0, 1, 2].map((i) => (
         <span
           key={i}
-          className="h-1 w-1 rounded-full bg-[#555] animate-pulse"
+          className="h-1 w-1 rounded-full bg-surface-400 animate-pulse"
           style={{ animationDelay: `${i * 180}ms`, animationDuration: "900ms" }}
         />
       ))}
@@ -220,11 +222,11 @@ function TypingDots() {
 function SkillBadge({ skill }: { skill: Skill }) {
   return (
     <span
-      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono tracking-wider border"
+      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] tabular-nums tracking-wider border"
       style={{
-        color: skill.color,
-        borderColor: `${skill.color}30`,
-        background: `${skill.color}0a`,
+        color: `hsl(var(--${skill.color}))`,
+        borderColor: `hsl(var(--${skill.color}) / 0.188)`,
+        background: `hsl(var(--${skill.color}) / 0.039)`,
       }}
     >
       ✦ {skill.tag}
@@ -525,22 +527,22 @@ export default function ClaudePage() {
   };
 
   return (
-    <div className="flex h-full bg-[#18191b] overflow-hidden">
+    <div className="flex h-full bg-background overflow-hidden">
 
       {/* ── Thread rail ── */}
       <aside
         className={cn(
-          "flex-shrink-0 border-r border-[#202224] bg-[#141517] overflow-hidden transition-[width] duration-200 ease-out",
+          "flex-shrink-0 border-r border-border bg-background overflow-hidden transition-[width] duration-200 ease-out",
           railOpen ? "w-[240px]" : "w-0"
         )}
       >
         <div className="w-[240px] h-full flex flex-col">
           {/* Rail header */}
-          <div className="flex items-center justify-between px-3 pt-3.5 pb-3 border-b border-[#202224]">
-            <p className="text-[9px] font-mono text-[#3a3d42] uppercase tracking-[0.2em]">Threads</p>
+          <div className="flex items-center justify-between px-3 pt-3.5 pb-3 border-b border-border">
+            <p className="text-[9px] font-mono text-foreground-lighter uppercase tracking-[0.2em]">Threads</p>
             <button
               onClick={() => setRailOpen(false)}
-              className="p-1 text-[#3a3d42] hover:text-[#888] transition-colors"
+              className="p-1 text-foreground-lighter hover:text-foreground-lighter transition-colors"
               title="Hide threads"
             >
               <PanelLeftClose className="h-3.5 w-3.5" />
@@ -551,7 +553,7 @@ export default function ClaudePage() {
           <div className="px-3 pt-3 pb-2">
             <button
               onClick={startNewThread}
-              className="w-full flex items-center justify-center gap-2 px-3 py-2 text-[12px] font-medium bg-[#F5A623] text-[#18191b] rounded-md hover:bg-[#f5b955] transition-colors"
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 text-[12px] font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
             >
               <Plus className="h-3.5 w-3.5" /> New thread
             </button>
@@ -560,9 +562,9 @@ export default function ClaudePage() {
           {/* Thread list */}
           <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-3">
             {loadingThreads ? (
-              <p className="text-[10px] font-mono text-[#3a3d42] text-center py-6">loading…</p>
+              <p className="text-[10px] tabular-nums text-foreground-lighter text-center py-6">loading…</p>
             ) : threads.length === 0 ? (
-              <p className="text-[11px] text-[#3a3d42] text-center px-2 py-6 leading-relaxed">
+              <p className="text-[11px] text-foreground-lighter text-center px-2 py-6 leading-relaxed">
                 No threads yet.<br />Start one above.
               </p>
             ) : (
@@ -574,8 +576,8 @@ export default function ClaudePage() {
                 {grouped.shared.length > 0 && (
                   <div>
                     <div className="flex items-center gap-1.5 px-1.5 mb-1.5 mt-1">
-                      <Share2 className="h-2.5 w-2.5 text-[#F5A623]/70" />
-                      <p className="text-[9px] font-mono text-[#F5A623]/70 uppercase tracking-[0.18em]">Shared</p>
+                      <Share2 className="h-2.5 w-2.5 text-brand/70" />
+                      <p className="text-[9px] font-mono text-brand/70 uppercase tracking-[0.18em]">Shared</p>
                     </div>
                     {grouped.shared.map((t) => (
                       <RailItem key={t.id} thread={t} active={t.id === activeThreadId} onPick={openThread} sharedBadge />
@@ -595,7 +597,7 @@ export default function ClaudePage() {
       {!railOpen && (
         <button
           onClick={() => setRailOpen(true)}
-          className="absolute top-3 left-3 z-20 flex items-center gap-1.5 px-2 py-1 text-[10px] font-mono text-muted-foreground uppercase tracking-wider border border-border rounded hover:text-foreground hover:border-muted-foreground transition-colors bg-background/80 backdrop-blur"
+          className="absolute top-3 left-3 z-20 flex items-center gap-1.5 px-2 py-1 text-[10px] font-mono text-muted-foreground uppercase tracking-wider border border-border rounded-md hover:text-foreground hover:border-muted-foreground transition-colors bg-background/80 backdrop-blur"
           title="Show threads"
         >
           <PanelLeftOpen className="h-3 w-3" />
@@ -605,12 +607,12 @@ export default function ClaudePage() {
 
       {/* ── Chat header (when in an active thread) ── */}
       {inChat && activeThread && (
-        <div className="flex-shrink-0 flex items-center justify-between px-6 py-3 border-b border-[#202224] bg-[#18191b]/60">
+        <div className="flex-shrink-0 flex items-center justify-between px-6 py-3 border-b border-border bg-background/60">
           <div className="flex items-center gap-2.5 min-w-0">
-            <MessageSquare className="h-3.5 w-3.5 text-[#3a3d42] flex-shrink-0" />
-            <p className="text-[13px] text-[#c4c4c4] truncate font-medium">{activeThread.title}</p>
+            <MessageSquare className="h-3.5 w-3.5 text-foreground-lighter flex-shrink-0" />
+            <p className="text-[13px] text-foreground truncate font-medium">{activeThread.title}</p>
             {activeThread.is_shared && (
-              <span className="inline-flex items-center gap-1 text-[9px] font-mono text-[#F5A623]/80 uppercase tracking-[0.18em] border border-[#F5A623]/30 rounded px-1.5 py-0.5 flex-shrink-0">
+              <span className="inline-flex items-center gap-1 text-[9px] font-mono text-brand/80 uppercase tracking-[0.18em] border border-primary/30 rounded-full px-1.5 py-0.5 flex-shrink-0">
                 <Share2 className="h-2.5 w-2.5" /> shared
               </span>
             )}
@@ -621,10 +623,10 @@ export default function ClaudePage() {
                 <button
                   onClick={toggleShare}
                   className={cn(
-                    "flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider border rounded transition-colors",
+                    "flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider border rounded-md transition-colors",
                     activeThread.is_shared
-                      ? "text-[#F5A623] border-[#F5A623]/40 hover:bg-[#F5A623]/10"
-                      : "text-[#555] border-[#2b2e33] hover:text-[#888] hover:border-[#3a3d42]"
+                      ? "text-brand border-primary/40 hover:bg-primary/10"
+                      : "text-foreground-lighter border-border hover:text-foreground-lighter hover:border-strong"
                   )}
                 >
                   <Share2 className="h-2.5 w-2.5" />
@@ -632,7 +634,7 @@ export default function ClaudePage() {
                 </button>
                 <button
                   onClick={deleteActive}
-                  className="p-1.5 text-[#3a3d42] hover:text-[#EF4444] transition-colors"
+                  className="p-1.5 text-foreground-lighter hover:text-destructive transition-colors"
                   title="Delete thread"
                 >
                   <Trash2 className="h-3 w-3" />
@@ -656,13 +658,13 @@ export default function ClaudePage() {
             <div className="w-full max-w-[640px] space-y-6">
               {/* Greeting */}
               <div>
-                <p className="text-[11px] font-mono text-[#3a3d42] uppercase tracking-[0.2em] mb-3">
+                <p className="text-[11px] font-mono text-foreground-lighter uppercase tracking-[0.2em] mb-3">
                   Bedrock · Claude
                 </p>
-                <h1 className="text-[28px] font-semibold text-[#d0d0d0] leading-tight tracking-tight">
+                <h1 className="text-[28px] font-semibold text-foreground leading-tight tracking-tight">
                   Good {timeOfDay}, {firstName}.
                 </h1>
-                <p className="text-[15px] text-[#555] mt-1.5">What can I help you with?</p>
+                <p className="text-[15px] text-foreground-lighter mt-1.5">What can I help you with?</p>
               </div>
 
               {/* Input */}
@@ -680,7 +682,7 @@ export default function ClaudePage() {
 
               {/* Skills */}
               <div className="space-y-2.5">
-                <p className="text-[10px] font-mono text-[#3a3d42] uppercase tracking-widest">Skills</p>
+                <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Skills</p>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {SKILLS.map((skill) => {
                     const isActive = activeSkill?.id === skill.id;
@@ -691,25 +693,25 @@ export default function ClaudePage() {
                         className={cn(
                           "text-left px-3.5 py-3 rounded-lg border transition-all duration-150",
                           isActive
-                            ? "bg-[#202224]"
-                            : "bg-[#202224] border-[#34373c] hover:border-[#3a3d42] hover:bg-[#252729]"
+                            ? "bg-surface-100"
+                            : "bg-surface-100 border-border hover:border-strong hover:bg-surface-200"
                         )}
                         style={isActive ? {
-                          borderColor: `${skill.color}50`,
-                          boxShadow: `0 0 0 1px ${skill.color}20`,
+                          borderColor: `hsl(var(--${skill.color}) / 0.314)`,
+                          boxShadow: `0 0 0 1px hsl(var(--${skill.color}) / 0.125)`,
                         } : {}}
                       >
                         <div className="flex items-center justify-between mb-1.5">
                           <span
-                            className="text-[9px] font-mono tracking-widest"
-                            style={{ color: isActive ? skill.color : "#555" }}
+                            className="text-[9px] tabular-nums tracking-widest"
+                            style={{ color: isActive ? `hsl(var(--${skill.color}))` : "hsl(var(--foreground-lighter))" }}
                           >
                             {skill.tag}
                           </span>
                           {isActive && (
                             <span
-                              className="text-[9px] font-mono"
-                              style={{ color: skill.color }}
+                              className="text-[9px] tabular-nums"
+                              style={{ color: `hsl(var(--${skill.color}))` }}
                             >
                               ✦ active
                             </span>
@@ -717,11 +719,11 @@ export default function ClaudePage() {
                         </div>
                         <p className={cn(
                           "text-[13px] font-medium leading-none mb-1",
-                          isActive ? "text-[#d0d0d0]" : "text-[#aaa]"
+                          isActive ? "text-foreground" : "text-foreground-light"
                         )}>
                           {skill.label}
                         </p>
-                        <p className="text-[11px] text-[#555] leading-relaxed">{skill.description}</p>
+                        <p className="text-[11px] text-foreground-lighter leading-relaxed">{skill.description}</p>
                       </button>
                     );
                   })}
@@ -743,14 +745,14 @@ export default function ClaudePage() {
                           <SkillBadge skill={msgSkill} />
                         </div>
                       )}
-                      <div className="px-4 py-2.5 rounded-2xl bg-[#292c31] border border-[#3a3d42]">
-                        <p className="text-[13px] text-[#c4c4c4] leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                      <div className="px-4 py-2.5 rounded-2xl bg-surface-100 border border-strong">
+                        <p className="text-[13px] text-foreground leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                       </div>
                     </div>
                   ) : (
                     <div className="max-w-[90%]">
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="text-[10px] font-mono text-[#3a3d42] uppercase tracking-wider">Claude</span>
+                        <span className="text-[10px] font-mono text-foreground-lighter uppercase tracking-wider">Claude</span>
                       </div>
                       {renderContent(msg.content)}
                     </div>
@@ -763,7 +765,7 @@ export default function ClaudePage() {
               <div className="flex justify-start">
                 <div>
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="text-[10px] font-mono text-[#3a3d42] uppercase tracking-wider">Claude</span>
+                    <span className="text-[10px] font-mono text-foreground-lighter uppercase tracking-wider">Claude</span>
                     {activeSkill && <SkillBadge skill={activeSkill} />}
                   </div>
                   <TypingDots />
@@ -778,7 +780,7 @@ export default function ClaudePage() {
 
       {/* ── Sticky bottom input (chat mode only) ── */}
       {inChat && (
-        <div className="flex-shrink-0 border-t border-[#2b2e33] px-6 py-4 bg-[#18191b]">
+        <div className="flex-shrink-0 border-t border-border px-6 py-4 bg-background">
           <div className="max-w-[680px] mx-auto space-y-3">
             {pendingWrite && (
               <PendingWriteCard
@@ -798,14 +800,14 @@ export default function ClaudePage() {
                   <button
                     key={skill.id}
                     onClick={() => selectSkill(skill)}
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border transition-all text-[11px] font-mono"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border transition-all text-[11px] tabular-nums"
                     style={isActive ? {
-                      borderColor: `${skill.color}50`,
-                      color: skill.color,
-                      background: `${skill.color}0d`,
+                      borderColor: `hsl(var(--${skill.color}) / 0.314)`,
+                      color: `hsl(var(--${skill.color}))`,
+                      background: `hsl(var(--${skill.color}) / 0.051)`,
                     } : {
-                      borderColor: "#2d3035",
-                      color: "#555",
+                      borderColor: "hsl(var(--border))",
+                      color: "hsl(var(--foreground-lighter))",
                     }}
                   >
                     {isActive && <span>✦</span>}
@@ -815,14 +817,14 @@ export default function ClaudePage() {
               })}
               <button
                 onClick={() => setMode((m) => (m === "bypass" ? "default" : "bypass"))}
-                className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-md border transition-all text-[11px] font-mono"
+                className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-md border transition-all text-[11px] tabular-nums"
                 style={mode === "bypass" ? {
-                  borderColor: "#d35e5e",
-                  color: "#e88080",
-                  background: "#2a1a1a",
+                  borderColor: "hsl(var(--destructive))",
+                  color: "hsl(var(--destructive))",
+                  background: "hsl(var(--destructive-subtle))",
                 } : {
-                  borderColor: "#2d3035",
-                  color: "#555",
+                  borderColor: "hsl(var(--border))",
+                  color: "hsl(var(--foreground-lighter))",
                 }}
                 title={mode === "bypass" ? "Bypass mode ON — confirm-tier writes commit instantly. Click to turn off." : "Default mode — every write asks for confirmation. Click to bypass."}
               >
@@ -831,7 +833,7 @@ export default function ClaudePage() {
             </div>
 
             {mode === "bypass" && (
-              <div className="px-3 py-2 rounded-md border text-[11px] font-mono" style={{ borderColor: "#d35e5e", background: "#2a1a1a", color: "#e88080" }}>
+              <div className="px-3 py-2 rounded-md border text-[11px] tabular-nums" style={{ borderColor: "hsl(var(--destructive))", background: "hsl(var(--destructive-subtle))", color: "hsl(var(--destructive))" }}>
                 Bypass mode: writes commit instantly without a confirmation card. Deletes and voids still require typed confirmation.
               </div>
             )}
@@ -847,7 +849,7 @@ export default function ClaudePage() {
               activeSkill={activeSkill}
               onClearSkill={clearSkill}
             />
-            <p className="text-[10px] text-[#2d3035] text-center font-mono">
+            <p className="text-[10px] text-foreground-lighter text-center tabular-nums">
               Enter · Shift+Enter for newline
             </p>
           </div>
@@ -874,7 +876,7 @@ function RailBucket({
   if (items.length === 0) return null;
   return (
     <div>
-      <p className="text-[9px] font-mono text-[#3a3d42] uppercase tracking-[0.18em] px-1.5 mb-1.5">
+      <p className="text-[9px] font-mono text-foreground-lighter uppercase tracking-[0.18em] px-1.5 mb-1.5">
         {label}
       </p>
       {items.map((t) => (
@@ -901,30 +903,30 @@ function RailItem({
       onClick={() => onPick(thread)}
       className={cn(
         "w-full text-left px-2 py-1.5 rounded-md mb-0.5 transition-colors",
-        active ? "bg-[#202224]" : "hover:bg-[#1a1b1d]"
+        active ? "bg-surface-100" : "hover:bg-background"
       )}
     >
       <div className="flex items-start gap-2">
         <div
           className="h-3 w-3 mt-0.5 flex-shrink-0 flex items-center justify-center"
-          style={{ color: active && skill ? skill.color : "var(--muted-foreground)" }}
+          style={{ color: active && skill ? `hsl(var(--${skill.color}))` : "hsl(var(--muted-foreground))" }}
         >
           <span className="text-[10px]">{skill ? "✦" : "·"}</span>
         </div>
         <div className="flex-1 min-w-0">
           <p className={cn(
             "text-[12px] truncate leading-tight",
-            active ? "text-[#d0d0d0]" : "text-[#888]"
+            active ? "text-foreground" : "text-foreground-lighter"
           )}>
             {thread.title}
           </p>
-          <p className="text-[9px] font-mono text-[#3a3d42] mt-0.5">
+          <p className="text-[9px] tabular-nums text-foreground-lighter mt-0.5">
             {format(new Date(thread.updated_at), "MMM d · h:mma").toLowerCase()}
             {sharedBadge && " · shared"}
           </p>
         </div>
         {!sharedBadge && thread.is_shared && (
-          <Share2 className="h-2.5 w-2.5 text-[#F5A623]/60 flex-shrink-0 mt-1" />
+          <Share2 className="h-2.5 w-2.5 text-brand/60 flex-shrink-0 mt-1" />
         )}
       </div>
     </button>
@@ -956,31 +958,31 @@ function InputBox({
 }) {
   return (
     <div
-      className="rounded-xl border bg-[#202224] transition-all duration-150 focus-within:border-[#3a3d42]"
+      className="rounded-xl border bg-surface-100 transition-all duration-150 focus-within:border-strong"
       style={activeSkill ? {
-        borderColor: `${activeSkill.color}40`,
-        boxShadow: `0 0 0 1px ${activeSkill.color}15`,
+        borderColor: `hsl(var(--${activeSkill.color}) / 0.251)`,
+        boxShadow: `0 0 0 1px hsl(var(--${activeSkill.color}) / 0.082)`,
       } : {}}
     >
       {/* Active skill indicator bar */}
       {activeSkill && (
         <div
           className="flex items-center justify-between px-4 pt-3 pb-2"
-          style={{ borderBottom: `1px solid ${activeSkill.color}20` }}
+          style={{ borderBottom: `1px solid hsl(var(--${activeSkill.color}) / 0.125)` }}
         >
           <div className="flex items-center gap-2">
             <span
-              className="text-[9px] font-mono tracking-widest"
-              style={{ color: activeSkill.color }}
+              className="text-[9px] tabular-nums tracking-widest"
+              style={{ color: `hsl(var(--${activeSkill.color}))` }}
             >
               ✦ {activeSkill.tag} MODE
             </span>
-            <span className="text-[11px] text-[#555]">{activeSkill.label}</span>
+            <span className="text-[11px] text-foreground-lighter">{activeSkill.label}</span>
           </div>
           <button
             onClick={onClearSkill}
-            className="p-0.5 rounded transition-opacity hover:opacity-70"
-            style={{ color: activeSkill.color }}
+            className="p-0.5 rounded-md transition-opacity hover:opacity-70"
+            style={{ color: `hsl(var(--${activeSkill.color}))` }}
             title="Deactivate skill"
           >
             <X className="h-3 w-3" />
@@ -996,7 +998,7 @@ function InputBox({
         placeholder={activeSkill?.placeholder ?? "Message Claude..."}
         rows={1}
         disabled={loading}
-        className="w-full bg-transparent px-4 py-3.5 pr-12 text-[13px] text-[#c4c4c4] placeholder:text-[#2d3035] resize-none focus:outline-none leading-relaxed"
+        className="w-full bg-transparent px-4 py-3.5 pr-12 text-[13px] text-foreground placeholder:text-foreground-lighter resize-none focus:outline-none leading-relaxed"
         style={{ minHeight: "52px", maxHeight: "200px" }}
       />
 
@@ -1004,7 +1006,7 @@ function InputBox({
         onClick={loading ? onStop : onSend}
         disabled={!loading && !value.trim()}
         className={cn(
-          "absolute right-3 bottom-3 h-7 w-7 rounded-lg flex items-center justify-center transition-all"
+          "absolute right-3 bottom-3 h-7 w-7 rounded-md flex items-center justify-center transition-all"
         )}
         style={{
           position: "absolute",
@@ -1012,17 +1014,17 @@ function InputBox({
           bottom: "12px",
           height: "28px",
           width: "28px",
-          borderRadius: "8px",
+          borderRadius: "6px",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           transition: "all 0.15s",
           background: loading
-            ? (activeSkill?.color ?? "var(--primary)")
+            ? (activeSkill ? `hsl(var(--${activeSkill.color}))` : "hsl(var(--primary))")
             : value.trim()
-            ? (activeSkill?.color ?? "var(--primary)")
-            : "var(--secondary)",
-          color: loading || value.trim() ? "#18191b" : "var(--muted-foreground)",
+            ? (activeSkill ? `hsl(var(--${activeSkill.color}))` : "hsl(var(--primary))")
+            : "hsl(var(--secondary))",
+          color: loading || value.trim() ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
           cursor: !loading && !value.trim() ? "not-allowed" : "pointer",
         }}
         title={loading ? "Stop" : "Send"}
@@ -1056,17 +1058,17 @@ function PendingWriteCard({
     <div
       className="rounded-lg border px-4 py-3 space-y-3"
       style={{
-        borderColor: isDouble ? "#d35e5e" : "#3a3d42",
-        background: isDouble ? "#2a1a1a" : "#1f2125",
+        borderColor: isDouble ? "hsl(var(--destructive))" : "hsl(var(--border))",
+        background: isDouble ? "hsl(var(--destructive-subtle))" : "hsl(var(--surface-200))",
       }}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-1">
-          <div className="text-[10px] font-mono uppercase tracking-wider" style={{ color: isDouble ? "#e88080" : "#8a8d92" }}>
+          <div className="text-[10px] font-mono uppercase tracking-wider" style={{ color: isDouble ? "hsl(var(--destructive))" : "hsl(var(--foreground-lighter))" }}>
             {isDouble ? "Confirm — destructive" : "Confirm write"}
           </div>
-          <div className="text-[13px] text-[#e0e0e0] leading-relaxed">{pending.summary}</div>
-          <div className="text-[10px] font-mono text-[#555]">{pending.tool_name}</div>
+          <div className="text-[13px] text-foreground leading-relaxed">{pending.summary}</div>
+          <div className="text-[10px] tabular-nums text-foreground-lighter">{pending.tool_name}</div>
         </div>
       </div>
       {isDouble && (
@@ -1075,24 +1077,24 @@ function PendingWriteCard({
           value={typedInput}
           onChange={(e) => onTypedInputChange(e.target.value)}
           placeholder="Type to confirm"
-          className="w-full px-3 py-2 text-[13px] rounded-md bg-[#18191b] border border-[#3a3d42] text-[#e0e0e0] focus:outline-none focus:border-[#d35e5e]"
+          className="w-full px-3 py-2 text-[13px] rounded-md bg-background border border-strong text-foreground focus:outline-none focus:border-destructive"
         />
       )}
       <div className="flex items-center justify-end gap-2">
         <button
           onClick={onCancel}
           disabled={busy}
-          className="px-3 py-1.5 text-[12px] font-mono rounded-md border border-[#3a3d42] text-[#aaa] hover:bg-[#292c31] disabled:opacity-40"
+          className="px-3 py-1.5 text-[12px] tabular-nums rounded-md border border-strong text-foreground-light hover:bg-surface-100 disabled:opacity-40"
         >
           Cancel
         </button>
         <button
           onClick={onConfirm}
           disabled={!canConfirm}
-          className="px-3 py-1.5 text-[12px] font-mono rounded-md disabled:opacity-40"
+          className="px-3 py-1.5 text-[12px] tabular-nums rounded-md disabled:opacity-40"
           style={{
-            background: isDouble ? "#d35e5e" : "#a2c573",
-            color: "#18191b",
+            background: isDouble ? "hsl(var(--destructive))" : "hsl(var(--success))",
+            color: isDouble ? "hsl(var(--destructive-foreground))" : "hsl(var(--success-foreground))",
           }}
         >
           {busy ? "Working…" : "Confirm"}

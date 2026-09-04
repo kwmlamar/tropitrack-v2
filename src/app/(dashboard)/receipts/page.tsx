@@ -211,13 +211,13 @@ export default function ReceiptsPage() {
   const addCount = items.filter((_, i) => selected[i] && modes[i] === "add").length;
 
   return (
-    <div className="flex h-full bg-[#18191b] overflow-hidden">
+    <div className="flex h-full bg-background overflow-hidden">
       {/* Left panel — scanner */}
-      <div className="flex flex-col w-[420px] flex-shrink-0 border-r border-[#2b2e33]">
+      <div className="flex flex-col w-[420px] flex-shrink-0 border-r border-border">
         {/* Header */}
-        <div className="flex items-center gap-2 px-5 py-3.5 border-b border-[#2b2e33]">
-          <ScanLine className="h-4 w-4 text-[#F5A623]" />
-          <span className="text-[13px] font-semibold text-[#d0d0d0]">Receipt Scanner</span>
+        <div className="flex items-center gap-2 px-5 py-3.5 border-b border-border">
+          <ScanLine className="h-4 w-4 text-brand" />
+          <span className="text-[13px] font-semibold text-foreground">Receipt Scanner</span>
         </div>
 
         <div className="flex-1 overflow-auto p-5 space-y-4">
@@ -228,12 +228,12 @@ export default function ReceiptsPage() {
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => { e.preventDefault(); handleFile(e.dataTransfer.files[0]); }}
                 onClick={() => fileRef.current?.click()}
-                className="flex flex-col items-center justify-center gap-3 border border-dashed border-[#3a3d42] rounded-lg p-8 cursor-pointer hover:border-[#F5A623]/40 hover:bg-[#202224] transition-colors"
+                className="flex flex-col items-center justify-center gap-3 border border-dashed border-strong rounded-lg p-8 cursor-pointer hover:border-primary/40 hover:bg-surface-100 transition-colors"
               >
-                <Upload className="h-6 w-6 text-[#333]" />
+                <Upload className="h-6 w-6 text-foreground-lighter" />
                 <div className="text-center">
-                  <p className="text-[13px] text-[#555]">Drop receipt photo here</p>
-                  <p className="text-[11px] text-[#333] mt-1">or click to browse · JPG, PNG, HEIC</p>
+                  <p className="text-[13px] text-foreground-lighter">Drop receipt photo here</p>
+                  <p className="text-[11px] text-foreground-lighter mt-1">or click to browse · JPG, PNG, HEIC</p>
                 </div>
                 <input
                   ref={fileRef}
@@ -245,11 +245,11 @@ export default function ReceiptsPage() {
               </div>
 
               {imgSrc && (
-                <div className="relative rounded overflow-hidden border border-[#2b2e33]">
-                  <img src={imgSrc} alt="Receipt" className="w-full max-h-48 object-contain bg-[#1b1c1e]" />
+                <div className="relative rounded-lg overflow-hidden border border-border">
+                  <img src={imgSrc} alt="Receipt" className="w-full max-h-48 object-contain bg-background" />
                   <button
                     onClick={() => { setImgSrc(null); setImgBase64(null); }}
-                    className="absolute top-2 right-2 p-1 bg-[#202224] border border-[#222] rounded text-[#555] hover:text-[#888]"
+                    className="absolute top-2 right-2 p-1 bg-surface-100 border border-border rounded-md text-foreground-lighter hover:text-foreground-light"
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -257,13 +257,13 @@ export default function ReceiptsPage() {
               )}
 
               {error && (
-                <div className="flex items-start gap-2 px-3 py-2.5 rounded bg-[#EF4444]/10 border border-[#EF4444]/20">
-                  <AlertCircle className="h-3.5 w-3.5 text-[#EF4444] mt-px flex-shrink-0" />
-                  <p className="text-[12px] text-[#EF4444]">{error}</p>
+                <div className="flex items-start gap-2 px-3 py-2.5 rounded-md bg-destructive-subtle border border-destructive-border">
+                  <AlertCircle className="h-3.5 w-3.5 text-destructive mt-px flex-shrink-0" />
+                  <p className="text-[12px] text-destructive">{error}</p>
                 </div>
               )}
 
-              <div className="text-[11px] text-[#3a3d42] space-y-0.5 px-1">
+              <div className="text-[11px] text-foreground-lighter space-y-0.5 px-1">
                 <p>· Good lighting, flat surface, all items visible</p>
                 <p>· Works with handwritten slips and printed invoices</p>
                 <p>· BSD$ = USD$ at 1:1 parity</p>
@@ -272,7 +272,7 @@ export default function ReceiptsPage() {
               <button
                 onClick={scan}
                 disabled={!imgBase64}
-                className="w-full py-2.5 text-[13px] font-medium bg-[#F5A623] text-[#18191b] rounded hover:bg-[#f5a623cc] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                className="w-full py-2.5 text-[13px] font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/80 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 Parse with Claude
               </button>
@@ -281,21 +281,21 @@ export default function ReceiptsPage() {
 
           {phase === "scanning" && (
             <div className="flex flex-col items-center justify-center py-16 gap-4">
-              <div className="h-6 w-6 border-2 border-[#F5A623]/30 border-t-[#F5A623] rounded-full animate-spin" />
-              <p className="text-[13px] text-[#555]">Reading receipt...</p>
-              <p className="text-[11px] text-[#333]">Claude is extracting line items</p>
+              <div className="h-6 w-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+              <p className="text-[13px] text-foreground-lighter">Reading receipt...</p>
+              <p className="text-[11px] text-foreground-lighter">Claude is extracting line items</p>
             </div>
           )}
 
           {phase === "review" && (
             <>
               <div className="flex items-center justify-between">
-                <p className="text-[11px] font-mono text-[#444] uppercase tracking-widest">
+                <p className="text-[11px] font-mono text-foreground-lighter uppercase tracking-widest">
                   {items.length} items found
                 </p>
                 <button
                   onClick={() => { setPhase("idle"); setImgSrc(null); setImgBase64(null); }}
-                  className="text-[11px] text-[#333] hover:text-[#666] transition-colors"
+                  className="text-[11px] text-foreground-lighter hover:text-foreground-light transition-colors"
                 >
                   Re-scan
                 </button>
@@ -312,8 +312,8 @@ export default function ReceiptsPage() {
                     <div
                       key={i}
                       className={cn(
-                        "rounded border p-3 transition-colors",
-                        isSel ? "border-[#3a3d42] bg-[#202224]" : "border-[#292c31] bg-[#1b1c1e] opacity-50"
+                        "rounded-lg border p-3 transition-colors",
+                        isSel ? "border-strong bg-surface-100" : "border-border bg-background opacity-50"
                       )}
                     >
                       <div className="flex items-start gap-2.5">
@@ -321,34 +321,34 @@ export default function ReceiptsPage() {
                           type="checkbox"
                           checked={isSel}
                           onChange={() => setSelected((s) => ({ ...s, [i]: !s[i] }))}
-                          className="mt-0.5 accent-[#F5A623]"
+                          className="mt-0.5 accent-primary"
                         />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-baseline justify-between gap-2">
-                            <span className="text-[13px] text-[#aaa] truncate">{item.receiptName}</span>
+                            <span className="text-[13px] text-foreground-light truncate">{item.receiptName}</span>
                             {item.unitCost != null && (
-                              <span className="text-[12px] font-mono text-[#F5A623] flex-shrink-0">
+                              <span className="text-[12px] tabular-nums text-brand flex-shrink-0">
                                 BSD${item.unitCost.toFixed(2)}{item.unit ? `/${item.unit}` : ""}
                               </span>
                             )}
                           </div>
 
-                          <div className="flex gap-3 mt-1 text-[11px] text-[#333]">
+                          <div className="flex gap-3 mt-1 text-[11px] text-foreground-lighter">
                             {item.vendor && <span>{item.vendor}</span>}
                             {item.receiptDate && <span>{item.receiptDate}</span>}
                             {item.qty && <span>qty: {item.qty}</span>}
                           </div>
 
                           {match && (
-                            <div className="mt-2 px-2 py-1.5 rounded bg-[#1b1c1e] border border-[#2b2e33]">
+                            <div className="mt-2 px-2 py-1.5 rounded-md bg-background border border-border">
                               <div className="flex items-center gap-1.5 text-[11px]">
-                                <span className="text-[#444]">Match ({item.matchConfidence}):</span>
-                                <span className="text-[#666] truncate">{match.name}</span>
-                                <span className="text-[#333] ml-auto flex-shrink-0">was BSD${match.unit_cost.toFixed(2)}</span>
+                                <span className="text-foreground-lighter">Match ({item.matchConfidence}):</span>
+                                <span className="text-foreground-lighter truncate">{match.name}</span>
+                                <span className="text-foreground-lighter ml-auto flex-shrink-0">was BSD${match.unit_cost.toFixed(2)}</span>
                                 {priceDelta !== null && priceDelta !== 0 && (
                                   <span className={cn(
-                                    "font-mono flex-shrink-0",
-                                    priceDelta > 0 ? "text-[#EF4444]" : "text-[#22C55E]"
+                                    "tabular-nums flex-shrink-0",
+                                    priceDelta > 0 ? "text-destructive" : "text-success"
                                   )}>
                                     {priceDelta > 0 ? "+" : ""}{priceDelta.toFixed(2)}
                                   </span>
@@ -363,10 +363,10 @@ export default function ReceiptsPage() {
                                 <button
                                   onClick={() => setModes((m) => ({ ...m, [i]: "update" }))}
                                   className={cn(
-                                    "px-2 py-0.5 rounded text-[10px] border transition-colors",
+                                    "px-2 py-0.5 rounded-full text-[10px] border transition-colors",
                                     mode === "update"
-                                      ? "border-[#F5A623]/40 text-[#F5A623] bg-[#F5A623]/10"
-                                      : "border-[#2b2e33] text-[#333] hover:text-[#555]"
+                                      ? "border-brand-border text-brand bg-brand-subtle"
+                                      : "border-border text-foreground-lighter hover:text-foreground-light"
                                   )}
                                 >
                                   Update price
@@ -375,10 +375,10 @@ export default function ReceiptsPage() {
                               <button
                                 onClick={() => setModes((m) => ({ ...m, [i]: "add" }))}
                                 className={cn(
-                                  "px-2 py-0.5 rounded text-[10px] border transition-colors",
+                                  "px-2 py-0.5 rounded-full text-[10px] border transition-colors",
                                   mode === "add"
-                                    ? "border-[#3B82F6]/40 text-[#3B82F6] bg-[#3B82F6]/10"
-                                    : "border-[#2b2e33] text-[#333] hover:text-[#555]"
+                                    ? "border-info-border text-info bg-info-subtle"
+                                    : "border-border text-foreground-lighter hover:text-foreground-light"
                                 )}
                               >
                                 Add new
@@ -392,18 +392,18 @@ export default function ReceiptsPage() {
                 })}
               </div>
 
-              <div className="flex items-center justify-between pt-2 border-t border-[#2b2e33]">
-                <div className="text-[11px] font-mono text-[#444]">
-                  {matchedCount > 0 && <span className="text-[#F5A623]">{matchedCount} update{matchedCount !== 1 ? "s" : ""} </span>}
-                  {addCount > 0 && <span className="text-[#3B82F6]">{addCount} new</span>}
+              <div className="flex items-center justify-between pt-2 border-t border-border">
+                <div className="text-[11px] tabular-nums text-foreground-lighter">
+                  {matchedCount > 0 && <span className="text-brand">{matchedCount} update{matchedCount !== 1 ? "s" : ""} </span>}
+                  {addCount > 0 && <span className="text-info">{addCount} new</span>}
                   {matchedCount === 0 && addCount === 0 && <span>Select items to apply</span>}
                 </div>
                 <button
                   onClick={applyChanges}
                   disabled={applyLoading || (matchedCount === 0 && addCount === 0)}
-                  className="px-4 py-1.5 text-[12px] font-medium bg-[#F5A623] text-[#18191b] rounded hover:bg-[#f5a623cc] transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5"
+                  className="px-4 py-1.5 text-[12px] font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/80 transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5"
                 >
-                  {applyLoading && <div className="h-3 w-3 border border-[#18191b]/30 border-t-[#18191b] rounded-full animate-spin" />}
+                  {applyLoading && <div className="h-3 w-3 border border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />}
                   Apply to DB
                 </button>
               </div>
@@ -414,38 +414,38 @@ export default function ReceiptsPage() {
 
       {/* Right panel — history */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex items-center gap-2 px-5 py-3.5 border-b border-[#2b2e33]">
-          <Clock className="h-4 w-4 text-[#444]" />
-          <span className="text-[13px] font-semibold text-[#d0d0d0]">Receipt History</span>
+        <div className="flex items-center gap-2 px-5 py-3.5 border-b border-border">
+          <Clock className="h-4 w-4 text-foreground-lighter" />
+          <span className="text-[13px] font-semibold text-foreground">Receipt History</span>
         </div>
 
         <div className="flex-1 overflow-auto">
           {history.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full gap-2">
-              <ScanLine className="h-8 w-8 text-[#2b2e33]" />
-              <p className="text-[12px] text-[#333]">No receipts scanned yet</p>
+              <ScanLine className="h-8 w-8 text-border" />
+              <p className="text-[12px] text-foreground-lighter">No receipts scanned yet</p>
             </div>
           ) : (
-            <div className="divide-y divide-[#23252a]">
+            <div className="divide-y divide-border">
               {history.map((r) => (
-                <div key={r.id} className="flex items-center justify-between px-5 py-3.5 hover:bg-[#1b1c1e] transition-colors">
+                <div key={r.id} className="flex items-center justify-between px-5 py-3.5 hover:bg-surface-100 transition-colors">
                   <div>
-                    <p className="text-[13px] text-[#888]">{r.vendor ?? "Unknown vendor"}</p>
-                    <p className="text-[11px] text-[#333] mt-0.5">
+                    <p className="text-[13px] text-foreground-lighter">{r.vendor ?? "Unknown vendor"}</p>
+                    <p className="text-[11px] text-foreground-lighter mt-0.5">
                       {r.receipt_date ?? new Date(r.created_at).toLocaleDateString()}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
                     {r.total_amount != null && (
-                      <span className="text-[12px] font-mono text-[#F5A623]">
+                      <span className="text-[12px] tabular-nums text-brand">
                         BSD${r.total_amount.toFixed(2)}
                       </span>
                     )}
                     <span className={cn(
-                      "text-[10px] font-mono px-1.5 py-0.5 rounded border",
+                      "text-[10px] tabular-nums px-1.5 py-0.5 rounded-full border",
                       r.status === "processed"
-                        ? "text-[#22C55E] border-[#22C55E]/20 bg-[#22C55E]/5"
-                        : "text-[#555] border-[#222]"
+                        ? "text-success border-success-border bg-success-subtle"
+                        : "text-foreground-lighter border-border"
                     )}>
                       {r.status}
                     </span>
@@ -459,9 +459,9 @@ export default function ReceiptsPage() {
 
       {/* Toast */}
       {toast && (
-        <div className="fixed bottom-5 right-5 flex items-center gap-2 px-4 py-2.5 bg-[#202224] border border-[#222] rounded-lg shadow-2xl z-50">
-          <Check className="h-3.5 w-3.5 text-[#22C55E]" />
-          <span className="text-[13px] text-[#d0d0d0]">{toast}</span>
+        <div className="fixed bottom-5 right-5 flex items-center gap-2 px-4 py-2.5 bg-surface-100 border border-border rounded-lg shadow-2xl z-50">
+          <Check className="h-3.5 w-3.5 text-success" />
+          <span className="text-[13px] text-foreground">{toast}</span>
         </div>
       )}
     </div>

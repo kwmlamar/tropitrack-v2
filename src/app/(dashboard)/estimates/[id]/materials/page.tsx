@@ -222,12 +222,12 @@ export default function MaterialsCalcPage() {
             </div>
             <h1 className="text-[16px] font-semibold truncate">{estimate.title || "Untitled estimate"}</h1>
           </div>
-          <div className="flex items-center gap-2 text-[11px] font-mono">
-            <Link href={`/estimates/${estimateId}/builder`} className="px-2.5 py-1 rounded text-muted-foreground hover:text-foreground transition-colors">
+          <div className="flex items-center gap-2 text-[11px] tabular-nums">
+            <Link href={`/estimates/${estimateId}/builder`} className="px-2.5 py-1 rounded-md text-muted-foreground hover:text-foreground transition-colors">
               Builder
             </Link>
-            <span className="px-2.5 py-1 rounded bg-muted text-bedrock-amber">Materials</span>
-            <Link href={`/estimates/${estimateId}/preview`} className="px-2.5 py-1 rounded text-muted-foreground hover:text-foreground transition-colors">
+            <span className="px-2.5 py-1 rounded-md bg-muted text-brand">Materials</span>
+            <Link href={`/estimates/${estimateId}/preview`} className="px-2.5 py-1 rounded-md text-muted-foreground hover:text-foreground transition-colors">
               Preview
             </Link>
           </div>
@@ -236,7 +236,7 @@ export default function MaterialsCalcPage() {
 
       <div className="flex-1 p-6 space-y-6">
         {/* Formula banner */}
-        <div className="rounded border border-border bg-card px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
+        <div className="rounded-lg border border-border bg-card px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-mono text-muted-foreground/70 uppercase tracking-widest">Material markup</span>
@@ -245,7 +245,7 @@ export default function MaterialsCalcPage() {
                   value={estimate.default_material_markup_pct ?? null}
                   onCommit={(v) => updateEstimate({ default_material_markup_pct: v ?? 0 })}
                   disabled={!isEditable}
-                  className="text-[13px] font-mono text-foreground tabular-nums w-full text-right py-0.5 px-1 bg-muted/40 rounded"
+                  className="text-[13px] tabular-nums text-foreground tabular-nums w-full text-right py-0.5 px-1 bg-muted/40 rounded-md"
                   placeholder="0"
                   suffix="%"
                 />
@@ -258,21 +258,21 @@ export default function MaterialsCalcPage() {
                   value={estimate.default_equipment_markup_pct ?? null}
                   onCommit={(v) => updateEstimate({ default_equipment_markup_pct: v ?? 0 })}
                   disabled={!isEditable}
-                  className="text-[13px] font-mono text-foreground tabular-nums w-full text-right py-0.5 px-1 bg-muted/40 rounded"
+                  className="text-[13px] tabular-nums text-foreground tabular-nums w-full text-right py-0.5 px-1 bg-muted/40 rounded-md"
                   placeholder="0"
                   suffix="%"
                 />
               </div>
             </div>
           </div>
-          <span className="text-[11px] font-mono text-muted-foreground/70">
+          <span className="text-[11px] tabular-nums text-muted-foreground/70">
             Sell = qty × unit cost × (1 + markup% / 100)
           </span>
         </div>
 
         {/* Table */}
         {sections.length === 0 ? (
-          <div className="rounded border border-border bg-card py-12 text-center">
+          <div className="rounded-lg border border-border bg-card py-12 text-center">
             <p className="text-[13px] text-muted-foreground">No sections on this estimate yet.</p>
             <p className="text-[11px] text-muted-foreground/60 mt-1.5">
               Add sections via the{" "}
@@ -282,12 +282,12 @@ export default function MaterialsCalcPage() {
             </p>
           </div>
         ) : (
-          <div className="rounded border border-border bg-card overflow-hidden">
+          <div className="rounded-lg border border-border bg-card overflow-hidden">
             <div className="px-4 py-3 border-b border-border flex items-center justify-between">
               <span className="text-[11px] font-mono text-muted-foreground/70 uppercase tracking-widest">
                 Materials & Equipment
               </span>
-              <div className="flex items-center gap-4 text-[11px] font-mono text-muted-foreground">
+              <div className="flex items-center gap-4 text-[11px] tabular-nums text-muted-foreground">
                 <span>{sections.length} section{sections.length === 1 ? "" : "s"} · {lines.length} line item{lines.length === 1 ? "" : "s"}</span>
                 {savingCount > 0 && (
                   <span className="flex items-center gap-1.5">
@@ -355,10 +355,10 @@ export default function MaterialsCalcPage() {
                 <tr className="border-t-2 border-border bg-muted/40">
                   <td className="px-4 py-3 text-[12px] font-semibold text-foreground">Totals</td>
                   <td colSpan={4} />
-                  <td className="px-2 py-3 text-right text-[13px] font-mono text-foreground font-semibold tabular-nums">
+                  <td className="px-2 py-3 text-right text-[13px] tabular-nums text-foreground font-semibold tabular-nums">
                     {formatCurrency(totalCost)}
                   </td>
-                  <td className="px-2 py-3 text-right text-[14px] font-mono text-bedrock-amber font-semibold tabular-nums">
+                  <td className="px-2 py-3 text-right text-[14px] tabular-nums text-brand font-semibold tabular-nums">
                     {formatCurrency(totalSell)}
                   </td>
                   <td />
@@ -368,7 +368,7 @@ export default function MaterialsCalcPage() {
                   <td className="px-2 pb-3 text-right text-[10px] font-mono uppercase tracking-widest text-muted-foreground/70">
                     +markup
                   </td>
-                  <td className="px-2 pb-3 text-right text-[11px] font-mono text-muted-foreground tabular-nums">
+                  <td className="px-2 pb-3 text-right text-[11px] tabular-nums text-muted-foreground tabular-nums">
                     +{formatCurrency(totalMarkup)}
                   </td>
                   <td />
@@ -402,14 +402,14 @@ function SectionHeaderRow({ name, cost, sell, itemCount, editable, onAdd, catalo
       <td className="px-4 py-2.5 text-[12.5px] font-semibold text-foreground">
         <div className="flex items-center gap-3 relative">
           <span>{name}</span>
-          <span className="text-[10px] font-mono text-muted-foreground/70">
+          <span className="text-[10px] tabular-nums text-muted-foreground/70">
             {itemCount} line{itemCount === 1 ? "" : "s"}
           </span>
           {editable && (
             <>
               <button
                 onClick={() => setAddOpen((v) => !v)}
-                className="ml-2 inline-flex items-center gap-1 text-[10px] font-mono text-muted-foreground hover:text-foreground transition-colors px-1.5 py-0.5 rounded hover:bg-accent"
+                className="ml-2 inline-flex items-center gap-1 text-[10px] tabular-nums text-muted-foreground hover:text-foreground transition-colors px-1.5 py-0.5 rounded-md hover:bg-accent"
               >
                 <Plus className="h-3 w-3" />
                 Add
@@ -429,10 +429,10 @@ function SectionHeaderRow({ name, cost, sell, itemCount, editable, onAdd, catalo
         </div>
       </td>
       <td colSpan={4} className="px-2 py-2.5" />
-      <td className="px-2 py-2.5 text-right text-[12px] font-mono text-muted-foreground tabular-nums">
+      <td className="px-2 py-2.5 text-right text-[12px] tabular-nums text-muted-foreground tabular-nums">
         {formatCurrency(cost)}
       </td>
-      <td className="px-2 py-2.5 text-right text-[12px] font-mono text-foreground font-semibold tabular-nums">
+      <td className="px-2 py-2.5 text-right text-[12px] tabular-nums text-foreground font-semibold tabular-nums">
         {formatCurrency(sell)}
       </td>
       <td />
@@ -540,11 +540,11 @@ function AddMaterialMenu({ catalog, onSelect, onClose }: AddMaterialMenuProps) {
             >
               <div className="min-w-0 flex-1">
                 <div className="text-[12px] text-foreground truncate">{m.name}</div>
-                <div className="text-[10px] font-mono text-muted-foreground/70">
+                <div className="text-[10px] tabular-nums text-muted-foreground/70">
                   {m.category} {m.unit && `· ${m.unit}`}
                 </div>
               </div>
-              <div className="text-[12px] font-mono text-muted-foreground tabular-nums whitespace-nowrap">
+              <div className="text-[12px] tabular-nums text-muted-foreground tabular-nums whitespace-nowrap">
                 {formatCurrency(Number(m.unit_cost))}
               </div>
             </button>
@@ -556,9 +556,9 @@ function AddMaterialMenu({ catalog, onSelect, onClose }: AddMaterialMenuProps) {
       <div className="border-t border-border bg-muted/40">
         <button
           onClick={() => onSelect({ isEquipment })}
-          className="w-full px-3 py-2 text-left text-[11px] font-mono text-muted-foreground hover:text-foreground transition-colors"
+          className="w-full px-3 py-2 text-left text-[11px] tabular-nums text-muted-foreground hover:text-foreground transition-colors"
         >
-          + Add blank line {isEquipment && <span className="text-bedrock-amber">(equipment)</span>}
+          + Add blank line {isEquipment && <span className="text-brand">(equipment)</span>}
         </button>
       </div>
     </div>
@@ -596,12 +596,12 @@ function MaterialRow({ line, estimate, editable, onUpdate, onDelete }: MaterialR
               placeholder="(no description)"
             />
             {line.is_equipment && (
-              <span className="text-[9px] font-mono uppercase tracking-wider text-bedrock-amber/80 px-1 rounded border border-bedrock-amber/30">
+              <span className="text-[9px] font-mono uppercase tracking-wider text-brand/80 px-1 rounded-full border border-primary/30">
                 equip
               </span>
             )}
             {line.material_id && (
-              <span className="text-[10px] font-mono text-muted-foreground/50" title="Linked to catalog">⇄</span>
+              <span className="text-[10px] tabular-nums text-muted-foreground/50" title="Linked to catalog">⇄</span>
             )}
           </div>
           {/* Client-facing label (issue #13). */}
@@ -619,7 +619,7 @@ function MaterialRow({ line, estimate, editable, onUpdate, onDelete }: MaterialR
           value={line.quantity}
           onCommit={(v) => onUpdate({ quantity: v ?? 0 })}
           disabled={!editable}
-          className="text-[12px] font-mono text-foreground tabular-nums w-full text-right"
+          className="text-[12px] tabular-nums text-foreground tabular-nums w-full text-right"
         />
       </td>
       <td className="px-2 py-2">
@@ -628,7 +628,7 @@ function MaterialRow({ line, estimate, editable, onUpdate, onDelete }: MaterialR
           options={COMMON_UNITS}
           onCommit={(v) => onUpdate({ unit: v || null })}
           disabled={!editable}
-          className="text-[12px] font-mono text-muted-foreground w-full"
+          className="text-[12px] tabular-nums text-muted-foreground w-full"
         />
       </td>
       <td className="px-2 py-2 text-right">
@@ -636,7 +636,7 @@ function MaterialRow({ line, estimate, editable, onUpdate, onDelete }: MaterialR
           value={line.unit_cost}
           onCommit={(v) => onUpdate({ unit_cost: v ?? 0 })}
           disabled={!editable}
-          className="text-[12px] font-mono text-foreground tabular-nums w-full text-right"
+          className="text-[12px] tabular-nums text-foreground tabular-nums w-full text-right"
           prefix="$"
         />
       </td>
@@ -646,17 +646,17 @@ function MaterialRow({ line, estimate, editable, onUpdate, onDelete }: MaterialR
           onCommit={(v) => onUpdate({ markup_pct: v })}
           disabled={!editable}
           className={cn(
-            "text-[12px] font-mono tabular-nums w-full text-right",
-            line.markup_pct != null ? "text-bedrock-amber" : "text-muted-foreground/70",
+            "text-[12px] tabular-nums tabular-nums w-full text-right",
+            line.markup_pct != null ? "text-brand" : "text-muted-foreground/70",
           )}
           placeholder={`${resolvedMarkup}%`}
           suffix="%"
         />
       </td>
-      <td className="px-2 py-2 text-right text-[12px] font-mono text-muted-foreground tabular-nums">
+      <td className="px-2 py-2 text-right text-[12px] tabular-nums text-muted-foreground tabular-nums">
         {cost > 0 ? formatCurrency(cost) : "—"}
       </td>
-      <td className="px-2 py-2 text-right text-[12.5px] font-mono text-foreground font-semibold tabular-nums">
+      <td className="px-2 py-2 text-right text-[12.5px] tabular-nums text-foreground font-semibold tabular-nums">
         {sell > 0 ? formatCurrency(sell) : "—"}
       </td>
       <td className="px-2 py-2 text-right">
@@ -696,7 +696,7 @@ function EditableText({
       onChange={(e) => setLocal(e.target.value)}
       onBlur={() => { if (local !== value) onCommit(local); }}
       onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-      className={cn("bg-transparent border-0 outline-none focus:bg-accent/60 focus:ring-1 focus:ring-ring rounded px-1", className)}
+      className={cn("bg-transparent border-0 outline-none focus:bg-accent/60 focus:ring-1 focus:ring-ring rounded-md px-1", className)}
     />
   );
 }
@@ -753,7 +753,7 @@ function EditableNumber({
           if (e.key === "Escape") { setLocal(value == null ? "" : String(value)); (e.target as HTMLInputElement).blur(); }
         }}
         className={cn(
-          "bg-transparent border-0 outline-none focus:bg-accent/60 focus:ring-1 focus:ring-ring rounded",
+          "bg-transparent border-0 outline-none focus:bg-accent/60 focus:ring-1 focus:ring-ring rounded-md",
           prefix && "pl-3.5",
           suffix && "pr-3",
           className,
@@ -788,7 +788,7 @@ function EditableSelect({
         onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
         placeholder="—"
         className={cn(
-          "bg-transparent border-0 outline-none focus:bg-accent/60 focus:ring-1 focus:ring-ring rounded px-1",
+          "bg-transparent border-0 outline-none focus:bg-accent/60 focus:ring-1 focus:ring-ring rounded-md px-1",
           className,
         )}
       />

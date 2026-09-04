@@ -291,7 +291,7 @@ export function ScopeThisButton({
                         </div>
                       )}
                     </div>
-                    <div className="text-[10px] font-mono text-muted-foreground flex-shrink-0">
+                    <div className="text-[10px] tabular-nums text-muted-foreground flex-shrink-0">
                       {sec.duration_days}d · {sec.items.length} tasks · {sec.materials.length} mats
                     </div>
                     <div className="text-[13px] font-semibold tabular-nums text-foreground flex-shrink-0">
@@ -305,10 +305,10 @@ export function ScopeThisButton({
                         {sec.items.map((it, i) => (
                           <li key={i} className="text-[12px] text-foreground/90 flex items-baseline justify-between gap-3">
                             <span className="flex-1 min-w-0 truncate">{it.description}</span>
-                            <span className="font-mono text-muted-foreground flex-shrink-0">
+                            <span className="tabular-nums text-muted-foreground flex-shrink-0">
                               {it.man_days} md
                             </span>
-                            <span className="font-mono tabular-nums text-foreground/80 flex-shrink-0 w-20 text-right">
+                            <span className="tabular-nums tabular-nums text-foreground/80 flex-shrink-0 w-20 text-right">
                               {formatCurrency(it.man_days * laborRate)}
                             </span>
                           </li>
@@ -326,10 +326,10 @@ export function ScopeThisButton({
                           return (
                             <li key={i} className="text-[12px] text-foreground/90 flex items-baseline justify-between gap-3">
                               <span className="flex-1 min-w-0 truncate">{m.description}</span>
-                              <span className="font-mono text-muted-foreground flex-shrink-0">
+                              <span className="tabular-nums text-muted-foreground flex-shrink-0">
                                 {m.quantity} {m.unit ?? ""}
                               </span>
-                              <span className="font-mono tabular-nums text-foreground/80 flex-shrink-0 w-20 text-right">
+                              <span className="tabular-nums tabular-nums text-foreground/80 flex-shrink-0 w-20 text-right">
                                 {formatCurrency(sell)}
                               </span>
                             </li>

@@ -116,7 +116,7 @@ export function TemplatePreview({ template }: TemplatePreviewProps) {
         }, {} as Record<string, typeof lineItems>);
 
   return (
-    <div className="border rounded-lg p-6 bg-white dark:bg-gray-950 text-sm space-y-4 max-h-[600px] overflow-y-auto">
+    <div className="border rounded-lg p-6 bg-card text-sm space-y-4 max-h-[600px] overflow-y-auto">
       {/* Header */}
       <div className="text-center border-b pb-4">
         <h2 className="text-2xl font-bold">
@@ -132,7 +132,7 @@ export function TemplatePreview({ template }: TemplatePreviewProps) {
         {Object.entries(groupedItems).map(([groupName, items]) => (
           <div key={groupName}>
             {template.group_by !== "none" && (
-              <h3 className="font-semibold text-base mb-2 uppercase text-gray-700 dark:text-gray-300">
+              <h3 className="font-semibold text-base mb-2 uppercase text-foreground-light">
                 {groupName}
               </h3>
             )}
@@ -150,7 +150,7 @@ export function TemplatePreview({ template }: TemplatePreviewProps) {
                       // Minimal format - just description and amount
                       <div className="flex justify-between items-center">
                         {template.show_line_item_descriptions && (
-                          <span className="text-gray-600 dark:text-gray-400">
+                          <span className="text-foreground-light">
                             {item.description}
                           </span>
                         )}
@@ -163,7 +163,7 @@ export function TemplatePreview({ template }: TemplatePreviewProps) {
                           <div className="font-medium">{item.description}</div>
                         )}
 
-                        <div className="flex justify-between items-center text-gray-600 dark:text-gray-400">
+                        <div className="flex justify-between items-center text-foreground-light">
                           <div>
                             {showFullDetails && (
                               <>
@@ -251,7 +251,7 @@ export function TemplatePreview({ template }: TemplatePreviewProps) {
       </div>
 
       {/* Footer Note */}
-      <div className="border-t pt-4 mt-4 text-xs text-gray-500 dark:text-gray-400 text-center">
+      <div className="border-t pt-4 mt-4 text-xs text-foreground-lighter text-center">
         This is a preview using sample data
       </div>
     </div>

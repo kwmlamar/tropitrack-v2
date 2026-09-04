@@ -10,14 +10,14 @@ import { cn } from "@/lib/utils";
 import type { Project } from "@/types";
 
 const STATUS_DOT: Record<string, string> = {
-  active:      "bg-[#22C55E]",
-  in_progress: "bg-[#22C55E]",
-  planning:    "bg-[#3B82F6]",
-  not_started: "bg-[#3B82F6]",
-  completed:   "bg-[#404040]",
-  paused:      "bg-[#F5A623]",
-  on_hold:     "bg-[#F5A623]",
-  cancelled:   "bg-[#EF4444]",
+  active:      "bg-success",
+  in_progress: "bg-success",
+  planning:    "bg-info",
+  not_started: "bg-info",
+  completed:   "bg-foreground-lighter",
+  paused:      "bg-warning",
+  on_hold:     "bg-warning",
+  cancelled:   "bg-destructive",
 };
 
 const STATUS_OPTIONS = ["all", "planning", "active", "on_hold", "completed", "cancelled"];
@@ -90,16 +90,16 @@ export default function ProjectsPage() {
   ];
 
   return (
-    <div className="flex flex-col h-full overflow-auto bg-[#18191b]">
+    <div className="flex flex-col h-full overflow-auto bg-background">
       {/* Top bar */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-[#34373c] flex-shrink-0">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0">
         <div>
-          <p className="text-[11px] font-mono text-[#666] uppercase tracking-widest">Jobs</p>
-          <h1 className="text-[16px] font-semibold text-[#d0d0d0] mt-0.5">All Jobs</h1>
+          <p className="text-[11px] font-mono text-foreground-lighter uppercase tracking-widest">Jobs</p>
+          <h1 className="text-[16px] font-semibold text-foreground mt-0.5">All Jobs</h1>
         </div>
         <Link
           href="/projects/new"
-          className="text-[12px] font-medium text-[#F5A623] hover:opacity-80 transition-opacity"
+          className="text-[12px] font-medium text-brand hover:opacity-80 transition-opacity"
         >
           + New Job
         </Link>
@@ -110,12 +110,12 @@ export default function ProjectsPage() {
         <div className="grid grid-cols-4 gap-3">
           {loading
             ? Array(4).fill(0).map((_, i) => (
-                <div key={i} className="h-[72px] rounded border border-[#34373c] bg-[#202224] animate-pulse" />
+                <div key={i} className="h-[72px] rounded-lg border border-border bg-surface-100 animate-pulse" />
               ))
             : stats.map((s) => (
-                <div key={s.label} className="rounded border border-[#34373c] bg-[#202224] px-4 py-3.5">
-                  <p className="text-[11px] font-mono text-[#666] uppercase tracking-wider">{s.label}</p>
-                  <p className="text-[22px] font-semibold font-mono text-[#d0d0d0] mt-1 leading-none">{s.value}</p>
+                <div key={s.label} className="rounded-lg border border-border bg-surface-100 px-4 py-3.5">
+                  <p className="text-[11px] font-mono text-foreground-lighter uppercase tracking-wider">{s.label}</p>
+                  <p className="text-[22px] font-semibold tabular-nums text-foreground mt-1 leading-none">{s.value}</p>
                 </div>
               ))
           }
@@ -127,7 +127,7 @@ export default function ProjectsPage() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search jobs..."
-            className="flex-1 min-w-[200px] bg-[#202224] border border-[#34373c] rounded px-3 py-2 text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#333] transition-colors"
+            className="flex-1 min-w-[200px] bg-surface-100 border border-border rounded-md px-3 py-2 text-[13px] text-foreground-light placeholder:text-foreground-lighter outline-none focus:border-strong transition-colors"
           />
           <div className="flex items-center gap-1">
             {STATUS_OPTIONS.map((s) => (
@@ -135,10 +135,10 @@ export default function ProjectsPage() {
                 key={s}
                 onClick={() => setStatusFilter(s)}
                 className={cn(
-                  "px-2.5 py-1.5 rounded text-[10px] font-mono uppercase tracking-wide transition-colors",
+                  "px-2.5 py-1.5 rounded-md text-[10px] font-mono uppercase tracking-wide transition-colors",
                   statusFilter === s
-                    ? "bg-[#2d3035] text-[#F5A623] border border-[#333]"
-                    : "text-[#555] hover:text-[#999]"
+                    ? "bg-surface-300 text-brand border border-strong"
+                    : "text-foreground-lighter hover:text-foreground-light"
                 )}
               >
                 {s.replace("_", " ")}
@@ -148,21 +148,21 @@ export default function ProjectsPage() {
         </div>
 
         {/* Table */}
-        <div className="rounded border border-[#34373c] bg-[#202224] overflow-hidden">
+        <div className="rounded-lg border border-border bg-surface-100 overflow-hidden">
           {loading ? (
-            <div className="divide-y divide-[#292c31]">
+            <div className="divide-y divide-border">
               {Array(6).fill(0).map((_, i) => (
                 <div key={i} className="h-[52px] animate-pulse" />
               ))}
             </div>
           ) : filtered.length === 0 ? (
             <div className="py-16 text-center">
-              <p className="text-[13px] text-[#555]">
+              <p className="text-[13px] text-foreground-lighter">
                 {searchTerm || statusFilter !== "all" ? "No jobs match your filter" : "No jobs yet"}
               </p>
               <Link
                 href="/projects/new"
-                className="inline-block mt-3 text-[12px] text-[#F5A623] hover:opacity-80"
+                className="inline-block mt-3 text-[12px] text-brand hover:opacity-80"
               >
                 Create your first job →
               </Link>
@@ -170,39 +170,39 @@ export default function ProjectsPage() {
           ) : (
             <table className="w-full">
               <thead>
-                <tr className="border-b border-[#2d3035]">
-                  <th className="px-5 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555]">Name</th>
-                  <th className="px-5 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555]">Client</th>
-                  <th className="px-5 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555]">Location</th>
-                  <th className="px-5 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Budget</th>
-                  <th className="px-5 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555]">Start</th>
-                  <th className="px-5 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555]">Status</th>
+                <tr className="border-b border-border">
+                  <th className="px-5 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">Name</th>
+                  <th className="px-5 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">Client</th>
+                  <th className="px-5 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">Location</th>
+                  <th className="px-5 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">Budget</th>
+                  <th className="px-5 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">Start</th>
+                  <th className="px-5 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">Status</th>
                   <th className="w-36 px-5 py-2.5" />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#292c31]">
+              <tbody className="divide-y divide-border">
                 {filtered.map((project) => (
-                  <tr key={project.id} className="group hover:bg-[#23252a] transition-colors">
+                  <tr key={project.id} className="group hover:bg-surface-200 transition-colors">
                     <td className="px-5 py-3">
                       <Link
                         href={`/projects/${project.id}`}
-                        className="text-[13px] text-[#aaa] group-hover:text-[#c4c4c4] transition-colors"
+                        className="text-[13px] text-foreground-light group-hover:text-foreground transition-colors"
                       >
                         {project.name}
                       </Link>
                     </td>
-                    <td className="px-5 py-3 text-[13px] text-[#777]">{project.client_name}</td>
-                    <td className="px-5 py-3 text-[13px] text-[#777]">{project.location}</td>
-                    <td className="px-5 py-3 text-right text-[13px] font-mono text-[#aaa]">
+                    <td className="px-5 py-3 text-[13px] text-foreground-lighter">{project.client_name}</td>
+                    <td className="px-5 py-3 text-[13px] text-foreground-lighter">{project.location}</td>
+                    <td className="px-5 py-3 text-right text-[13px] tabular-nums text-foreground-light">
                       {formatCurrency(project.budget)}
                     </td>
-                    <td className="px-5 py-3 text-[11px] font-mono text-[#555]">
+                    <td className="px-5 py-3 text-[11px] tabular-nums text-foreground-lighter">
                       {formatDate(project.start_date)}
                     </td>
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-2">
-                        <span className={cn("h-1.5 w-1.5 rounded-full flex-shrink-0", STATUS_DOT[project.status] ?? "bg-[#404040]")} />
-                        <span className="text-[11px] font-mono text-[#666] capitalize">
+                        <span className={cn("h-1.5 w-1.5 rounded-full flex-shrink-0", STATUS_DOT[project.status] ?? "bg-foreground-lighter")} />
+                        <span className="text-[11px] tabular-nums text-foreground-lighter capitalize">
                           {project.status.replace("_", " ")}
                         </span>
                       </div>
@@ -211,19 +211,19 @@ export default function ProjectsPage() {
                       <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Link
                           href={`/projects/${project.id}`}
-                          className="text-[11px] text-[#666] hover:text-[#aaa] transition-colors"
+                          className="text-[11px] text-foreground-lighter hover:text-foreground-light transition-colors"
                         >
                           View
                         </Link>
                         <Link
                           href={`/projects/${project.id}/edit`}
-                          className="text-[11px] text-[#666] hover:text-[#aaa] transition-colors"
+                          className="text-[11px] text-foreground-lighter hover:text-foreground-light transition-colors"
                         >
                           Edit
                         </Link>
                         <button
                           onClick={() => handleDelete(project.id)}
-                          className="text-[11px] text-[#666] hover:text-[#EF4444] transition-colors"
+                          className="text-[11px] text-foreground-lighter hover:text-destructive transition-colors"
                         >
                           Delete
                         </button>

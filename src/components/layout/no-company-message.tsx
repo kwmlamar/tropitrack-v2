@@ -7,11 +7,11 @@ import { Building2, AlertCircle } from "lucide-react";
 
 export function NoCompanyMessage() {
   return (
-    <Card className="border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/20">
+    <Card className="border-warning-border bg-warning-subtle">
       <CardContent className="pt-6">
         <div className="flex items-start gap-4">
-          <div className="p-3 rounded-full bg-orange-100 dark:bg-orange-900/50">
-            <AlertCircle className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+          <div className="p-3 rounded-full bg-warning-subtle">
+            <AlertCircle className="h-6 w-6 text-warning" />
           </div>
           <div className="flex-1">
             <h3 className="text-lg font-semibold mb-2">Company Setup Required</h3>

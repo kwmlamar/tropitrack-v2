@@ -238,7 +238,7 @@ export default function ReportsPage() {
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-green-600" />
+                <DollarSign className="h-4 w-4 text-success" />
                 <span className="text-2xl font-bold">{formatCurrency(totalRevenue)}</span>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
@@ -255,7 +255,7 @@ export default function ReportsPage() {
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-2">
-                <TrendingDown className="h-4 w-4 text-red-600" />
+                <TrendingDown className="h-4 w-4 text-destructive" />
                 <span className="text-2xl font-bold">{formatCurrency(totalCosts)}</span>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
@@ -272,8 +272,8 @@ export default function ReportsPage() {
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-2">
-                <TrendingUp className={`h-4 w-4 ${totalProfit >= 0 ? "text-green-600" : "text-red-600"}`} />
-                <span className={`text-2xl font-bold ${totalProfit >= 0 ? "text-green-600" : "text-red-600"}`}>
+                <TrendingUp className={`h-4 w-4 ${totalProfit >= 0 ? "text-success" : "text-destructive"}`} />
+                <span className={`text-2xl font-bold ${totalProfit >= 0 ? "text-success" : "text-destructive"}`}>
                   {formatCurrency(totalProfit)}
                 </span>
               </div>
@@ -291,7 +291,7 @@ export default function ReportsPage() {
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-blue-600" />
+                <Users className="h-4 w-4 text-info" />
                 <span className="text-2xl font-bold">{totalWorkerHours.toFixed(0)}</span>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
@@ -339,7 +339,7 @@ export default function ReportsPage() {
                           <TableCell>{formatCurrency(project.contract_value)}</TableCell>
                           <TableCell>{formatCurrency(project.total_cost)}</TableCell>
                           <TableCell>
-                            <span className={project.budget_variance >= 0 ? "text-green-600" : "text-red-600"}>
+                            <span className={project.budget_variance >= 0 ? "text-success" : "text-destructive"}>
                               {formatCurrency(project.budget_variance)}
                             </span>
                           </TableCell>
@@ -349,7 +349,7 @@ export default function ReportsPage() {
                                 value={Math.max(0, Math.min(100, project.profit_margin_percent))}
                                 className="w-16 h-2"
                               />
-                              <span className={`text-sm ${project.profit_margin_percent >= 0 ? "text-green-600" : "text-red-600"}`}>
+                              <span className={`text-sm ${project.profit_margin_percent >= 0 ? "text-success" : "text-destructive"}`}>
                                 {project.profit_margin_percent.toFixed(1)}%
                               </span>
                             </div>
@@ -381,11 +381,17 @@ export default function ReportsPage() {
                   <CardDescription>Breakdown by category</CardDescription>
                 </CardHeader>
                 <CardContent>
+                  {/* Cost-breakdown legend: a 4-way chart series, not a status
+                      indicator. Labor/Materials line up with the info/success
+                      tokens; Equipment/Overhead have no status-token
+                      equivalent, so they keep fixed chart colors (orange/
+                      purple) rather than borrowing warning/destructive and
+                      implying a severity that isn't there. */}
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded bg-blue-500"></div>
+                          <div className="w-3 h-3 rounded bg-info-solid"></div>
                           Labor
                         </span>
                         <span className="font-medium">{formatCurrency(totalLaborCost)}</span>
@@ -402,14 +408,14 @@ export default function ReportsPage() {
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded bg-green-500"></div>
+                          <div className="w-3 h-3 rounded bg-success-solid"></div>
                           Materials
                         </span>
                         <span className="font-medium">{formatCurrency(totalMaterialCost)}</span>
                       </div>
                       <Progress
                         value={calculatePercentage(totalMaterialCost, totalCosts)}
-                        className="h-2 [&>div]:bg-green-500"
+                        className="h-2 [&>div]:bg-success-solid"
                       />
                       <p className="text-xs text-muted-foreground text-right">
                         {calculatePercentage(totalMaterialCost, totalCosts).toFixed(1)}%
@@ -419,14 +425,14 @@ export default function ReportsPage() {
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded bg-orange-500"></div>
+                          <div className="w-3 h-3 rounded bg-warning-solid"></div>
                           Equipment
                         </span>
                         <span className="font-medium">{formatCurrency(totalEquipmentCost)}</span>
                       </div>
                       <Progress
                         value={calculatePercentage(totalEquipmentCost, totalCosts)}
-                        className="h-2 [&>div]:bg-orange-500"
+                        className="h-2 [&>div]:bg-warning-solid"
                       />
                       <p className="text-xs text-muted-foreground text-right">
                         {calculatePercentage(totalEquipmentCost, totalCosts).toFixed(1)}%
@@ -436,14 +442,14 @@ export default function ReportsPage() {
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded bg-purple-500"></div>
+                          <div className="w-3 h-3 rounded bg-foreground-lighter"></div>
                           Overhead
                         </span>
                         <span className="font-medium">{formatCurrency(totalOverheadCost)}</span>
                       </div>
                       <Progress
                         value={calculatePercentage(totalOverheadCost, totalCosts)}
-                        className="h-2 [&>div]:bg-purple-500"
+                        className="h-2 [&>div]:bg-foreground-lighter"
                       />
                       <p className="text-xs text-muted-foreground text-right">
                         {calculatePercentage(totalOverheadCost, totalCosts).toFixed(1)}%
@@ -466,11 +472,11 @@ export default function ReportsPage() {
                     </div>
                     <div className="p-4 rounded-lg bg-muted">
                       <p className="text-sm text-muted-foreground">Total Expenses</p>
-                      <p className="text-3xl font-bold text-red-600">{formatCurrency(totalCosts)}</p>
+                      <p className="text-3xl font-bold text-destructive">{formatCurrency(totalCosts)}</p>
                     </div>
-                    <div className={`p-4 rounded-lg ${totalProfit >= 0 ? "bg-green-50" : "bg-red-50"}`}>
+                    <div className={`p-4 rounded-lg ${totalProfit >= 0 ? "bg-success-subtle" : "bg-destructive-subtle"}`}>
                       <p className="text-sm text-muted-foreground">Net Profit/Loss</p>
-                      <p className={`text-3xl font-bold ${totalProfit >= 0 ? "text-green-600" : "text-red-600"}`}>
+                      <p className={`text-3xl font-bold ${totalProfit >= 0 ? "text-success" : "text-destructive"}`}>
                         {formatCurrency(totalProfit)}
                       </p>
                       <p className="text-sm mt-1">

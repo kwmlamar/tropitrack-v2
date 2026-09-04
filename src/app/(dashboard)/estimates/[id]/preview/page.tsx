@@ -50,7 +50,7 @@ type CompanyInfo = {
 // PDF link is dynamic so the heavy renderer doesn't block initial paint.
 const PDFDownloadLink = dynamic(
   () => import("@react-pdf/renderer").then((m) => m.PDFDownloadLink),
-  { ssr: false, loading: () => <span className="text-xs text-stone-500">Preparing PDF…</span> },
+  { ssr: false, loading: () => <span className="text-xs text-foreground-lighter">Preparing PDF…</span> },
 );
 
 import { EstimatePDFTemplate } from "@/components/pdf/estimate-pdf-template";
@@ -450,7 +450,7 @@ function ActionBtn({
   return (
     <button
       onClick={onClick}
-      className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md bg-white/95 backdrop-blur border border-stone-200 text-[11.5px] font-medium text-stone-700 shadow-sm hover:bg-white hover:border-stone-300 hover:text-stone-900 transition-colors"
+      className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md bg-card/95 backdrop-blur border border-border text-[11.5px] font-medium text-foreground-light shadow-sm hover:bg-card hover:border-hover hover:text-foreground transition-colors"
     >
       {icon}
       {children}

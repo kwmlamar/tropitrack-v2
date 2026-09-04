@@ -21,13 +21,16 @@ import {
 } from "lucide-react";
 import type { CalendarFilters, CalendarEvent } from "@/types";
 
+// Kept in sync with eventTypeConfig in components/calendar/calendar-event.tsx —
+// more categories than status tokens, so several share a token by closest
+// semantic match rather than by the original hue.
 const filterOptions = [
-  { key: "showProjects" as keyof CalendarFilters, label: "Projects", icon: FolderKanban, color: "text-blue-600" },
-  { key: "showMilestones" as keyof CalendarFilters, label: "Milestones", icon: Flag, color: "text-purple-600" },
-  { key: "showInvoices" as keyof CalendarFilters, label: "Invoices Due", icon: Receipt, color: "text-red-600" },
-  { key: "showDeliveries" as keyof CalendarFilters, label: "Deliveries", icon: Truck, color: "text-orange-600" },
-  { key: "showTimesheets" as keyof CalendarFilters, label: "Timesheets", icon: Clock, color: "text-cyan-600" },
-  { key: "showEquipment" as keyof CalendarFilters, label: "Equipment", icon: Wrench, color: "text-amber-600" },
+  { key: "showProjects" as keyof CalendarFilters, label: "Projects", icon: FolderKanban, color: "text-info" },
+  { key: "showMilestones" as keyof CalendarFilters, label: "Milestones", icon: Flag, color: "text-info" },
+  { key: "showInvoices" as keyof CalendarFilters, label: "Invoices Due", icon: Receipt, color: "text-destructive" },
+  { key: "showDeliveries" as keyof CalendarFilters, label: "Deliveries", icon: Truck, color: "text-warning" },
+  { key: "showTimesheets" as keyof CalendarFilters, label: "Timesheets", icon: Clock, color: "text-info" },
+  { key: "showEquipment" as keyof CalendarFilters, label: "Equipment", icon: Wrench, color: "text-warning" },
 ];
 
 export default function SchedulePage() {
@@ -143,13 +146,13 @@ export default function SchedulePage() {
                   <span className="font-semibold">{stats.upcoming}</span>
                 </div>
                 {stats.overdueInvoices > 0 && (
-                  <div className="flex items-center justify-between text-red-600">
+                  <div className="flex items-center justify-between text-destructive">
                     <span className="text-sm">Overdue Invoices</span>
                     <span className="font-semibold">{stats.overdueInvoices}</span>
                   </div>
                 )}
                 {stats.thisWeekMilestones > 0 && (
-                  <div className="flex items-center justify-between text-purple-600">
+                  <div className="flex items-center justify-between text-info">
                     <span className="text-sm">Milestones This Week</span>
                     <span className="font-semibold">{stats.thisWeekMilestones}</span>
                   </div>
@@ -261,29 +264,29 @@ export default function SchedulePage() {
               <CardContent className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Today</span>
-                  <kbd className="px-2 py-0.5 bg-muted rounded text-xs">T</kbd>
+                  <kbd className="px-2 py-0.5 bg-muted rounded-md text-xs">T</kbd>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Month view</span>
-                  <kbd className="px-2 py-0.5 bg-muted rounded text-xs">M</kbd>
+                  <kbd className="px-2 py-0.5 bg-muted rounded-md text-xs">M</kbd>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Week view</span>
-                  <kbd className="px-2 py-0.5 bg-muted rounded text-xs">W</kbd>
+                  <kbd className="px-2 py-0.5 bg-muted rounded-md text-xs">W</kbd>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Day view</span>
-                  <kbd className="px-2 py-0.5 bg-muted rounded text-xs">D</kbd>
+                  <kbd className="px-2 py-0.5 bg-muted rounded-md text-xs">D</kbd>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Agenda view</span>
-                  <kbd className="px-2 py-0.5 bg-muted rounded text-xs">A</kbd>
+                  <kbd className="px-2 py-0.5 bg-muted rounded-md text-xs">A</kbd>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Navigate</span>
                   <span className="flex gap-1">
-                    <kbd className="px-2 py-0.5 bg-muted rounded text-xs">←</kbd>
-                    <kbd className="px-2 py-0.5 bg-muted rounded text-xs">→</kbd>
+                    <kbd className="px-2 py-0.5 bg-muted rounded-md text-xs">←</kbd>
+                    <kbd className="px-2 py-0.5 bg-muted rounded-md text-xs">→</kbd>
                   </span>
                 </div>
               </CardContent>

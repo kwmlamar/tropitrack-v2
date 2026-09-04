@@ -82,7 +82,7 @@ const LABEL_W = 390; // px for left label column
 
 // Amber heatmap intensities for worker counts 1..9+
 function heatmapStyle(count: number): { background: string; color: string } {
-  if (!count || count <= 0) return { background: "transparent", color: "var(--muted-foreground)" };
+  if (!count || count <= 0) return { background: "transparent", color: "hsl(var(--muted-foreground))" };
   const alpha = Math.min(0.10 + count * 0.10, 0.85);
   return {
     background: `rgba(245, 166, 35, ${alpha})`,
@@ -102,10 +102,10 @@ function computeLaborCost(role: LaborRole | undefined, daily: DailyWorkers): num
 }
 
 const STATUS_COLOR: Record<string, string> = {
-  active:    "#22C55E",
-  planning:  "#3B82F6",
-  on_hold:   "#F5A623",
-  completed: "#555",
+  active:    "hsl(var(--success))",
+  planning:  "hsl(var(--info))",
+  on_hold:   "hsl(var(--primary))",
+  completed: "hsl(var(--foreground-lighter))",
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -166,7 +166,7 @@ function PhaseBar({
 
   if (!ps || !pe) return (
     <div className="flex items-center h-full px-3" onClick={onClick}>
-      <span className="text-[11px] text-[#333] italic cursor-pointer">No dates set — click to edit</span>
+      <span className="text-[11px] text-foreground-lighter italic cursor-pointer">No dates set — click to edit</span>
     </div>
   );
 
@@ -181,7 +181,7 @@ function PhaseBar({
 
   if (width === 0) return (
     <div className="flex items-center h-full px-3" onClick={onClick}>
-      <span className="text-[11px] text-[#333] italic cursor-pointer">Outside view — scroll to see</span>
+      <span className="text-[11px] text-foreground-lighter italic cursor-pointer">Outside view — scroll to see</span>
     </div>
   );
 
@@ -286,7 +286,7 @@ function PhaseBar({
     <>
       <div
         className={cn(
-          "absolute inset-y-1.5 rounded group overflow-hidden select-none touch-none",
+          "absolute inset-y-1.5 rounded-md group overflow-hidden select-none touch-none",
           drag && "opacity-70"
         )}
         style={{ left, width, cursor }}
@@ -306,14 +306,14 @@ function PhaseBar({
         }
       >
         {/* Planned bar (background) */}
-        <div className="absolute inset-0 rounded bg-zinc-200/60 dark:bg-zinc-800/70 border border-zinc-300/40 dark:border-zinc-700/40" />
+        <div className="absolute inset-0 rounded-md bg-surface-300/60 border border-border/40" />
         {/* Actual progress fill */}
         <div
           className={cn(
-            "absolute inset-y-0 left-0 rounded transition-[width] duration-300",
+            "absolute inset-y-0 left-0 rounded-md transition-[width] duration-300",
             phase.progress === 100
-              ? "bg-emerald-500/20 dark:bg-emerald-500/25"
-              : "bg-amber-500/20 dark:bg-amber-500/25 border-r border-amber-500/40 dark:border-amber-500/50"
+              ? "bg-success/20"
+              : "bg-primary/20 border-r border-primary/40"
           )}
           style={{ width: `${phase.progress}%` }}
         />
@@ -321,12 +321,12 @@ function PhaseBar({
         {width > 60 && (
           <div className="absolute inset-0 flex items-center px-2 pointer-events-none">
             <span className={cn(
-              "text-[11px] font-mono font-medium truncate",
+              "text-[11px] tabular-nums font-medium truncate",
               phase.progress === 100
-                ? "text-emerald-800 dark:text-emerald-200"
+                ? "text-success"
                 : phase.progress > 0
-                ? "text-amber-800 dark:text-amber-200"
-                : "text-zinc-500 dark:text-zinc-400"
+                ? "text-brand"
+                : "text-foreground-lighter"
             )}>
               {phase.progress > 0 ? `${phase.progress}%` : "—"}
               {crewSummary?.hasData
@@ -342,7 +342,7 @@ function PhaseBar({
             activeMode === "resize-start" ? "opacity-100" : "opacity-0 group-hover:opacity-60"
           )}
         >
-          <div className="h-3/5 w-[2px] rounded-full bg-[#F5A623]" />
+          <div className="h-3/5 w-[2px] rounded-full bg-primary" />
         </div>
         {/* Edge grip — right */}
         <div
@@ -351,16 +351,16 @@ function PhaseBar({
             activeMode === "resize-end" ? "opacity-100" : "opacity-0 group-hover:opacity-60"
           )}
         >
-          <div className="h-3/5 w-[2px] rounded-full bg-[#F5A623]" />
+          <div className="h-3/5 w-[2px] rounded-full bg-primary" />
         </div>
         {/* Hover ring */}
-        <div className="absolute inset-0 rounded border border-[#F5A623]/0 group-hover:border-[#F5A623]/40 transition-colors pointer-events-none" />
+        <div className="absolute inset-0 rounded-md border border-primary/0 group-hover:border-primary/40 transition-colors pointer-events-none" />
       </div>
 
       {/* Floating drag tooltip — anchored to cursor */}
       {drag && drag.moved && (
         <div
-          className="fixed z-50 pointer-events-none px-2.5 py-1.5 rounded bg-card border text-card-foreground shadow-lg"
+          className="fixed z-50 pointer-events-none px-2.5 py-1.5 rounded-md bg-card border text-card-foreground shadow-lg"
           style={{
             top: drag.cursorY - 56,
             left: drag.cursorX,
@@ -370,9 +370,9 @@ function PhaseBar({
           <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-0.5">
             {drag.mode === "move" ? "Reschedule" : drag.mode === "resize-start" ? "Start" : "End"}
           </div>
-          <div className="text-[12px] font-mono text-[#F5A623] whitespace-nowrap">
+          <div className="text-[12px] tabular-nums text-brand whitespace-nowrap">
             {format(drag.curStart, "MMM d")} → {format(drag.curEnd, "MMM d")}
-            <span className="text-[#666] ml-1.5">
+            <span className="text-foreground-lighter ml-1.5">
               ({differenceInDays(drag.curEnd, drag.curStart) + 1}d)
             </span>
           </div>
@@ -401,25 +401,25 @@ function EditPanel({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-[#202224] border border-[#222] rounded-lg w-[420px] shadow-2xl">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#2b2e33]">
-          <span className="text-[13px] font-semibold text-[#d0d0d0]">
+      <div className="bg-surface-100 border border-border rounded-lg w-[420px] shadow-2xl">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <span className="text-[13px] font-semibold text-foreground">
             {phase.id ? "Edit phase" : "Add phase"}
           </span>
-          <button onClick={onClose} className="text-[#333] hover:text-[#666]">
+          <button onClick={onClose} className="text-foreground-lighter hover:text-foreground-light">
             <X className="h-4 w-4" />
           </button>
         </div>
 
         <div className="p-5 space-y-4">
           <div>
-            <label className="block text-[11px] font-mono text-[#444] uppercase tracking-wider mb-1.5">
+            <label className="block text-[11px] font-mono text-foreground-lighter uppercase tracking-wider mb-1.5">
               Phase name
             </label>
             <input
               value={form.name}
               onChange={(e) => set("name", e.target.value)}
-              className="w-full bg-[#18191b] border border-[#222] rounded px-3 py-2 text-[13px] text-[#d0d0d0] focus:outline-none focus:border-[#F5A623] transition-colors"
+              className="w-full bg-background border border-border rounded-md px-3 py-2 text-[13px] text-foreground focus:outline-none focus:border-primary transition-colors"
               placeholder="e.g. Foundation, Roof, Electrical..."
               autoFocus
             />
@@ -427,31 +427,31 @@ function EditPanel({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[11px] font-mono text-[#444] uppercase tracking-wider mb-1.5">
+              <label className="block text-[11px] font-mono text-foreground-lighter uppercase tracking-wider mb-1.5">
                 Planned start
               </label>
               <input
                 type="date"
                 value={form.planned_start}
                 onChange={(e) => set("planned_start", e.target.value)}
-                className="w-full bg-[#18191b] border border-[#222] rounded px-3 py-2 text-[13px] text-[#d0d0d0] focus:outline-none focus:border-[#F5A623] transition-colors"
+                className="w-full bg-background border border-border rounded-md px-3 py-2 text-[13px] text-foreground focus:outline-none focus:border-primary transition-colors"
               />
             </div>
             <div>
-              <label className="block text-[11px] font-mono text-[#444] uppercase tracking-wider mb-1.5">
+              <label className="block text-[11px] font-mono text-foreground-lighter uppercase tracking-wider mb-1.5">
                 Planned end
               </label>
               <input
                 type="date"
                 value={form.planned_end}
                 onChange={(e) => set("planned_end", e.target.value)}
-                className="w-full bg-[#18191b] border border-[#222] rounded px-3 py-2 text-[13px] text-[#d0d0d0] focus:outline-none focus:border-[#F5A623] transition-colors"
+                className="w-full bg-background border border-border rounded-md px-3 py-2 text-[13px] text-foreground focus:outline-none focus:border-primary transition-colors"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-[11px] font-mono text-[#444] uppercase tracking-wider mb-1.5">
+            <label className="block text-[11px] font-mono text-foreground-lighter uppercase tracking-wider mb-1.5">
               Progress — {form.progress}%
             </label>
             <input
@@ -461,16 +461,16 @@ function EditPanel({
               step={5}
               value={form.progress}
               onChange={(e) => set("progress", Number(e.target.value))}
-              className="w-full accent-[#F5A623]"
+              className="w-full accent-primary"
             />
           </div>
         </div>
 
-        <div className="flex items-center justify-between px-5 py-4 border-t border-[#2b2e33]">
+        <div className="flex items-center justify-between px-5 py-4 border-t border-border">
           {phase.id ? (
             <button
               onClick={onDelete}
-              className="text-[12px] text-[#EF4444]/60 hover:text-[#EF4444] transition-colors"
+              className="text-[12px] text-destructive/60 hover:text-destructive transition-colors"
             >
               Delete phase
             </button>
@@ -478,14 +478,14 @@ function EditPanel({
           <div className="flex gap-2">
             <button
               onClick={onClose}
-              className="px-3 py-1.5 text-[12px] text-[#555] hover:text-[#888] border border-[#222] rounded transition-colors"
+              className="px-3 py-1.5 text-[12px] text-foreground-lighter hover:text-foreground-light border border-border rounded-md transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={() => onSave(form)}
               disabled={!form.name.trim()}
-              className="px-3 py-1.5 text-[12px] font-medium bg-[#F5A623] text-[#18191b] rounded hover:bg-[#f5a623cc] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="px-3 py-1.5 text-[12px] font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/80 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Save
             </button>
@@ -794,12 +794,12 @@ export default function GanttPage() {
   const todayOff = clamp(differenceInDays(today, viewStart), 0, totalDays);
 
   return (
-    <div className="flex flex-col h-full bg-[#18191b] overflow-hidden">
+    <div className="flex flex-col h-full bg-background overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-4 px-5 py-3.5 border-b border-[#2b2e33] flex-shrink-0">
+      <div className="flex items-center gap-4 px-5 py-3.5 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2">
-          <GanttChartSquare className="h-4 w-4 text-[#F5A623]" />
-          <span className="text-[13px] font-semibold text-[#d0d0d0]">Gantt</span>
+          <GanttChartSquare className="h-4 w-4 text-brand" />
+          <span className="text-[13px] font-semibold text-foreground">Gantt</span>
         </div>
 
         {/* Project tabs */}
@@ -809,21 +809,21 @@ export default function GanttPage() {
               key={p.id}
               onClick={() => setActiveProject(p.id)}
               className={cn(
-                "px-3 py-1 rounded text-[12px] font-medium transition-colors whitespace-nowrap",
+                "px-3 py-1 rounded-md text-[12px] font-medium transition-colors whitespace-nowrap",
                 activeProject === p.id
-                  ? "bg-[#292c31] text-[#d0d0d0] border border-[#3a3d42]"
-                  : "text-[#444] hover:text-[#777]"
+                  ? "bg-surface-100 text-foreground border border-strong"
+                  : "text-foreground-lighter hover:text-foreground-light"
               )}
             >
               <span
-                className={cn("inline-block h-1.5 w-1.5 rounded-full mr-1.5 mb-px", STATUS_COLOR[p.status] ? "" : "bg-[#333]")}
-                style={{ background: STATUS_COLOR[p.status] ?? "#333" }}
+                className={cn("inline-block h-1.5 w-1.5 rounded-full mr-1.5 mb-px", STATUS_COLOR[p.status] ? "" : "bg-surface-300")}
+                style={{ background: STATUS_COLOR[p.status] ?? "hsl(var(--surface-300))" }}
               />
               {p.name}
             </button>
           ))}
           {projects.length === 0 && !loading && (
-            <span className="text-[12px] text-[#333]">No active jobs — add one in Jobs</span>
+            <span className="text-[12px] text-foreground-lighter">No active jobs — add one in Jobs</span>
           )}
         </div>
 
@@ -831,22 +831,22 @@ export default function GanttPage() {
           {/* Week navigation */}
           <button
             onClick={() => setViewStart((v) => subWeeks(v, 4))}
-            className="p-1.5 text-[#333] hover:text-[#666] transition-colors"
+            className="p-1.5 text-foreground-lighter hover:text-foreground-light transition-colors"
           >
             <ChevronLeft className="h-3.5 w-3.5" />
           </button>
-          <span className="text-[11px] font-mono text-[#444] min-w-[120px] text-center">
+          <span className="text-[11px] tabular-nums text-foreground-lighter min-w-[120px] text-center">
             {format(viewStart, "MMM d")} – {format(viewEnd, "MMM d, yyyy")}
           </span>
           <button
             onClick={() => setViewStart((v) => addWeeks(v, 4))}
-            className="p-1.5 text-[#333] hover:text-[#666] transition-colors"
+            className="p-1.5 text-foreground-lighter hover:text-foreground-light transition-colors"
           >
             <ChevronRight className="h-3.5 w-3.5" />
           </button>
           <button
             onClick={() => setViewStart(startOfWeek(new Date(), { weekStartsOn: 1 }))}
-            className="px-2 py-1 text-[11px] font-mono text-[#444] hover:text-[#888] border border-[#2b2e33] rounded transition-colors"
+            className="px-2 py-1 text-[11px] tabular-nums text-foreground-lighter hover:text-foreground-light border border-border rounded-md transition-colors"
           >
             Today
           </button>
@@ -856,17 +856,17 @@ export default function GanttPage() {
             return (
               <>
                 <div
-                  className="flex items-center gap-2 px-2.5 py-1.5 text-[11px] font-mono border border-[#2b2e33] rounded ml-2"
+                  className="flex items-center gap-2 px-2.5 py-1.5 text-[11px] tabular-nums border border-border rounded-md ml-2"
                   title={`Labor $${t.labor.toLocaleString()} · Material $${t.material.toLocaleString()} · Equipment $${t.equipment.toLocaleString()}`}
                 >
-                  <span className="text-[#444] uppercase tracking-wider text-[9px]">Total</span>
-                  <span className="text-[#F5A623] font-semibold tabular-nums">
+                  <span className="text-foreground-lighter uppercase tracking-wider text-[9px]">Total</span>
+                  <span className="text-brand font-semibold tabular-nums">
                     ${t.total.toLocaleString()}
                   </span>
                 </div>
                 <button
                   onClick={() => setRatesOpen(true)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-mono text-[#666] border border-[#2b2e33] rounded hover:text-[#aaa] hover:border-[#3a3d42] transition-colors"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] tabular-nums text-foreground-lighter border border-border rounded-md hover:text-foreground-light hover:border-strong transition-colors"
                   title="Edit labor rate card for this estimate"
                 >
                   <DollarSign className="h-3 w-3" />
@@ -886,7 +886,7 @@ export default function GanttPage() {
           {activeProject && (
             <button
               onClick={openNew}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium bg-[#F5A623] text-[#18191b] rounded hover:bg-[#f5a623cc] transition-colors ml-2"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/80 transition-colors ml-2"
             >
               <Plus className="h-3.5 w-3.5" />
               Phase
@@ -899,38 +899,38 @@ export default function GanttPage() {
       <div className="flex-1 overflow-auto">
         {loading ? (
           <div className="flex items-center justify-center h-full">
-            <div className="text-[12px] font-mono text-[#333]">Loading...</div>
+            <div className="text-[12px] tabular-nums text-foreground-lighter">Loading...</div>
           </div>
         ) : !activeProject ? (
           <div className="flex flex-col items-center justify-center h-full gap-3">
-            <GanttChartSquare className="h-8 w-8 text-[#222]" />
-            <p className="text-[13px] text-[#333]">No active jobs to display</p>
+            <GanttChartSquare className="h-8 w-8 text-foreground-lighter" />
+            <p className="text-[13px] text-foreground-lighter">No active jobs to display</p>
           </div>
         ) : (
           <div className="relative">
             {/* Sticky header row */}
             <div
-              className="sticky top-0 z-10 flex bg-[#18191b] border-b border-[#2b2e33]"
+              className="sticky top-0 z-10 flex bg-background border-b border-border"
               style={{ minWidth: LABEL_W + totalDays * COL_W }}
             >
               {/* Phase label column */}
               <div
-                className="flex-shrink-0 border-r border-[#2b2e33] flex items-end pb-2 px-4"
+                className="flex-shrink-0 border-r border-border flex items-end pb-2 px-4"
                 style={{ width: LABEL_W }}
               >
-                <span className="text-[10px] font-mono text-[#333] uppercase tracking-widest">Phase</span>
+                <span className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Phase</span>
               </div>
               {/* Week/day headers */}
               <div className="relative" style={{ width: totalDays * COL_W }}>
                 {/* Week labels */}
-                <div className="flex h-7 border-b border-[#2b2e33]">
+                <div className="flex h-7 border-b border-border">
                   {weeks.map((w, i) => (
                     <div
                       key={i}
-                      className="border-r border-[#2b2e33] flex items-center px-2"
+                      className="border-r border-border flex items-center px-2"
                       style={{ width: 7 * COL_W }}
                     >
-                      <span className="text-[10px] font-mono text-[#444]">{w.label}</span>
+                      <span className="text-[10px] tabular-nums text-foreground-lighter">{w.label}</span>
                     </div>
                   ))}
                 </div>
@@ -943,14 +943,14 @@ export default function GanttPage() {
                       <div
                         key={i}
                         className={cn(
-                          "flex-shrink-0 flex items-center justify-center text-[9px] font-mono border-r border-[#2b2e33]/50",
-                          isToday ? "bg-[#F5A623]/10" : isWeekend ? "bg-[#161718]" : ""
+                          "flex-shrink-0 flex items-center justify-center text-[9px] tabular-nums border-r border-border/50",
+                          isToday ? "bg-primary/10" : isWeekend ? "bg-surface-200" : ""
                         )}
                         style={{ width: COL_W }}
                       >
                         <span className={cn(
-                          "text-[9px] font-mono font-medium",
-                          isToday ? "text-[#F5A623] font-semibold" : "text-zinc-700 dark:text-zinc-300"
+                          "text-[9px] tabular-nums font-medium",
+                          isToday ? "text-brand font-semibold" : "text-foreground-light"
                         )}>
                           {format(day, "d")}
                         </span>
@@ -968,10 +968,10 @@ export default function GanttPage() {
                 style={{ minWidth: LABEL_W + totalDays * COL_W }}
               >
                 <div className="text-center">
-                  <p className="text-[13px] text-[#333]">No phases yet</p>
+                  <p className="text-[13px] text-foreground-lighter">No phases yet</p>
                   <button
                     onClick={openNew}
-                    className="mt-3 flex items-center gap-1.5 mx-auto text-[12px] text-[#F5A623] hover:text-[#f5a623cc] transition-colors"
+                    className="mt-3 flex items-center gap-1.5 mx-auto text-[12px] text-brand hover:text-brand/80 transition-colors"
                   >
                     <Plus className="h-3.5 w-3.5" /> Add first phase
                   </button>
@@ -986,29 +986,29 @@ export default function GanttPage() {
                   <Fragment key={phase.id}>
                     {/* ── Phase row ── */}
                     <div
-                      className="flex border-b border-[#23252a] hover:bg-[#1b1c1e] transition-colors"
+                      className="flex border-b border-border hover:bg-background transition-colors"
                       style={{ height: ROW_H, minWidth: LABEL_W + totalDays * COL_W }}
                     >
                       <div
-                        className="flex-shrink-0 flex items-center gap-1.5 pl-1 pr-3 border-r border-[#2b2e33] group"
+                        className="flex-shrink-0 flex items-center gap-1.5 pl-1 pr-3 border-r border-border group"
                         style={{ width: LABEL_W }}
                       >
                         <button
                           onClick={() => toggleExpand(phase.id)}
-                          className="flex-shrink-0 p-1 text-[#444] hover:text-[#aaa] transition-colors"
+                          className="flex-shrink-0 p-1 text-foreground-lighter hover:text-foreground-light transition-colors"
                           title={isOpen ? "Collapse tasks" : "Expand tasks"}
                         >
                           {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRightSmall className="h-3 w-3" />}
                         </button>
                         <button
                           onClick={() => toggleExpand(phase.id)}
-                          className="text-[13px] font-semibold text-zinc-800 dark:text-zinc-100 hover:text-[#F5A623] dark:hover:text-[#F5A623] truncate flex-1 text-left transition-colors min-w-0"
+                          className="text-[13px] font-semibold text-foreground hover:text-brand truncate flex-1 text-left transition-colors min-w-0"
                         >
                           {phase.name}
                         </button>
                         {t.total > 0 && (
                           <span
-                            className="text-[10px] font-mono text-[#666] tabular-nums flex-shrink-0"
+                            className="text-[10px] tabular-nums text-foreground-lighter tabular-nums flex-shrink-0"
                             title={`Labor $${t.labor.toLocaleString()} · Material $${t.material.toLocaleString()} · Equipment $${t.equipment.toLocaleString()}`}
                           >
                             ${t.total.toLocaleString()}
@@ -1016,7 +1016,7 @@ export default function GanttPage() {
                         )}
                         <button
                           onClick={() => addTask(phase)}
-                          className="opacity-30 group-hover:opacity-100 text-muted-foreground hover:text-[#F5A623] transition-all flex-shrink-0"
+                          className="opacity-30 group-hover:opacity-100 text-muted-foreground hover:text-brand transition-all flex-shrink-0"
                           title="Add task"
                         >
                           <Plus className="h-3 w-3" />
@@ -1038,8 +1038,8 @@ export default function GanttPage() {
                             <div
                               key={`bg-${i}`}
                               className={cn(
-                                "absolute inset-y-0 border-r border-[#1f2125]/30",
-                                isToday ? "bg-[#F5A623]/5 border-l border-[#F5A623]/20" : "bg-[#161718]"
+                                "absolute inset-y-0 border-r border-border/30",
+                                isToday ? "bg-primary/5 border-l border-primary/20" : "bg-surface-200"
                               )}
                               style={{ left: i * COL_W, width: COL_W }}
                             />
@@ -1059,11 +1059,11 @@ export default function GanttPage() {
                     {/* ── Task column header (one per expanded phase) ── */}
                     {isOpen && tasks.length > 0 && (
                       <div
-                        className="flex border-b border-[#1f2125] bg-[#0e0f11]"
+                        className="flex border-b border-border bg-background"
                         style={{ height: HEAD_H, minWidth: LABEL_W + totalDays * COL_W }}
                       >
                         <div
-                          className="flex-shrink-0 flex items-center pl-7 pr-3 border-r border-[#1f2125] text-[8px] font-mono uppercase tracking-[0.18em] text-[#4a4d52]"
+                          className="flex-shrink-0 flex items-center pl-7 pr-3 border-r border-border text-[8px] font-mono uppercase tracking-[0.18em] text-foreground-lighter"
                           style={{ width: LABEL_W }}
                         >
                           <div
@@ -1078,7 +1078,7 @@ export default function GanttPage() {
                           </div>
                         </div>
                         <div
-                          className="flex-1 flex items-center px-3 text-[8px] font-mono uppercase tracking-[0.18em] text-[#3a3d42]"
+                          className="flex-1 flex items-center px-3 text-[8px] font-mono uppercase tracking-[0.18em] text-foreground-lighter"
                           style={{ width: totalDays * COL_W }}
                         >
                           workers per day → click any cell to enter
@@ -1108,16 +1108,16 @@ export default function GanttPage() {
                     {/* ── Add-task footer (when expanded) ── */}
                     {isOpen && (
                       <div
-                        className="flex border-b border-[#23252a]"
+                        className="flex border-b border-border"
                         style={{ height: 28, minWidth: LABEL_W + totalDays * COL_W }}
                       >
                         <div
-                          className="flex-shrink-0 flex items-center pl-7 pr-3 border-r border-[#1f2125]"
+                          className="flex-shrink-0 flex items-center pl-7 pr-3 border-r border-border"
                           style={{ width: LABEL_W }}
                         >
                           <button
                             onClick={() => addTask(phase)}
-                            className="flex items-center gap-1 text-[10px] font-mono text-[#F5A623]/70 hover:text-[#F5A623] transition-colors"
+                            className="flex items-center gap-1 text-[10px] tabular-nums text-brand/70 hover:text-brand transition-colors"
                           >
                             <Plus className="h-2.5 w-2.5" /> add task
                           </button>
@@ -1204,15 +1204,15 @@ function TaskRow({
 
   return (
     <div
-      className="flex border-b border-[#1b1c1e] bg-[#121315] hover:bg-[#15171a] transition-colors group relative"
+      className="flex border-b border-border bg-background hover:bg-surface-100 transition-colors group relative"
       style={{ height: TASK_H, minWidth: LABEL_W + totalDays * COL_W }}
     >
       {/* Soft left rail tying this task to its phase */}
-      <div className="absolute left-4 top-0 bottom-0 w-px bg-[#23252a]" />
+      <div className="absolute left-4 top-0 bottom-0 w-px bg-surface-200" />
 
       {/* Label area — single line, 5-column grid */}
       <div
-        className="flex-shrink-0 pl-7 pr-2 border-r border-[#1f2125] flex items-center relative"
+        className="flex-shrink-0 pl-7 pr-2 border-r border-border flex items-center relative"
         style={{ width: LABEL_W }}
       >
         <div
@@ -1225,7 +1225,7 @@ function TaskRow({
             onChange={(e) => onPatchLocal({ description: e.target.value })}
             onBlur={(e) => onSave({ description: e.target.value })}
             placeholder="Task name…"
-            className="min-w-0 bg-transparent text-[12px] text-[#cfcfcf] placeholder:text-[#3a3d42] focus:outline-none focus:text-[#ededed] tracking-tight pr-1"
+            className="min-w-0 bg-transparent text-[12px] text-foreground placeholder:text-foreground-lighter focus:outline-none focus:text-foreground tracking-tight pr-1"
           />
 
           {/* Role */}
@@ -1233,8 +1233,8 @@ function TaskRow({
             value={task.role_id ?? ""}
             onChange={(e) => commitRole(e.target.value || null)}
             className={cn(
-              "bg-[#0f1011] border border-[#23252a] rounded-md py-1 pl-2 pr-1 text-[10px] font-mono truncate transition-colors focus:outline-none focus:border-[#3a3d42] cursor-pointer h-7",
-              task.role_id ? "text-[#d4d4d4]" : "text-[#777]"
+              "bg-background border border-border rounded-md py-1 pl-2 pr-1 text-[10px] tabular-nums truncate transition-colors focus:outline-none focus:border-strong cursor-pointer h-7",
+              task.role_id ? "text-foreground" : "text-foreground-lighter"
             )}
             title={role ? `${role.name} @ $${role.daily_rate}/day` : "Pick a labor role"}
           >
@@ -1246,8 +1246,8 @@ function TaskRow({
 
           {/* Labor (auto, computed from daily cells) */}
           <span
-            className="text-[11px] font-mono font-semibold tabular-nums text-right pr-1"
-            style={{ color: liveLabor > 0 ? "var(--primary)" : "var(--muted-foreground)" }}
+            className="text-[11px] tabular-nums font-semibold tabular-nums text-right pr-1"
+            style={{ color: liveLabor > 0 ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}
             title={role ? `${role.name} × ${mandays} mandays = $${Math.round(liveLabor)}` : "Pick a role, then fill day cells"}
           >
             ${Math.round(liveLabor) || 0}
@@ -1273,7 +1273,7 @@ function TaskRow({
         {/* Delete button: positioned on the far left, always slightly visible (low opacity) and highlighting on hover */}
         <button
           onClick={onDelete}
-          className="absolute left-1 top-1/2 -translate-y-1/2 w-[18px] h-[18px] flex items-center justify-center rounded-md bg-background border border-border/20 text-muted-foreground/50 hover:text-red-500 hover:border-red-500/30 hover:bg-red-500/10 transition-all z-10 shadow-sm"
+          className="absolute left-1 top-1/2 -translate-y-1/2 w-[18px] h-[18px] flex items-center justify-center rounded-md bg-background border border-border/20 text-muted-foreground/50 hover:text-destructive hover:border-destructive/30 hover:bg-destructive/10 transition-all z-10 shadow-sm"
           title="Delete task"
         >
           <X className="h-2.5 w-2.5" />
@@ -1291,7 +1291,7 @@ function TaskRow({
               key={`bg-${i}`}
               className={cn(
                 "absolute inset-y-0 pointer-events-none",
-                isToday ? "bg-[#F5A623]/5 border-l border-[#F5A623]/20" : "bg-[#161718]"
+                isToday ? "bg-primary/5 border-l border-primary/20" : "bg-surface-200"
               )}
               style={{ left: i * COL_W, width: COL_W }}
             />
@@ -1333,7 +1333,7 @@ function MoneyCell({
   const hasValue = (value ?? 0) > 0;
   return (
     <div className="relative w-full" title={title}>
-      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] pointer-events-none font-mono text-[#3a3d42]">
+      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] pointer-events-none tabular-nums text-foreground-lighter">
         $
       </span>
       <input
@@ -1343,8 +1343,8 @@ function MoneyCell({
         onChange={(e) => onLocal(Number(e.target.value) || 0)}
         onBlur={(e) => onSave(Number(e.target.value) || 0)}
         placeholder="0"
-        className="w-full bg-[#0f1011] border border-[#23252a] rounded-md pl-5 pr-1.5 py-1 h-7 text-[11px] font-mono tabular-nums text-right focus:outline-none focus:border-[#3a3d42] transition-colors"
-        style={{ color: hasValue ? "var(--foreground)" : "var(--muted-foreground)" }}
+        className="w-full bg-background border border-border rounded-md pl-5 pr-1.5 py-1 h-7 text-[11px] tabular-nums tabular-nums text-right focus:outline-none focus:border-strong transition-colors"
+        style={{ color: hasValue ? "hsl(var(--foreground))" : "hsl(var(--muted-foreground))" }}
       />
     </div>
   );
@@ -1408,17 +1408,17 @@ function DailyCell({
             if (e.key === "Enter") commit();
             else if (e.key === "Escape") cancel();
           }}
-          className="h-7 w-9 rounded text-center text-[12px] font-mono font-semibold tabular-nums bg-[#0f1011] border border-[#F5A623] text-[#ededed] focus:outline-none"
+          className="h-7 w-9 rounded-md text-center text-[12px] tabular-nums font-semibold tabular-nums bg-background border border-primary text-foreground focus:outline-none"
           aria-label={`Workers on ${dateKey}`}
         />
       ) : (
         <button
           onClick={openEdit}
-          className="h-7 w-9 rounded flex items-center justify-center text-[12px] font-mono font-semibold tabular-nums transition-all hover:ring-1 hover:ring-[#F5A623]/40 hover:bg-[#F5A623]/[0.04]"
+          className="h-7 w-9 rounded-md flex items-center justify-center text-[12px] tabular-nums font-semibold tabular-nums transition-all hover:ring-1 hover:ring-primary/40 hover:bg-primary/[0.04]"
           style={style}
           aria-label={`Workers on ${dateKey}: ${workers || "none"}`}
         >
-          {workers > 0 ? workers : <span className="text-zinc-300 dark:text-zinc-700">·</span>}
+          {workers > 0 ? workers : <span className="text-foreground-lighter">·</span>}
         </button>
       )}
     </div>
@@ -1465,25 +1465,25 @@ function RateCardEditor({
       onClick={onClose}
     >
       <div
-        className="bg-[#202224] border border-[#222] rounded-lg w-[480px] shadow-2xl"
+        className="bg-surface-100 border border-border rounded-lg w-[480px] shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#2b2e33]">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <div>
-            <span className="text-[13px] font-semibold text-[#d0d0d0]">Labor rate card</span>
-            <p className="text-[10px] font-mono text-[#555] mt-0.5">
+            <span className="text-[13px] font-semibold text-foreground">Labor rate card</span>
+            <p className="text-[10px] tabular-nums text-foreground-lighter mt-0.5">
               SELL rates for this estimate · not synced from workers
             </p>
           </div>
-          <button onClick={onClose} className="text-[#333] hover:text-[#666]">
+          <button onClick={onClose} className="text-foreground-lighter hover:text-foreground-light">
             <X className="h-4 w-4" />
           </button>
         </div>
 
         <div className="p-5 space-y-2.5 max-h-[60vh] overflow-y-auto">
           <div className="grid grid-cols-[1fr_120px_28px] gap-2 px-1 pb-1">
-            <span className="text-[9px] font-mono text-[#444] uppercase tracking-widest">Role name</span>
-            <span className="text-[9px] font-mono text-[#444] uppercase tracking-widest">$ / day</span>
+            <span className="text-[9px] font-mono text-foreground-lighter uppercase tracking-widest">Role name</span>
+            <span className="text-[9px] font-mono text-foreground-lighter uppercase tracking-widest">$ / day</span>
             <span />
           </div>
 
@@ -1493,10 +1493,10 @@ function RateCardEditor({
                 value={r.name}
                 onChange={(e) => update(i, { name: e.target.value })}
                 placeholder="e.g. Foreman, Skilled, General"
-                className="bg-[#18191b] border border-[#222] rounded px-2.5 py-1.5 text-[13px] text-[#d0d0d0] focus:outline-none focus:border-[#F5A623] transition-colors"
+                className="bg-background border border-border rounded-md px-2.5 py-1.5 text-[13px] text-foreground focus:outline-none focus:border-primary transition-colors"
               />
               <div className="relative">
-                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] font-mono text-[#555]">$</span>
+                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] tabular-nums text-foreground-lighter">$</span>
                 <input
                   type="number"
                   min={0}
@@ -1504,12 +1504,12 @@ function RateCardEditor({
                   value={r.daily_rate || ""}
                   onChange={(e) => update(i, { daily_rate: Number(e.target.value) })}
                   placeholder="0"
-                  className="w-full bg-[#18191b] border border-[#222] rounded pl-6 pr-2.5 py-1.5 text-[13px] text-[#d0d0d0] focus:outline-none focus:border-[#F5A623] transition-colors text-right font-mono"
+                  className="w-full bg-background border border-border rounded-md pl-6 pr-2.5 py-1.5 text-[13px] text-foreground focus:outline-none focus:border-primary transition-colors text-right tabular-nums"
                 />
               </div>
               <button
                 onClick={() => removeRole(i)}
-                className="p-1.5 text-[#333] hover:text-[#EF4444] transition-colors"
+                className="p-1.5 text-foreground-lighter hover:text-destructive transition-colors"
                 title="Remove role"
               >
                 <Trash2 className="h-3.5 w-3.5" />
@@ -1519,22 +1519,22 @@ function RateCardEditor({
 
           <button
             onClick={addRole}
-            className="flex items-center gap-1.5 text-[11px] font-mono text-[#F5A623] hover:text-[#f5b955] transition-colors mt-2 pt-2 border-t border-[#2b2e33] w-full justify-center py-2"
+            className="flex items-center gap-1.5 text-[11px] tabular-nums text-brand hover:text-brand/80 transition-colors mt-2 pt-2 border-t border-border w-full justify-center py-2"
           >
             <Plus className="h-3 w-3" /> Add role
           </button>
         </div>
 
-        <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-[#2b2e33]">
+        <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
           <button
             onClick={onClose}
-            className="px-3 py-1.5 text-[12px] text-[#555] hover:text-[#888] border border-[#222] rounded transition-colors"
+            className="px-3 py-1.5 text-[12px] text-foreground-lighter hover:text-foreground-light border border-border rounded-md transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
-            className="px-3 py-1.5 text-[12px] font-medium bg-[#F5A623] text-[#18191b] rounded hover:bg-[#f5a623cc] transition-colors"
+            className="px-3 py-1.5 text-[12px] font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/80 transition-colors"
           >
             Save
           </button>

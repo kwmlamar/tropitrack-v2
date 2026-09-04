@@ -1,17 +1,20 @@
 import type { Metadata, Viewport } from "next";
-import { IBM_Plex_Sans, IBM_Plex_Mono, Fraunces } from "next/font/google";
+import { Plus_Jakarta_Sans, Source_Code_Pro, Fraunces } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeColorMeta } from "@/components/theme-color-meta";
 
-const ibmPlexSans = IBM_Plex_Sans({
+// UI face. Variable, so the 450 body weight set in globals.css renders as a real
+// optical weight rather than a synthesized one. (Supabase Studio itself uses Inter;
+// we run a warmer humanist sans here by preference.)
+const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
   variable: "--font-sans",
 });
 
-const ibmPlexMono = IBM_Plex_Mono({
+// Supabase's mono, used here for the uppercase micro-labels and numerics.
+const sourceCodePro = Source_Code_Pro({
   subsets: ["latin"],
   weight: ["400", "500", "600"],
   variable: "--font-mono",
@@ -61,8 +64,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#0D9488" }, // Primary teal for light mode
-    { media: "(prefers-color-scheme: dark)", color: "#000000" }, // Black for dark mode
+    { media: "(prefers-color-scheme: light)", color: "#f8f7f7" }, // light canvas
+    { media: "(prefers-color-scheme: dark)", color: "#141414" }, // dark canvas
   ],
   width: "device-width",
   initialScale: 1,
@@ -78,7 +81,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${ibmPlexSans.variable} ${ibmPlexMono.variable} ${fraunces.variable} font-sans`}>
+      <body className={`${plusJakartaSans.variable} ${sourceCodePro.variable} ${fraunces.variable} font-sans`}>
         <ThemeProvider defaultTheme="dark" storageKey="bedrock-theme">
           <ThemeColorMeta />
           {children}

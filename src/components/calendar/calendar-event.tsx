@@ -17,44 +17,62 @@ interface CalendarEventProps {
   onClick?: (event: CalendarEvent) => void;
 }
 
+// Event types outnumber the status token set (success/destructive/warning/
+// info), so several types share a token, grouped by closest semantic match
+// (schedule items -> info, logistics/caution -> warning, staffing -> success,
+// money-due -> destructive) rather than by the original hue.
 const eventTypeConfig: Record<
   CalendarEventType,
-  { icon: typeof FolderKanban; color: string; bgColor: string }
+  { icon: typeof FolderKanban; color: string; bgColor: string; borderColor: string; dotColor: string }
 > = {
   project: {
     icon: FolderKanban,
-    color: "text-blue-600 dark:text-blue-400",
-    bgColor: "bg-blue-100 dark:bg-blue-900/30",
+    color: "text-info",
+    bgColor: "bg-info-subtle",
+    borderColor: "border-info-border",
+    dotColor: "bg-info-solid",
   },
   milestone: {
     icon: Flag,
-    color: "text-purple-600 dark:text-purple-400",
-    bgColor: "bg-purple-100 dark:bg-purple-900/30",
+    color: "text-brand",
+    bgColor: "bg-brand-subtle",
+    borderColor: "border-brand-border",
+    dotColor: "bg-primary",
   },
   worker: {
     icon: Users,
-    color: "text-green-600 dark:text-green-400",
-    bgColor: "bg-green-100 dark:bg-green-900/30",
+    color: "text-success",
+    bgColor: "bg-success-subtle",
+    borderColor: "border-success-border",
+    dotColor: "bg-success-solid",
   },
   material_delivery: {
     icon: Truck,
-    color: "text-orange-600 dark:text-orange-400",
-    bgColor: "bg-orange-100 dark:bg-orange-900/30",
+    color: "text-warning",
+    bgColor: "bg-warning-subtle",
+    borderColor: "border-warning-border",
+    dotColor: "bg-warning-solid",
   },
   invoice_due: {
     icon: Receipt,
-    color: "text-red-600 dark:text-red-400",
-    bgColor: "bg-red-100 dark:bg-red-900/30",
+    color: "text-destructive",
+    bgColor: "bg-destructive-subtle",
+    borderColor: "border-destructive-border",
+    dotColor: "bg-destructive-solid",
   },
   timesheet: {
     icon: Clock,
-    color: "text-cyan-600 dark:text-cyan-400",
-    bgColor: "bg-cyan-100 dark:bg-cyan-900/30",
+    color: "text-info",
+    bgColor: "bg-info-subtle",
+    borderColor: "border-info-border",
+    dotColor: "bg-info-solid",
   },
   equipment: {
     icon: Wrench,
-    color: "text-amber-600 dark:text-amber-400",
-    bgColor: "bg-amber-100 dark:bg-amber-900/30",
+    color: "text-warning",
+    bgColor: "bg-warning-subtle",
+    borderColor: "border-warning-border",
+    dotColor: "bg-warning-solid",
   },
 };
 
@@ -76,7 +94,7 @@ export function CalendarEventItem({ event, compact, onClick }: CalendarEventProp
   return (
     <button
       onClick={() => onClick?.(event)}
-      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-xs transition-all ${config.bgColor} hover:opacity-80`}
+      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md border text-left text-xs transition-all ${config.bgColor} ${config.borderColor} hover:opacity-80`}
     >
       <Icon className={`h-3 w-3 flex-shrink-0 ${config.color}`} />
       <span className={`truncate font-medium ${config.color}`}>
@@ -90,7 +108,7 @@ export function EventDot({ type }: { type: CalendarEventType }) {
   const config = eventTypeConfig[type];
   return (
     <span
-      className={`inline-block w-1.5 h-1.5 rounded-full ${config.bgColor.replace("bg-", "bg-").replace("/30", "")}`}
+      className={`inline-block w-1.5 h-1.5 rounded-full ${config.dotColor}`}
     />
   );
 }
@@ -111,7 +129,7 @@ export function EventTypeLabel({ type }: { type: CalendarEventType }) {
 
   return (
     <div className="flex items-center gap-2">
-      <div className={`p-1 rounded ${config.bgColor}`}>
+      <div className={`p-1 rounded-md ${config.bgColor}`}>
         <Icon className={`h-3 w-3 ${config.color}`} />
       </div>
       <span className="text-sm font-medium">{labels[type]}</span>

@@ -13,48 +13,51 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+// Decorative tile colors, not status indicators — rotated across the status-
+// solid tokens (info/success/warning) purely for visual variety, since there
+// are more tiles than tokens.
 const quickActions = [
   {
     label: "Log Time",
     description: "Quick time entry",
     icon: Clock,
     href: "/time-entries/new",
-    color: "bg-blue-500 dark:bg-blue-600",
+    color: "bg-info-solid text-info-foreground",
   },
   {
     label: "New Invoice",
     description: "Create invoice",
     icon: FileText,
     href: "/invoices/new",
-    color: "bg-green-500 dark:bg-green-600",
+    color: "bg-success-solid text-success-foreground",
   },
   {
     label: "Scan Receipt",
     description: "Add expense",
     icon: Receipt,
     href: "/expenses/new",
-    color: "bg-purple-500 dark:bg-purple-600",
+    color: "bg-warning-solid text-warning-foreground",
   },
   {
     label: "Record Payment",
     description: "Log payment",
     icon: DollarSign,
     href: "/payments/new",
-    color: "bg-emerald-500 dark:bg-emerald-600",
+    color: "bg-success-solid text-success-foreground",
   },
   {
     label: "Add Employee",
     description: "New team member",
     icon: Users,
     href: "/employees/new",
-    color: "bg-orange-500 dark:bg-orange-600",
+    color: "bg-warning-solid text-warning-foreground",
   },
   {
     label: "New Project",
     description: "Start project",
     icon: FolderKanban,
     href: "/projects/new",
-    color: "bg-cyan-500 dark:bg-cyan-600",
+    color: "bg-info-solid text-info-foreground",
   },
 ];
 
@@ -74,7 +77,7 @@ export default function QuickAddPage() {
               <Link key={action.href} href={action.href}>
                 <Card className="h-full hover:border-primary transition-all hover:shadow-lg active:scale-95">
                   <CardContent className="p-6 flex flex-col items-center text-center gap-3">
-                    <div className={`${action.color} p-4 rounded-2xl text-white`}>
+                    <div className={`${action.color} p-4 rounded-2xl`}>
                       <Icon className="w-8 h-8" />
                     </div>
                     <div>

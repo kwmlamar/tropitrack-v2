@@ -794,9 +794,9 @@ export function QuickTimeEntry() {
                     key={row.id}
                     className={cn(
                       "border-b transition-colors",
-                      row.status === "saved" && "bg-green-50",
-                      row.status === "error" && "bg-red-50",
-                      existingEntries.has(row.worker_id) && "bg-amber-50"
+                      row.status === "saved" && "bg-success-subtle",
+                      row.status === "error" && "bg-destructive-subtle",
+                      existingEntries.has(row.worker_id) && "bg-warning-subtle"
                     )}
                   >
                     {/* Worker Selection */}
@@ -810,7 +810,7 @@ export function QuickTimeEntry() {
                         }}
                       />
                       {existingEntries.has(row.worker_id) && (
-                        <div className="flex items-center gap-1 mt-1 text-xs text-amber-600">
+                        <div className="flex items-center gap-1 mt-1 text-xs text-warning">
                           <AlertCircle className="h-3 w-3" />
                           <span>Has {existingEntries.get(row.worker_id)}h logged</span>
                         </div>
@@ -998,7 +998,7 @@ export function QuickTimeEntry() {
             {duplicates.map((dup) => (
               <div
                 key={dup.row_id}
-                className="flex items-center justify-between p-2 bg-amber-50 rounded"
+                className="flex items-center justify-between p-2 bg-warning-subtle rounded-md"
               >
                 <span className="font-medium">{dup.worker_name}</span>
                 <span className="text-sm text-muted-foreground">

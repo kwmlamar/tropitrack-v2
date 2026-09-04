@@ -10,9 +10,9 @@ import { cn } from "@/lib/utils";
 import type { Worker } from "@/types";
 
 const STATUS_DOT: Record<string, string> = {
-  active:     "bg-[#22C55E]",
-  inactive:   "bg-[#F5A623]",
-  terminated: "bg-[#EF4444]",
+  active:     "bg-success-solid",
+  inactive:   "bg-warning-solid",
+  terminated: "bg-destructive-solid",
 };
 
 const STATUS_OPTIONS = ["all", "active", "inactive", "terminated"];
@@ -89,13 +89,13 @@ export default function WorkersPage() {
   ];
 
   return (
-    <div className="flex flex-col h-full overflow-auto bg-[#18191b]">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-[#34373c] flex-shrink-0">
+    <div className="flex flex-col h-full overflow-auto bg-background">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0">
         <div>
-          <p className="text-[11px] font-mono text-[#666] uppercase tracking-widest">Crew</p>
-          <h1 className="text-[16px] font-semibold text-[#d0d0d0] mt-0.5">All Workers</h1>
+          <p className="text-[11px] font-mono text-foreground-lighter uppercase tracking-widest">Crew</p>
+          <h1 className="text-[16px] font-semibold text-foreground mt-0.5">All Workers</h1>
         </div>
-        <Link href="/workers/new" className="text-[12px] font-medium text-[#F5A623] hover:opacity-80 transition-opacity">
+        <Link href="/workers/new" className="text-[12px] font-medium text-brand hover:opacity-80 transition-opacity">
           + Add Worker
         </Link>
       </div>
@@ -103,11 +103,11 @@ export default function WorkersPage() {
       <div className="flex-1 p-6 space-y-5">
         <div className="grid grid-cols-4 gap-3">
           {loading
-            ? Array(4).fill(0).map((_, i) => <div key={i} className="h-[72px] rounded border border-[#34373c] bg-[#202224] animate-pulse" />)
+            ? Array(4).fill(0).map((_, i) => <div key={i} className="h-[72px] rounded-lg border border-border bg-surface-100 animate-pulse" />)
             : stats.map(s => (
-                <div key={s.label} className="rounded border border-[#34373c] bg-[#202224] px-4 py-3.5">
-                  <p className="text-[11px] font-mono text-[#666] uppercase tracking-wider">{s.label}</p>
-                  <p className="text-[22px] font-semibold font-mono text-[#d0d0d0] mt-1 leading-none">{s.value}</p>
+                <div key={s.label} className="rounded-lg border border-border bg-surface-100 px-4 py-3.5">
+                  <p className="text-[11px] font-mono text-foreground-lighter uppercase tracking-wider">{s.label}</p>
+                  <p className="text-[22px] font-semibold tabular-nums text-foreground mt-1 leading-none">{s.value}</p>
                 </div>
               ))
           }
@@ -118,7 +118,7 @@ export default function WorkersPage() {
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             placeholder="Search workers..."
-            className="flex-1 min-w-[200px] bg-[#202224] border border-[#34373c] rounded px-3 py-2 text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#333] transition-colors"
+            className="flex-1 min-w-[200px] bg-surface-100 border border-border rounded-md px-3 py-2 text-[13px] text-foreground-light placeholder:text-foreground-lighter outline-none focus:border-strong transition-colors"
           />
           <div className="flex items-center gap-1">
             {STATUS_OPTIONS.map(s => (
@@ -126,8 +126,8 @@ export default function WorkersPage() {
                 key={s}
                 onClick={() => setStatusFilter(s)}
                 className={cn(
-                  "px-2.5 py-1.5 rounded text-[10px] font-mono uppercase tracking-wide transition-colors",
-                  statusFilter === s ? "bg-[#2d3035] text-[#F5A623] border border-[#333]" : "text-[#555] hover:text-[#999]"
+                  "px-2.5 py-1.5 rounded-md text-[10px] font-mono uppercase tracking-wide transition-colors",
+                  statusFilter === s ? "bg-surface-300 text-brand border border-strong" : "text-foreground-lighter hover:text-foreground-light"
                 )}
               >
                 {s}
@@ -136,61 +136,61 @@ export default function WorkersPage() {
           </div>
         </div>
 
-        <div className="rounded border border-[#34373c] bg-[#202224] overflow-hidden">
+        <div className="rounded-lg border border-border bg-surface-100 overflow-hidden">
           {loading ? (
-            <div className="divide-y divide-[#292c31]">
+            <div className="divide-y divide-border">
               {Array(5).fill(0).map((_, i) => <div key={i} className="h-[52px] animate-pulse" />)}
             </div>
           ) : filtered.length === 0 ? (
             <div className="py-16 text-center">
-              <p className="text-[13px] text-[#555]">{searchTerm || statusFilter !== "all" ? "No workers match" : "No workers yet"}</p>
-              <Link href="/workers/new" className="inline-block mt-3 text-[12px] text-[#F5A623] hover:opacity-80">
+              <p className="text-[13px] text-foreground-lighter">{searchTerm || statusFilter !== "all" ? "No workers match" : "No workers yet"}</p>
+              <Link href="/workers/new" className="inline-block mt-3 text-[12px] text-brand hover:opacity-80">
                 Add your first worker →
               </Link>
             </div>
           ) : (
             <table className="w-full">
               <thead>
-                <tr className="border-b border-[#2d3035]">
-                  <th className="px-5 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555]">Name</th>
-                  <th className="px-5 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555]">Type</th>
-                  <th className="px-5 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555]">Rate</th>
-                  <th className="px-5 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555]">Phone</th>
-                  <th className="px-5 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555]">Hired</th>
-                  <th className="px-5 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555]">Status</th>
+                <tr className="border-b border-border">
+                  <th className="px-5 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">Name</th>
+                  <th className="px-5 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">Type</th>
+                  <th className="px-5 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">Rate</th>
+                  <th className="px-5 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">Phone</th>
+                  <th className="px-5 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">Hired</th>
+                  <th className="px-5 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">Status</th>
                   <th className="w-32 px-5 py-2.5" />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#292c31]">
+              <tbody className="divide-y divide-border">
                 {filtered.map(worker => (
-                  <tr key={worker.id} className="group hover:bg-[#23252a] transition-colors">
+                  <tr key={worker.id} className="group hover:bg-surface-200 transition-colors">
                     <td className="px-5 py-3">
-                      <Link href={`/workers/${worker.id}`} className="text-[13px] text-[#aaa] group-hover:text-[#c4c4c4] transition-colors">
+                      <Link href={`/workers/${worker.id}`} className="text-[13px] text-foreground-light group-hover:text-foreground transition-colors">
                         {worker.first_name} {worker.last_name}
                       </Link>
-                      {worker.email && <p className="text-[11px] text-[#555] mt-0.5">{worker.email}</p>}
+                      {worker.email && <p className="text-[11px] text-foreground-lighter mt-0.5">{worker.email}</p>}
                     </td>
-                    <td className="px-5 py-3 text-[12px] font-mono text-[#666] capitalize">{worker.worker_type}</td>
-                    <td className="px-5 py-3 text-[12px] font-mono text-[#aaa]">
+                    <td className="px-5 py-3 text-[12px] tabular-nums text-foreground-lighter capitalize">{worker.worker_type}</td>
+                    <td className="px-5 py-3 text-[12px] tabular-nums text-foreground-light">
                       {worker.worker_type === "hourly" && worker.hourly_rate
                         ? `${formatCurrency(worker.hourly_rate)}/hr`
                         : worker.salary_amount
                         ? `${formatCurrency(worker.salary_amount)}/yr`
                         : "—"}
                     </td>
-                    <td className="px-5 py-3 text-[12px] font-mono text-[#666]">{worker.phone || "—"}</td>
-                    <td className="px-5 py-3 text-[11px] font-mono text-[#555]">{formatDate(worker.hire_date)}</td>
+                    <td className="px-5 py-3 text-[12px] tabular-nums text-foreground-lighter">{worker.phone || "—"}</td>
+                    <td className="px-5 py-3 text-[11px] tabular-nums text-foreground-lighter">{formatDate(worker.hire_date)}</td>
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-2">
-                        <span className={cn("h-1.5 w-1.5 rounded-full flex-shrink-0", STATUS_DOT[worker.status] ?? "bg-[#404040]")} />
-                        <span className="text-[11px] font-mono text-[#666] capitalize">{worker.status}</span>
+                        <span className={cn("h-1.5 w-1.5 rounded-full flex-shrink-0", STATUS_DOT[worker.status] ?? "bg-surface-400")} />
+                        <span className="text-[11px] tabular-nums text-foreground-lighter capitalize">{worker.status}</span>
                       </div>
                     </td>
                     <td className="px-5 py-3 text-right">
                       <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Link href={`/workers/${worker.id}`} className="text-[11px] text-[#666] hover:text-[#aaa] transition-colors">View</Link>
-                        <Link href={`/workers/${worker.id}/edit`} className="text-[11px] text-[#666] hover:text-[#aaa] transition-colors">Edit</Link>
-                        <button onClick={() => handleDelete(worker.id)} className="text-[11px] text-[#666] hover:text-[#EF4444] transition-colors">Delete</button>
+                        <Link href={`/workers/${worker.id}`} className="text-[11px] text-foreground-lighter hover:text-foreground-light transition-colors">View</Link>
+                        <Link href={`/workers/${worker.id}/edit`} className="text-[11px] text-foreground-lighter hover:text-foreground-light transition-colors">Edit</Link>
+                        <button onClick={() => handleDelete(worker.id)} className="text-[11px] text-foreground-lighter hover:text-destructive transition-colors">Delete</button>
                       </div>
                     </td>
                   </tr>

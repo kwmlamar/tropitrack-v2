@@ -170,18 +170,18 @@ export default function TemplatesSettingsPage() {
   };
 
   const TemplateCard = ({ template }: { template: DocumentTemplate }) => (
-    <div className="rounded border border-[#34373c] bg-[#202224] p-5 space-y-4 flex flex-col justify-between">
+    <div className="rounded-lg border border-border bg-surface-100 p-5 space-y-4 flex flex-col justify-between">
       <div className="space-y-1">
         <div className="flex items-center gap-2 flex-wrap">
-          <h3 className="font-semibold text-[13px] text-[#d0d0d0]">{template.name}</h3>
+          <h3 className="font-semibold text-[13px] text-foreground">{template.name}</h3>
           {template.is_default && (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-mono bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-500 border border-amber-200 dark:border-amber-500/25">
-              <Star className="h-2.5 w-2.5 mr-1 fill-amber-500/30" />
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] tabular-nums bg-warning-subtle text-warning border border-warning-border">
+              <Star className="h-2.5 w-2.5 mr-1 fill-warning/30" />
               Default
             </span>
           )}
         </div>
-        <p className="text-[11px] text-[#555]">
+        <p className="text-[11px] text-foreground-lighter">
           {getTemplateDescription(template)}
         </p>
       </div>
@@ -189,21 +189,21 @@ export default function TemplatesSettingsPage() {
       <div className="flex flex-wrap gap-2 pt-2">
         <button
           onClick={() => router.push(`/settings/templates/${template.id}/edit`)}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded border border-[#34373c] bg-[#202224] hover:bg-[#2d3035] hover:border-[#34373c] dark:hover:bg-[#272a2c] dark:hover:border-[#333] text-[11px] font-medium text-[#888] hover:text-[#b8b8b8] transition-colors"
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border bg-surface-100 hover:bg-surface-300 hover:border-hover text-[11px] font-medium text-foreground-lighter hover:text-foreground-light transition-colors"
         >
           <Edit className="h-3 w-3" />
           Edit
         </button>
         <button
           onClick={() => router.push(`/settings/templates/${template.id}/edit`)}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded border border-[#34373c] bg-[#202224] hover:bg-[#2d3035] hover:border-[#34373c] dark:hover:bg-[#272a2c] dark:hover:border-[#333] text-[11px] font-medium text-[#888] hover:text-[#b8b8b8] transition-colors"
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border bg-surface-100 hover:bg-surface-300 hover:border-hover text-[11px] font-medium text-foreground-lighter hover:text-foreground-light transition-colors"
         >
           <Eye className="h-3 w-3" />
           Preview
         </button>
         <button
           onClick={() => handleDuplicate(template)}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded border border-[#34373c] bg-[#202224] hover:bg-[#2d3035] hover:border-[#34373c] dark:hover:bg-[#272a2c] dark:hover:border-[#333] text-[11px] font-medium text-[#888] hover:text-[#b8b8b8] transition-colors"
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border bg-surface-100 hover:bg-surface-300 hover:border-hover text-[11px] font-medium text-foreground-lighter hover:text-foreground-light transition-colors"
         >
           <Copy className="h-3 w-3" />
           Duplicate
@@ -212,14 +212,14 @@ export default function TemplatesSettingsPage() {
           <>
             <button
               onClick={() => handleSetDefault(template.id, template.type)}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded border border-[#34373c] bg-[#202224] hover:bg-[#2d3035] hover:border-[#34373c] dark:hover:bg-[#272a2c] dark:hover:border-[#333] text-[11px] font-medium text-[#888] hover:text-[#b8b8b8] transition-colors"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border bg-surface-100 hover:bg-surface-300 hover:border-hover text-[11px] font-medium text-foreground-lighter hover:text-foreground-light transition-colors"
             >
-              <CheckCircle2 className="h-3 w-3 text-green-500" />
+              <CheckCircle2 className="h-3 w-3 text-success" />
               Set Default
             </button>
             <button
               onClick={() => handleDelete(template.id, template.name)}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded border border-[#34373c] bg-[#202224] hover:bg-red-500/10 hover:border-red-500/20 text-[11px] font-medium text-[#555] hover:text-red-400 transition-colors"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border bg-surface-100 hover:bg-destructive-subtle hover:border-destructive-border text-[11px] font-medium text-foreground-lighter hover:text-destructive transition-colors"
             >
               <Trash2 className="h-3 w-3" />
               Delete
@@ -231,25 +231,25 @@ export default function TemplatesSettingsPage() {
   );
 
   return (
-    <div className="flex flex-col h-full overflow-auto bg-[#18191b]">
+    <div className="flex flex-col h-full overflow-auto bg-background">
       {/* Top bar */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-[#34373c] flex-shrink-0">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-3">
           <button
             onClick={() => router.push("/settings")}
-            className="text-[#555] hover:text-[#aaa] transition-colors"
+            className="text-foreground-lighter hover:text-foreground-light transition-colors"
             title="Back to Settings"
           >
             <ArrowLeft className="h-4 w-4" />
           </button>
           <div>
-            <p className="text-[11px] font-mono text-[#666] uppercase tracking-widest">Settings</p>
-            <h1 className="text-[16px] font-semibold text-[#d0d0d0] mt-0.5">Document Templates</h1>
+            <p className="text-[11px] font-mono text-foreground-lighter uppercase tracking-widest">Settings</p>
+            <h1 className="text-[16px] font-semibold text-foreground mt-0.5">Document Templates</h1>
           </div>
         </div>
         <button
           onClick={() => router.push("/settings/templates/new")}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#2d3035] border border-[#333] text-[11px] font-mono uppercase tracking-wider text-[#F5A623] hover:bg-[#353840] transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-surface-300 border border-strong text-[11px] font-mono uppercase tracking-wider text-brand hover:bg-surface-400 transition-colors"
         >
           <Plus className="h-3.5 w-3.5" />
           Create Template
@@ -258,14 +258,14 @@ export default function TemplatesSettingsPage() {
 
       <div className="flex-1 p-6 space-y-5">
         {/* Navigation Tabs */}
-        <div className="flex items-center gap-1 border-b border-[#34373c] pb-2 flex-wrap">
+        <div className="flex items-center gap-1 border-b border-border pb-2 flex-wrap">
           <button
             onClick={() => setActiveTab("estimates")}
             className={cn(
-              "px-3 py-1.5 rounded text-[10px] font-mono uppercase tracking-wider transition-colors flex items-center gap-2",
+              "px-3 py-1.5 rounded-md text-[10px] font-mono uppercase tracking-wider transition-colors flex items-center gap-2",
               activeTab === "estimates"
-                ? "bg-[#2d3035] text-[#F5A623] border border-[#333]"
-                : "text-[#555] hover:text-[#999]"
+                ? "bg-surface-300 text-brand border border-strong"
+                : "text-foreground-lighter hover:text-foreground-light"
             )}
           >
             <FileText className="h-3.5 w-3.5" />
@@ -274,10 +274,10 @@ export default function TemplatesSettingsPage() {
           <button
             onClick={() => setActiveTab("invoices")}
             className={cn(
-              "px-3 py-1.5 rounded text-[10px] font-mono uppercase tracking-wider transition-colors flex items-center gap-2",
+              "px-3 py-1.5 rounded-md text-[10px] font-mono uppercase tracking-wider transition-colors flex items-center gap-2",
               activeTab === "invoices"
-                ? "bg-[#2d3035] text-[#F5A623] border border-[#333]"
-                : "text-[#555] hover:text-[#999]"
+                ? "bg-surface-300 text-brand border border-strong"
+                : "text-foreground-lighter hover:text-foreground-light"
             )}
           >
             <FileText className="h-3.5 w-3.5" />
@@ -291,7 +291,7 @@ export default function TemplatesSettingsPage() {
             {loading ? (
               <div className="grid gap-4 md:grid-cols-2">
                 {[1, 2].map((i) => (
-                  <div key={i} className="h-32 bg-[#202224] border border-[#34373c] rounded animate-pulse" />
+                  <div key={i} className="h-32 bg-surface-100 border border-border rounded-lg animate-pulse" />
                 ))}
               </div>
             ) : estimateTemplates.length > 0 ? (
@@ -301,13 +301,13 @@ export default function TemplatesSettingsPage() {
                 ))}
               </div>
             ) : (
-              <div className="rounded border border-[#34373c] bg-[#202224] p-8 text-center flex flex-col items-center justify-center">
-                <FileText className="h-10 w-10 text-[#444] mb-3" />
-                <h3 className="text-[13px] font-semibold text-[#d0d0d0] uppercase tracking-wider font-mono">No estimate templates</h3>
-                <p className="text-[11px] text-[#555] mt-1 mb-4">Create your first template to get started</p>
+              <div className="rounded-lg border border-border bg-surface-100 p-8 text-center flex flex-col items-center justify-center">
+                <FileText className="h-10 w-10 text-foreground-lighter mb-3" />
+                <h3 className="text-[13px] font-semibold text-foreground uppercase tracking-wider font-mono">No estimate templates</h3>
+                <p className="text-[11px] text-foreground-lighter mt-1 mb-4">Create your first template to get started</p>
                 <button
                   onClick={() => router.push("/settings/templates/new?type=estimate")}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded bg-[#2d3035] border border-[#333] text-[12px] font-medium text-[#F5A623] hover:bg-[#353840] transition-colors"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-surface-300 border border-strong text-[12px] font-medium text-brand hover:bg-surface-400 transition-colors"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   Create Estimate Template
@@ -322,7 +322,7 @@ export default function TemplatesSettingsPage() {
             {loading ? (
               <div className="grid gap-4 md:grid-cols-2">
                 {[1, 2].map((i) => (
-                  <div key={i} className="h-32 bg-[#202224] border border-[#34373c] rounded animate-pulse" />
+                  <div key={i} className="h-32 bg-surface-100 border border-border rounded-lg animate-pulse" />
                 ))}
               </div>
             ) : invoiceTemplates.length > 0 ? (
@@ -332,13 +332,13 @@ export default function TemplatesSettingsPage() {
                 ))}
               </div>
             ) : (
-              <div className="rounded border border-[#34373c] bg-[#202224] p-8 text-center flex flex-col items-center justify-center">
-                <FileText className="h-10 w-10 text-[#444] mb-3" />
-                <h3 className="text-[13px] font-semibold text-[#d0d0d0] uppercase tracking-wider font-mono">No invoice templates</h3>
-                <p className="text-[11px] text-[#555] mt-1 mb-4">Create your first template to get started</p>
+              <div className="rounded-lg border border-border bg-surface-100 p-8 text-center flex flex-col items-center justify-center">
+                <FileText className="h-10 w-10 text-foreground-lighter mb-3" />
+                <h3 className="text-[13px] font-semibold text-foreground uppercase tracking-wider font-mono">No invoice templates</h3>
+                <p className="text-[11px] text-foreground-lighter mt-1 mb-4">Create your first template to get started</p>
                 <button
                   onClick={() => router.push("/settings/templates/new?type=invoice")}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded bg-[#2d3035] border border-[#333] text-[12px] font-medium text-[#F5A623] hover:bg-[#353840] transition-colors"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-surface-300 border border-strong text-[12px] font-medium text-brand hover:bg-surface-400 transition-colors"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   Create Invoice Template

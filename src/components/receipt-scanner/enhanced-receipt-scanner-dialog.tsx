@@ -1150,10 +1150,10 @@ export function EnhancedReceiptScannerDialog({
                 {item.material_match && (
                   <div className="mt-2 text-xs">
                     {item.material_match.existing ? (
-                      <div className="flex items-start gap-2 p-2 bg-green-50 dark:bg-green-950/30 rounded border border-green-200 dark:border-green-900">
-                        <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
+                      <div className="flex items-start gap-2 p-2 bg-success-subtle rounded-md border border-success-border">
+                        <CheckCircle2 className="h-4 w-4 text-success mt-0.5 shrink-0" />
                         <div>
-                          <p className="text-green-700 dark:text-green-400 font-medium">
+                          <p className="text-success font-medium">
                             Matches: {item.material_match.existing.name}
                           </p>
                           {item.material_match.price_change && (
@@ -1169,8 +1169,8 @@ export function EnhancedReceiptScannerDialog({
                                 <span
                                   className={`flex items-center ${
                                     item.material_match.price_change.percentage > 0
-                                      ? "text-red-600"
-                                      : "text-green-600"
+                                      ? "text-destructive"
+                                      : "text-success"
                                   }`}
                                 >
                                   {item.material_match.price_change.percentage > 0 ? (
@@ -1186,9 +1186,9 @@ export function EnhancedReceiptScannerDialog({
                         </div>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-950/30 rounded border border-blue-200 dark:border-blue-900">
-                        <PackagePlus className="h-4 w-4 text-blue-600 shrink-0" />
-                        <span className="text-blue-700 dark:text-blue-400">
+                      <div className="flex items-center gap-2 p-2 bg-info-subtle rounded-md border border-info-border">
+                        <PackagePlus className="h-4 w-4 text-info shrink-0" />
+                        <span className="text-info">
                           Will be added as new material
                         </span>
                       </div>
@@ -1279,13 +1279,13 @@ export function EnhancedReceiptScannerDialog({
                   return (
                     <>
                       {summary.toCreate > 0 && (
-                        <span className="flex items-center gap-1 text-blue-600">
+                        <span className="flex items-center gap-1 text-info">
                           <CircleDot className="h-3 w-3" />
                           {summary.toCreate} new
                         </span>
                       )}
                       {summary.toUpdate > 0 && (
-                        <span className="flex items-center gap-1 text-green-600">
+                        <span className="flex items-center gap-1 text-success">
                           <CheckCircle2 className="h-3 w-3" />
                           {summary.toUpdate} update
                         </span>
@@ -1320,7 +1320,7 @@ export function EnhancedReceiptScannerDialog({
             {/* Discount Section */}
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
-                <span className="text-green-600">Discount</span>
+                <span className="text-success">Discount</span>
                 <Input
                   value={discountLabel}
                   onChange={(e) => setDiscountLabel(e.target.value)}
@@ -1329,14 +1329,14 @@ export function EnhancedReceiptScannerDialog({
                 />
               </div>
               <div className="flex items-center gap-1">
-                <span className="text-green-600">-</span>
+                <span className="text-success">-</span>
                 <Input
                   type="number"
                   step="0.01"
                   min="0"
                   value={discountAmount}
                   onChange={(e) => handleDiscountChange(parseFloat(e.target.value) || 0)}
-                  className="h-6 text-xs w-20 text-right text-green-600"
+                  className="h-6 text-xs w-20 text-right text-success"
                 />
               </div>
             </div>

@@ -204,20 +204,20 @@ export default function TimeTrackingPage() {
   const selectedDayLabel = new Date(selectedDate + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 
   return (
-    <div className="flex flex-col h-full overflow-auto bg-[#18191b]">
+    <div className="flex flex-col h-full overflow-auto bg-background">
       {/* Top bar */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-[#34373c] flex-shrink-0">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0">
         <div>
-          <p className="text-[11px] font-mono text-[#666] uppercase tracking-widest">Time Tracking</p>
-          <h1 className="text-[16px] font-semibold text-[#d0d0d0] mt-0.5">Hours</h1>
+          <p className="text-[11px] font-mono text-foreground-lighter uppercase tracking-widest">Time Tracking</p>
+          <h1 className="text-[16px] font-semibold text-foreground mt-0.5">Hours</h1>
         </div>
         <div className="flex items-center gap-4">
-          <Link href="/time-tracking/quick" className="text-[12px] text-[#666] hover:text-[#aaa] transition-colors">
+          <Link href="/time-tracking/quick" className="text-[12px] text-foreground-lighter hover:text-foreground-light transition-colors">
             Quick entry
           </Link>
           <button
             onClick={() => { setFormData(f => ({ ...f, date: selectedDate })); setDialogOpen(true); }}
-            className="text-[12px] font-medium text-[#F5A623] hover:opacity-80 transition-opacity"
+            className="text-[12px] font-medium text-brand hover:opacity-80 transition-opacity"
           >
             + Log Time
           </button>
@@ -225,10 +225,10 @@ export default function TimeTrackingPage() {
       </div>
 
       {/* Week strip */}
-      <div className="border-b border-[#34373c] bg-[#202224] flex-shrink-0">
+      <div className="border-b border-border bg-surface-100 flex-shrink-0">
         <div className="flex items-center px-4 py-2 gap-2">
           {/* Week navigation */}
-          <button onClick={() => shiftWeek(-1)} className="text-[#555] hover:text-[#999] transition-colors px-1 text-[13px]">←</button>
+          <button onClick={() => shiftWeek(-1)} className="text-foreground-lighter hover:text-foreground-light transition-colors px-1 text-[13px]">←</button>
           <div className="flex-1 flex items-center gap-1">
             {weekDays.map((day, i) => {
               const isSelected = day === selectedDate;
@@ -238,30 +238,30 @@ export default function TimeTrackingPage() {
                   key={day}
                   onClick={() => setSelectedDate(day)}
                   className={cn(
-                    "flex-1 flex flex-col items-center py-2 rounded transition-colors",
-                    isSelected ? "bg-[#2d3035] border border-[#333]" : "hover:bg-[#272a2c]"
+                    "flex-1 flex flex-col items-center py-2 rounded-md transition-colors",
+                    isSelected ? "bg-surface-300 border border-strong" : "hover:bg-surface-200"
                   )}
                 >
-                  <span className={cn("text-[10px] font-mono uppercase tracking-wide", isSelected ? "text-[#F5A623]" : "text-[#555]")}>
+                  <span className={cn("text-[10px] font-mono uppercase tracking-wide", isSelected ? "text-brand" : "text-foreground-lighter")}>
                     {DAY_LABELS[i]}
                   </span>
-                  <span className={cn("text-[14px] font-mono mt-0.5", isSelected ? "text-[#d0d0d0]" : isToday(day) ? "text-[#aaa]" : "text-[#666]")}>
+                  <span className={cn("text-[14px] tabular-nums mt-0.5", isSelected ? "text-foreground" : isToday(day) ? "text-foreground-light" : "text-foreground-lighter")}>
                     {formatShortDate(day)}
                   </span>
                   <div className="h-1 mt-1 flex items-center justify-center">
                     {count > 0 ? (
-                      <span className={cn("text-[9px] font-mono", isSelected ? "text-[#F5A623]" : "text-[#444]")}>
+                      <span className={cn("text-[9px] tabular-nums", isSelected ? "text-brand" : "text-foreground-lighter")}>
                         {count}
                       </span>
                     ) : (
-                      <span className="h-1 w-1 rounded-full bg-[#2d3035]" />
+                      <span className="h-1 w-1 rounded-full bg-surface-300" />
                     )}
                   </div>
                 </button>
               );
             })}
           </div>
-          <button onClick={() => shiftWeek(1)} className="text-[#555] hover:text-[#999] transition-colors px-1 text-[13px]">→</button>
+          <button onClick={() => shiftWeek(1)} className="text-foreground-lighter hover:text-foreground-light transition-colors px-1 text-[13px]">→</button>
         </div>
       </div>
 
@@ -274,11 +274,11 @@ export default function TimeTrackingPage() {
             { label: "OT Hours",  value: `${totalOT.toFixed(1)}h`,    mono: true, accent: totalOT > 0 },
             { label: "Labor Cost",value: formatCurrency(totalLabor),  mono: true, amber: true },
           ].map(s => (
-            <div key={s.label} className="rounded border border-[#34373c] bg-[#202224] px-4 py-3.5">
-              <p className="text-[11px] font-mono text-[#666] uppercase tracking-wider">{s.label}</p>
+            <div key={s.label} className="rounded-lg border border-border bg-surface-100 px-4 py-3.5">
+              <p className="text-[11px] font-mono text-foreground-lighter uppercase tracking-wider">{s.label}</p>
               <p className={cn(
-                "text-[20px] font-semibold font-mono mt-1 leading-none",
-                s.amber ? "text-[#F5A623]" : s.accent ? "text-[#F5A623]" : "text-[#d0d0d0]"
+                "text-[20px] font-semibold tabular-nums mt-1 leading-none",
+                s.amber ? "text-brand" : s.accent ? "text-brand" : "text-foreground"
               )}>
                 {s.value}
               </p>
@@ -288,13 +288,13 @@ export default function TimeTrackingPage() {
 
         {/* Project filter */}
         <div className="flex items-center gap-3">
-          <p className="text-[11px] font-mono text-[#555] uppercase tracking-widest flex-shrink-0">{selectedDayLabel}</p>
+          <p className="text-[11px] font-mono text-foreground-lighter uppercase tracking-widest flex-shrink-0">{selectedDayLabel}</p>
           <div className="flex-1" />
           <div className="flex items-center gap-1">
             <button
               onClick={() => setSelectedProject("all")}
-              className={cn("px-2.5 py-1.5 rounded text-[10px] font-mono uppercase tracking-wide transition-colors",
-                selectedProject === "all" ? "bg-[#2d3035] text-[#F5A623] border border-[#333]" : "text-[#555] hover:text-[#999]")}
+              className={cn("px-2.5 py-1.5 rounded-md text-[10px] font-mono uppercase tracking-wide transition-colors",
+                selectedProject === "all" ? "bg-surface-300 text-brand border border-strong" : "text-foreground-lighter hover:text-foreground-light")}
             >
               All Projects
             </button>
@@ -302,8 +302,8 @@ export default function TimeTrackingPage() {
               <button
                 key={p.id}
                 onClick={() => setSelectedProject(selectedProject === p.id ? "all" : p.id)}
-                className={cn("px-2.5 py-1.5 rounded text-[10px] font-mono transition-colors max-w-[100px] truncate",
-                  selectedProject === p.id ? "bg-[#2d3035] text-[#F5A623] border border-[#333]" : "text-[#555] hover:text-[#999]")}
+                className={cn("px-2.5 py-1.5 rounded-md text-[10px] tabular-nums transition-colors max-w-[100px] truncate",
+                  selectedProject === p.id ? "bg-surface-300 text-brand border border-strong" : "text-foreground-lighter hover:text-foreground-light")}
               >
                 {p.name}
               </button>
@@ -312,17 +312,17 @@ export default function TimeTrackingPage() {
         </div>
 
         {/* Entries table */}
-        <div className="rounded border border-[#34373c] bg-[#202224] overflow-hidden">
+        <div className="rounded-lg border border-border bg-surface-100 overflow-hidden">
           {loading ? (
-            <div className="divide-y divide-[#292c31]">
+            <div className="divide-y divide-border">
               {Array(4).fill(0).map((_, i) => <div key={i} className="h-[52px] animate-pulse" />)}
             </div>
           ) : entries.length === 0 ? (
             <div className="py-16 text-center">
-              <p className="text-[13px] text-[#555]">No entries for {selectedDayLabel}</p>
+              <p className="text-[13px] text-foreground-lighter">No entries for {selectedDayLabel}</p>
               <button
                 onClick={() => { setFormData(f => ({ ...f, date: selectedDate })); setDialogOpen(true); }}
-                className="inline-block mt-3 text-[12px] text-[#F5A623] hover:opacity-80"
+                className="inline-block mt-3 text-[12px] text-brand hover:opacity-80"
               >
                 + Log hours →
               </button>
@@ -330,48 +330,48 @@ export default function TimeTrackingPage() {
           ) : (
             <table className="w-full">
               <thead>
-                <tr className="border-b border-[#2d3035]">
-                  <th className="px-5 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555]">Worker</th>
-                  <th className="px-5 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555]">Project</th>
-                  <th className="px-5 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-[#555]">Time</th>
-                  <th className="px-5 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Reg</th>
-                  <th className="px-5 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">OT</th>
-                  <th className="px-5 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-[#555]">Cost</th>
+                <tr className="border-b border-border">
+                  <th className="px-5 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">Worker</th>
+                  <th className="px-5 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">Project</th>
+                  <th className="px-5 py-2.5 text-left text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">Time</th>
+                  <th className="px-5 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">Reg</th>
+                  <th className="px-5 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">OT</th>
+                  <th className="px-5 py-2.5 text-right text-[10px] font-mono uppercase tracking-widest text-foreground-lighter">Cost</th>
                   <th className="w-16 px-5 py-2.5" />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#292c31]">
+              <tbody className="divide-y divide-border">
                 {entries.map(entry => {
                   const rate = entry.workers?.hourly_rate || 0;
                   const cost = entry.regular_hours * rate + entry.overtime_hours * rate * 1.5;
                   return (
-                    <tr key={entry.id} className="group hover:bg-[#23252a] transition-colors">
-                      <td className="px-5 py-3 text-[13px] text-[#aaa]">
+                    <tr key={entry.id} className="group hover:bg-surface-200 transition-colors">
+                      <td className="px-5 py-3 text-[13px] text-foreground-light">
                         {entry.workers?.first_name} {entry.workers?.last_name}
                       </td>
-                      <td className="px-5 py-3 text-[13px] text-[#777]">{entry.projects?.name}</td>
-                      <td className="px-5 py-3 text-[12px] font-mono text-[#666]">
+                      <td className="px-5 py-3 text-[13px] text-foreground-lighter">{entry.projects?.name}</td>
+                      <td className="px-5 py-3 text-[12px] tabular-nums text-foreground-lighter">
                         {formatTime(entry.start_time)} – {formatTime(entry.end_time)}
                         {entry.break_duration_minutes > 0 && (
-                          <span className="text-[#444] ml-1">({entry.break_duration_minutes}m brk)</span>
+                          <span className="text-foreground-lighter ml-1">({entry.break_duration_minutes}m brk)</span>
                         )}
                       </td>
-                      <td className="px-5 py-3 text-right text-[12px] font-mono text-[#666]">
+                      <td className="px-5 py-3 text-right text-[12px] tabular-nums text-foreground-lighter">
                         {entry.regular_hours.toFixed(1)}h
                       </td>
-                      <td className="px-5 py-3 text-right text-[12px] font-mono">
+                      <td className="px-5 py-3 text-right text-[12px] tabular-nums">
                         {entry.overtime_hours > 0
-                          ? <span className="text-[#F5A623]">{entry.overtime_hours.toFixed(1)}h</span>
-                          : <span className="text-[#333]">—</span>
+                          ? <span className="text-brand">{entry.overtime_hours.toFixed(1)}h</span>
+                          : <span className="text-foreground-lighter">—</span>
                         }
                       </td>
-                      <td className="px-5 py-3 text-right text-[12px] font-mono text-[#aaa]">
+                      <td className="px-5 py-3 text-right text-[12px] tabular-nums text-foreground-light">
                         {formatCurrency(cost)}
                       </td>
                       <td className="px-5 py-3 text-right">
                         <button
                           onClick={() => handleDelete(entry.id)}
-                          className="text-[11px] text-[#444] hover:text-[#EF4444] transition-colors opacity-0 group-hover:opacity-100"
+                          className="text-[11px] text-foreground-lighter hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
                         >
                           Delete
                         </button>
@@ -382,15 +382,15 @@ export default function TimeTrackingPage() {
               </tbody>
               {/* Day total footer */}
               <tfoot>
-                <tr className="border-t border-[#34373c] bg-[#202224]">
+                <tr className="border-t border-border bg-surface-100">
                   <td colSpan={3} className="px-5 py-2.5">
-                    <span className="text-[10px] font-mono text-[#444] uppercase tracking-widest">Day total</span>
+                    <span className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Day total</span>
                   </td>
-                  <td className="px-5 py-2.5 text-right text-[12px] font-mono text-[#666]">{totalReg.toFixed(1)}h</td>
-                  <td className="px-5 py-2.5 text-right text-[12px] font-mono text-[#F5A623]">
+                  <td className="px-5 py-2.5 text-right text-[12px] tabular-nums text-foreground-lighter">{totalReg.toFixed(1)}h</td>
+                  <td className="px-5 py-2.5 text-right text-[12px] tabular-nums text-brand">
                     {totalOT > 0 ? `${totalOT.toFixed(1)}h` : "—"}
                   </td>
-                  <td className="px-5 py-2.5 text-right text-[13px] font-mono font-semibold text-[#F5A623]">
+                  <td className="px-5 py-2.5 text-right text-[13px] tabular-nums font-semibold text-brand">
                     {formatCurrency(totalLabor)}
                   </td>
                   <td />
@@ -403,35 +403,35 @@ export default function TimeTrackingPage() {
 
       {/* Log Time Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md bg-[#202224] border-[#34373c] text-[#d0d0d0]">
+        <DialogContent className="max-w-md bg-surface-100 border-border text-foreground">
           <DialogHeader>
-            <DialogTitle className="text-[#d0d0d0] text-[15px]">Log Time Entry</DialogTitle>
+            <DialogTitle className="text-foreground text-[15px]">Log Time Entry</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit}>
             <div className="space-y-3 py-2">
               <div className="space-y-1">
-                <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Project *</p>
+                <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Project *</p>
                 <Select value={formData.project_id} onValueChange={v => setFormData(f => ({ ...f, project_id: v }))}>
-                  <SelectTrigger className="h-8 bg-[#292c31] border-[#3a3d42] text-[#aaa] text-[13px] focus:ring-0 focus:border-[#333]">
+                  <SelectTrigger className="h-8 bg-surface-100 border-strong text-foreground-light text-[13px] focus:ring-0 focus:border-strong">
                     <SelectValue placeholder="Select project" />
                   </SelectTrigger>
-                  <SelectContent className="bg-[#202224] border-[#3a3d42]">
+                  <SelectContent className="bg-surface-100 border-strong">
                     {projects.map(p => (
-                      <SelectItem key={p.id} value={p.id} className="text-[#aaa] focus:bg-[#292c31] focus:text-[#d0d0d0]">{p.name}</SelectItem>
+                      <SelectItem key={p.id} value={p.id} className="text-foreground-light focus:bg-surface-100 focus:text-foreground">{p.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-1">
-                <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Worker *</p>
+                <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Worker *</p>
                 <Select value={formData.worker_id} onValueChange={v => setFormData(f => ({ ...f, worker_id: v }))}>
-                  <SelectTrigger className="h-8 bg-[#292c31] border-[#3a3d42] text-[#aaa] text-[13px] focus:ring-0 focus:border-[#333]">
+                  <SelectTrigger className="h-8 bg-surface-100 border-strong text-foreground-light text-[13px] focus:ring-0 focus:border-strong">
                     <SelectValue placeholder="Select worker" />
                   </SelectTrigger>
-                  <SelectContent className="bg-[#202224] border-[#3a3d42]">
+                  <SelectContent className="bg-surface-100 border-strong">
                     {workers.map(w => (
-                      <SelectItem key={w.id} value={w.id} className="text-[#aaa] focus:bg-[#292c31] focus:text-[#d0d0d0]">
+                      <SelectItem key={w.id} value={w.id} className="text-foreground-light focus:bg-surface-100 focus:text-foreground">
                         {w.first_name} {w.last_name}
                       </SelectItem>
                     ))}
@@ -440,65 +440,65 @@ export default function TimeTrackingPage() {
               </div>
 
               <div className="space-y-1">
-                <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Date *</p>
+                <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Date *</p>
                 <input
                   type="date"
                   value={formData.date}
                   onChange={e => setFormData(f => ({ ...f, date: e.target.value }))}
-                  className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors"
+                  className="w-full h-8 px-2.5 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light outline-none focus:border-strong transition-colors"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Start</p>
+                  <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Start</p>
                   <input
                     type="time"
                     value={formData.start_time}
                     onChange={e => setFormData(f => ({ ...f, start_time: e.target.value }))}
-                    className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors"
+                    className="w-full h-8 px-2.5 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light outline-none focus:border-strong transition-colors"
                   />
                 </div>
                 <div className="space-y-1">
-                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">End</p>
+                  <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">End</p>
                   <input
                     type="time"
                     value={formData.end_time}
                     onChange={e => setFormData(f => ({ ...f, end_time: e.target.value }))}
-                    className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors"
+                    className="w-full h-8 px-2.5 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light outline-none focus:border-strong transition-colors"
                   />
                 </div>
               </div>
 
               <div className="space-y-1">
-                <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Break (minutes)</p>
+                <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Break (minutes)</p>
                 <input
                   type="number"
                   min="0"
                   value={formData.break_duration_minutes}
                   onChange={e => setFormData(f => ({ ...f, break_duration_minutes: parseInt(e.target.value) || 0 }))}
-                  className="w-full h-8 px-2.5 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] outline-none focus:border-[#333] transition-colors"
+                  className="w-full h-8 px-2.5 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light outline-none focus:border-strong transition-colors"
                 />
               </div>
 
               <div className="space-y-1">
-                <p className="text-[10px] font-mono text-[#555] uppercase tracking-widest">Notes</p>
+                <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">Notes</p>
                 <textarea
                   rows={2}
                   value={formData.notes}
                   onChange={e => setFormData(f => ({ ...f, notes: e.target.value }))}
                   placeholder="Optional notes..."
-                  className="w-full px-2.5 py-2 rounded bg-[#292c31] border border-[#3a3d42] text-[13px] text-[#aaa] placeholder:text-[#444] outline-none focus:border-[#333] transition-colors resize-none"
+                  className="w-full px-2.5 py-2 rounded-md bg-surface-100 border border-strong text-[13px] text-foreground-light placeholder:text-foreground-lighter outline-none focus:border-strong transition-colors resize-none"
                 />
               </div>
 
               {previewHours !== null && previewHours > 0 && (
-                <div className="px-3 py-2.5 rounded border border-[#34373c] bg-[#18191b] flex items-center justify-between">
-                  <span className="text-[11px] font-mono text-[#555]">Calculated hours</span>
+                <div className="px-3 py-2.5 rounded-lg border border-border bg-background flex items-center justify-between">
+                  <span className="text-[11px] tabular-nums text-foreground-lighter">Calculated hours</span>
                   <div className="text-right">
-                    <span className="text-[15px] font-mono font-semibold text-[#d0d0d0]">{previewHours.toFixed(2)}h</span>
+                    <span className="text-[15px] tabular-nums font-semibold text-foreground">{previewHours.toFixed(2)}h</span>
                     {previewHours > 8 && (
-                      <span className="text-[10px] font-mono text-[#F5A623] ml-2">
+                      <span className="text-[10px] tabular-nums text-brand ml-2">
                         {(previewHours - 8).toFixed(2)}h OT
                       </span>
                     )}
@@ -508,13 +508,13 @@ export default function TimeTrackingPage() {
             </div>
 
             <DialogFooter className="pt-2">
-              <button type="button" onClick={() => setDialogOpen(false)} className="px-4 py-2 text-[12px] text-[#555] hover:text-[#aaa] transition-colors">
+              <button type="button" onClick={() => setDialogOpen(false)} className="px-4 py-2 text-[12px] text-foreground-lighter hover:text-foreground-light transition-colors">
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={submitting || !formData.worker_id || !formData.project_id}
-                className="flex items-center gap-1.5 px-4 py-2 rounded bg-[#2d3035] border border-[#333] text-[12px] text-[#F5A623] hover:bg-[#353840] transition-colors disabled:opacity-40"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-surface-300 border border-strong text-[12px] text-brand hover:bg-surface-400 transition-colors disabled:opacity-40"
               >
                 {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 Save Entry
