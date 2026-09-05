@@ -126,6 +126,8 @@ export interface Project {
   actual_end_date?: string;
   budget: number;
   contract_value: number;
+  /** True for flat-fee/T&M jobs with no fixed contract — lets contract_value be a deliberate 0. */
+  no_fixed_contract: boolean;
   project_manager_id?: string;
   created_by: string;
   created_at: string;
@@ -1537,7 +1539,8 @@ export type AttentionKey =
   | "jobs_no_estimate"
   | "receipts_not_itemised"
   | "crew_no_hours"
-  | "invoice_numbering";
+  | "invoice_numbering"
+  | "time_no_pay_period";
 
 export interface AttentionRow {
   key: AttentionKey;

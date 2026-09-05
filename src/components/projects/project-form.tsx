@@ -21,22 +21,34 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Save } from "lucide-react";
 import type { Project, User } from "@/types";
 import { ClientSelector } from "@/components/clients/client-selector";
 
-const projectSchema = z.object({
-  name: z.string().min(1, "Project name is required"),
-  description: z.string().optional(),
-  client_id: z.string().min(1, "Please select a client"),
-  location: z.string().min(1, "Location is required"),
-  status: z.enum(["planning", "active", "on_hold", "completed", "cancelled"]),
-  start_date: z.string().min(1, "Start date is required"),
-  estimated_end_date: z.string().optional(),
-  budget: z.coerce.number().min(0, "Budget must be positive"),
-  contract_value: z.coerce.number().min(0, "Contract value must be positive"),
-  project_manager_id: z.string().optional(),
-});
+const projectSchema = z
+  .object({
+    name: z.string().min(1, "Project name is required"),
+    description: z.string().optional(),
+    client_id: z.string().min(1, "Please select a client"),
+    location: z.string().min(1, "Location is required"),
+    status: z.enum(["planning", "active", "on_hold", "completed", "cancelled"]),
+    start_date: z.string().min(1, "Start date is required"),
+    estimated_end_date: z.string().optional(),
+    budget: z.coerce.number().min(0, "Budget must be positive"),
+    contract_value: z.coerce.number().min(0, "Contract value must be positive"),
+    // A property-management job billed flat-monthly (Sotheby's Caretaking
+    // Properties, the Laundromat, Capricorn, Tropical Impulse ceilings) has
+    // no contract_value at all. Requiring contract_value > 0 outright makes
+    // those jobs uncreatable and pushes people toward typing a fake number —
+    // this flag lets $0 be a deliberate choice instead of a blank left by mistake.
+    no_fixed_contract: z.boolean(),
+    project_manager_id: z.string().optional(),
+  })
+  .refine((data) => data.no_fixed_contract || data.contract_value > 0, {
+    message: 'Enter a contract value, or check "No fixed contract"',
+    path: ["contract_value"],
+  });
 
 type ProjectFormData = z.infer<typeof projectSchema>;
 
@@ -71,6 +83,7 @@ export function ProjectForm({ project, isEditing = false }: ProjectFormProps) {
       estimated_end_date: project?.estimated_end_date || "",
       budget: project?.budget || 0,
       contract_value: project?.contract_value || 0,
+      no_fixed_contract: project?.no_fixed_contract || false,
       project_manager_id: project?.project_manager_id || "",
     },
   });
@@ -325,8 +338,19 @@ export function ProjectForm({ project, isEditing = false }: ProjectFormProps) {
                 step="0.01"
                 min="0"
                 placeholder="0.00"
+                disabled={watch("no_fixed_contract")}
                 {...register("contract_value")}
               />
+              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Checkbox
+                  checked={watch("no_fixed_contract")}
+                  onCheckedChange={(checked) => {
+                    setValue("no_fixed_contract", !!checked);
+                    if (checked) setValue("contract_value", 0);
+                  }}
+                />
+                No fixed contract (T&M / monthly fee)
+              </label>
               {errors.contract_value && (
                 <p className="text-sm text-destructive">{errors.contract_value.message}</p>
               )}
