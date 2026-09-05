@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { Suspense, useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/hooks/use-toast";
@@ -22,11 +22,18 @@ import {
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import type { Project, Worker, TimeEntry } from "@/types";
 
 interface TimeEntryWithRelations extends TimeEntry {
-  workers: { first_name: string; last_name: string; hourly_rate: number };
+  workers: { first_name: string; last_name: string; hourly_rate: number; overtime_rate_multiplier?: number };
   projects: { name: string };
+}
+
+function entryCost(e: TimeEntryWithRelations): number {
+  const rate = e.workers?.hourly_rate || 0;
+  const mult = Number(e.workers?.overtime_rate_multiplier) || 1.5;
+  return e.regular_hours * rate + e.overtime_hours * rate * mult;
 }
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -56,7 +63,22 @@ function formatTime(t: string | null | undefined): string {
 }
 
 export default function TimeTrackingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-full items-center justify-center bg-background">
+          <Loader2 className="h-5 w-5 animate-spin text-foreground-lighter" />
+        </div>
+      }
+    >
+      <TimeTracking />
+    </Suspense>
+  );
+}
+
+function TimeTracking() {
   const { user, profile, loading: authLoading } = useAuth();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const supabase = createClient();
 
@@ -68,7 +90,7 @@ export default function TimeTrackingPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const today = new Date().toISOString().split("T")[0];
-  const [selectedDate, setSelectedDate] = useState(today);
+  const [selectedDate, setSelectedDate] = useState(searchParams.get("date") || today);
   const [selectedProject, setSelectedProject] = useState("all");
   const [weekCounts, setWeekCounts] = useState<Record<string, number>>({});
 
@@ -106,7 +128,7 @@ export default function TimeTrackingPage() {
 
       let query = supabase
         .from("time_entries")
-        .select("*, workers(first_name, last_name, hourly_rate), projects(name)")
+        .select("*, workers(first_name, last_name, hourly_rate, overtime_rate_multiplier), projects(name)")
         .eq("company_id", profile.company_id)
         .eq("date", selectedDate);
       if (selectedProject !== "all") query = query.eq("project_id", selectedProject);
@@ -189,10 +211,7 @@ export default function TimeTrackingPage() {
 
   const totalReg = entries.reduce((s, e) => s + e.regular_hours, 0);
   const totalOT = entries.reduce((s, e) => s + e.overtime_hours, 0);
-  const totalLabor = entries.reduce((s, e) => {
-    const r = e.workers?.hourly_rate || 0;
-    return s + e.regular_hours * r + e.overtime_hours * r * 1.5;
-  }, 0);
+  const totalLabor = entries.reduce((s, e) => s + entryCost(e), 0);
 
   const calcHours = () => {
     if (!formData.start_time || !formData.end_time) return null;
@@ -212,7 +231,10 @@ export default function TimeTrackingPage() {
           <h1 className="text-[16px] font-semibold text-foreground mt-0.5">Hours</h1>
         </div>
         <div className="flex items-center gap-4">
-          <Link href="/time-tracking/quick" className="text-[12px] text-foreground-lighter hover:text-foreground-light transition-colors">
+          <Link
+            href={`/time-tracking/quick?date=${selectedDate}`}
+            className="text-[12px] text-foreground-lighter hover:text-foreground-light transition-colors"
+          >
             Quick entry
           </Link>
           <button
@@ -320,12 +342,18 @@ export default function TimeTrackingPage() {
           ) : entries.length === 0 ? (
             <div className="py-16 text-center">
               <p className="text-[13px] text-foreground-lighter">No entries for {selectedDayLabel}</p>
-              <button
-                onClick={() => { setFormData(f => ({ ...f, date: selectedDate })); setDialogOpen(true); }}
-                className="inline-block mt-3 text-[12px] text-brand hover:opacity-80"
-              >
-                + Log hours →
-              </button>
+              <div className="flex items-center justify-center gap-4 mt-3">
+                <Link href={`/time-tracking/quick?date=${selectedDate}`} className="text-[12px] text-brand hover:opacity-80">
+                  Log the crew →
+                </Link>
+                <span className="text-border">|</span>
+                <button
+                  onClick={() => { setFormData(f => ({ ...f, date: selectedDate })); setDialogOpen(true); }}
+                  className="text-[12px] text-foreground-lighter hover:text-foreground-light transition-colors"
+                >
+                  One entry
+                </button>
+              </div>
             </div>
           ) : (
             <table className="w-full">
@@ -342,8 +370,7 @@ export default function TimeTrackingPage() {
               </thead>
               <tbody className="divide-y divide-border">
                 {entries.map(entry => {
-                  const rate = entry.workers?.hourly_rate || 0;
-                  const cost = entry.regular_hours * rate + entry.overtime_hours * rate * 1.5;
+                  const cost = entryCost(entry);
                   return (
                     <tr key={entry.id} className="group hover:bg-surface-200 transition-colors">
                       <td className="px-5 py-3 text-[13px] text-foreground-light">

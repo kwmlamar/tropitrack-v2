@@ -667,6 +667,8 @@ export interface Estimate {
   notes?: string;
   terms_and_conditions?: string;
   template_id?: string;
+  /** Link to the source estimate document (Dropbox path or share link) — authored outside TropiTrack. */
+  document_url?: string | null;
   sent_at?: string;
   approved_at?: string;
   rejected_at?: string;
