@@ -81,10 +81,10 @@ export default function ForgotPasswordPage() {
               <Mail className="h-8 w-8 text-success" />
             </div>
             <p className="text-muted-foreground">
-              We've sent a password reset link to <strong>{email}</strong>
+              We&apos;ve sent a password reset link to <strong>{email}</strong>
             </p>
             <p className="text-sm text-muted-foreground">
-              Didn't receive the email? Check your spam folder or try again.
+              Didn&apos;t receive the email? Check your spam folder or try again.
             </p>
           </CardContent>
         ) : (

@@ -523,7 +523,7 @@ export function CrewTemplates({
           <DialogHeader>
             <DialogTitle>Edit Template</DialogTitle>
             <DialogDescription>
-              Update "{editingTemplate?.name}" template
+              Update &quot;{editingTemplate?.name}&quot; template
             </DialogDescription>
           </DialogHeader>
 
