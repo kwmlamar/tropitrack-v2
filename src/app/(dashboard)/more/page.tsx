@@ -17,11 +17,40 @@ import {
   ChevronRight,
   Moon,
   Sun,
+  FileText,
+  Receipt,
+  CalendarDays,
+  Clock,
+  ScanLine,
+  Package,
+  Truck,
+  BarChart3,
+  Target,
+  FolderKanban,
 } from "lucide-react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 
 const menuSections = [
+  {
+    // Mirrors the desktop sidebar groups — before this, Clients, Vendors,
+    // Schedule and Reports had no entry point on either form factor.
+    title: "Workspace",
+    items: [
+      { label: "Jobs", description: "Active projects", icon: FolderKanban, href: "/projects" },
+      { label: "Estimates", description: "Price work", icon: FileText, href: "/estimates" },
+      { label: "Invoices", description: "Bill clients", icon: Receipt, href: "/invoices" },
+      { label: "Clients", description: "Who you work for", icon: Building2, href: "/clients" },
+      { label: "Schedule", description: "What is on when", icon: CalendarDays, href: "/schedule" },
+      { label: "Time", description: "Crew hours", icon: Clock, href: "/time-tracking" },
+      { label: "Crew", description: "Your workers", icon: Users, href: "/workers" },
+      { label: "Receipts", description: "Capture spend", icon: ScanLine, href: "/receipts" },
+      { label: "Materials", description: "Catalog and prices", icon: Package, href: "/materials" },
+      { label: "Vendors", description: "Who you buy from", icon: Truck, href: "/vendors" },
+      { label: "Reports", description: "Business reporting", icon: BarChart3, href: "/reports" },
+      { label: "Goals", description: "Targets and progress", icon: Target, href: "/goals" },
+    ],
+  },
   {
     title: "Account",
     items: [

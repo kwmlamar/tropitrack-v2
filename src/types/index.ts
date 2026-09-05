@@ -1519,3 +1519,98 @@ export interface CalendarDayData {
   isWeekend: boolean;
   events: CalendarEvent[];
 }
+
+// ─── Dashboard ("Today") ──────────────────────────────────────────────────────
+// Payload shape of the dashboard_summary(p_company_id) Postgres function.
+// See supabase/migrations/20260904_dashboard_summary.sql.
+
+/** Severity drives both sort order and which status token the row renders in. */
+export type AttentionSeverity = "destructive" | "warning" | "info";
+
+/** Each key maps to a sentence builder in the dashboard page. */
+export type AttentionKey =
+  | "stale_pay_periods"
+  | "invoices_unpaid_30"
+  | "receipts_no_image"
+  | "estimates_unpriced"
+  | "jobs_no_budget"
+  | "jobs_no_estimate"
+  | "receipts_not_itemised"
+  | "crew_no_hours"
+  | "invoice_numbering";
+
+export interface AttentionRow {
+  key: AttentionKey;
+  severity: AttentionSeverity;
+  count: number;
+  href: string;
+  /** ISO date (yyyy-mm-dd) — oldest offending record, where the check has one. */
+  date_ref?: string | null;
+  /** Money implicated by the row, where the check has one. */
+  amount?: number | null;
+}
+
+export interface DashboardMoney {
+  /** null when the company has no invoices at all — not a measured zero. */
+  owed: {
+    total: number;
+    invoice_count: number;
+    oldest_days: number | null;
+  } | null;
+  /** null when no pay period is currently processing. */
+  open_period: {
+    id: string;
+    start_date: string;
+    end_date: string;
+    labour_cost: number;
+    /** Negative once the period is overdue to close. */
+    days_to_close: number;
+    other_open: number;
+  } | null;
+  month: {
+    /**
+     * null when no payment has ever been recorded against this company's
+     * invoices. Render an em-dash, never $0.00 — "we have no data" and "we
+     * received nothing" are different facts.
+     */
+    in: number | null;
+    in_recorded: boolean;
+    out: number;
+    out_payroll: number;
+    out_receipts: number;
+    out_po: number;
+  };
+}
+
+export interface DashboardJob {
+  id: string;
+  name: string;
+  client: string | null;
+  contract: number;
+  budget: number;
+  status: string;
+  labour: number;
+  materials: number;
+  has_budget: boolean;
+  /** null whenever budget is 0 or null — never render this as 0%. */
+  spent_pct: number | null;
+}
+
+export interface DashboardWeek {
+  week_start: string;
+  days: { date: string; hours: number }[];
+  hours_this_week: number;
+  hours_last_week: number;
+  crew_today: number;
+  last_workday: string | null;
+  /** Server's America/Nassau date, so the UI agrees with the aggregates. */
+  today: string;
+}
+
+export interface DashboardSummary {
+  money: DashboardMoney;
+  attention: AttentionRow[];
+  jobs: DashboardJob[];
+  week: DashboardWeek;
+  generated_at: string;
+}

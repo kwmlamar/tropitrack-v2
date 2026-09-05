@@ -330,7 +330,7 @@ function SignupForm() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-semibold mb-1">
-                      You've been invited to join {invitationData.company_name}
+                      You&apos;ve been invited to join {invitationData.company_name}
                     </p>
                     <p className="text-sm">
                       Role: <Badge variant="secondary">{invitationData.role}</Badge>

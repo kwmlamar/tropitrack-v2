@@ -255,7 +255,7 @@ export function CreateCompanyDialog({
               }}
               disabled={loading}
             >
-              I'll do this later
+              I&apos;ll do this later
             </Button>
             <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

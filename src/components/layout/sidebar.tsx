@@ -14,10 +14,14 @@ import {
   Settings,
   LogOut,
   ScanLine,
-  Target,
   ChevronLeft,
   ChevronRight,
   FileText,
+  Receipt,
+  Building2,
+  Truck,
+  CalendarDays,
+  BarChart3,
 } from "lucide-react";
 import { ClaudeIcon } from "@/components/icons/claude-icon";
 import { getInitials } from "@/lib/utils";
@@ -29,25 +33,70 @@ const WIDTH_COLLAPSED = "w-[3rem]";
 // Supabase runs nav icons at a 1.5 stroke — lighter than lucide's 2.0 default.
 const ICON_STROKE = 1.5;
 
-// Top-level /gantt removed in #5 — Gantt is now an estimate-scoped view (Summary mode on /estimates/[id]).
-// Top-level /materials remains as the cross-project catalog browser; per-estimate
-// Materials Calc lives at /estimates/[id]/materials.
-const NAV_MAIN = [
-  { name: "Dashboard",    href: "/dashboard",     icon: LayoutDashboard },
-  { name: "Claude",       href: "/assistant",     icon: ClaudeIcon },
-  { name: "Jobs",         href: "/projects",      icon: FolderKanban },
-  { name: "Estimates",    href: "/estimates",     icon: FileText },
-  { name: "Crew",         href: "/workers",       icon: Users },
-  { name: "Time",         href: "/time-tracking", icon: Clock },
-  { name: "Materials",    href: "/materials",     icon: Package },
-  { name: "Receipts",     href: "/receipts",      icon: ScanLine },
-  { name: "Payroll",      href: "/payroll",       icon: DollarSign },
-  { name: "Goals",        href: "/goals",         icon: Target },
+type NavItem = {
+  name: string;
+  href: string;
+  // Wide enough for both lucide icons (strokeWidth: string | number) and the
+  // local ClaudeIcon, which takes className only.
+  icon: React.ComponentType<{ className?: string; strokeWidth?: string | number }>;
+};
+
+/**
+ * Grouped navigation. Invoices, Clients, Vendors, Schedule and Reports were all
+ * fully built pages with no desktop entry point — reachable only from the mobile
+ * bottom nav, or not at all. The office manager works on desktop, which is the
+ * likeliest reason the invoice records drifted from the separate spreadsheet.
+ *
+ * Goals is deliberately absent from primary nav: /goals and the business_goals
+ * rows both stay and remain reachable, but two manually incremented progress
+ * bars are not navigation.
+ */
+const NAV_GROUPS: { label: string | null; items: NavItem[] }[] = [
+  {
+    label: null,
+    items: [
+      { name: "Today", href: "/dashboard", icon: LayoutDashboard },
+      { name: "Claude", href: "/assistant", icon: ClaudeIcon },
+    ],
+  },
+  {
+    label: "Money",
+    items: [
+      { name: "Estimates", href: "/estimates", icon: FileText },
+      { name: "Invoices", href: "/invoices", icon: Receipt },
+      { name: "Clients", href: "/clients", icon: Building2 },
+    ],
+  },
+  {
+    label: "Work",
+    items: [
+      { name: "Jobs", href: "/projects", icon: FolderKanban },
+      { name: "Schedule", href: "/schedule", icon: CalendarDays },
+      { name: "Time", href: "/time-tracking", icon: Clock },
+    ],
+  },
+  {
+    label: "Crew",
+    items: [
+      { name: "Crew", href: "/workers", icon: Users },
+      { name: "Payroll", href: "/payroll", icon: DollarSign },
+    ],
+  },
+  {
+    label: "Buying",
+    items: [
+      { name: "Receipts", href: "/receipts", icon: ScanLine },
+      { name: "Materials", href: "/materials", icon: Package },
+      { name: "Vendors", href: "/vendors", icon: Truck },
+    ],
+  },
+  {
+    label: null,
+    items: [{ name: "Reports", href: "/reports", icon: BarChart3 }],
+  },
 ];
 
-const NAV_BOTTOM = [
-  { name: "Settings", href: "/settings", icon: Settings },
-];
+const NAV_BOTTOM: NavItem[] = [{ name: "Settings", href: "/settings", icon: Settings }];
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -67,7 +116,7 @@ export function Sidebar() {
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(`${href}/`);
 
-  const navItem = (item: (typeof NAV_MAIN)[number]) => {
+  const navItem = (item: NavItem) => {
     const active = isActive(item.href);
     return (
       <li key={item.href}>
@@ -139,8 +188,22 @@ export function Sidebar() {
       </div>
 
       {/* Main nav */}
-      <nav className="flex-1 overflow-hidden py-2">
-        <ul className="space-y-0.5 px-1.5">{NAV_MAIN.map(navItem)}</ul>
+      <nav className="flex-1 overflow-y-auto py-2">
+        {NAV_GROUPS.map((group, i) => (
+          <div key={group.label ?? `group-${i}`}>
+            {/* Section labels are meaningless on the icon rail; a rule keeps the
+                groups from running together there instead. */}
+            {group.label && isOpen && (
+              <p className="px-2 pt-3 pb-1 font-mono text-[10px] uppercase tracking-widest text-foreground-lighter">
+                {group.label}
+              </p>
+            )}
+            {group.label && !isOpen && (
+              <div className="mx-2 my-2 border-t border-border" />
+            )}
+            <ul className="space-y-0.5 px-1.5">{group.items.map(navItem)}</ul>
+          </div>
+        ))}
       </nav>
 
       {/* Bottom nav */}

@@ -112,7 +112,7 @@ export default function MaterialDetailPage() {
             <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
             <h2 className="text-lg font-semibold mb-2">Material Not Found</h2>
             <p className="text-muted-foreground text-sm mb-4">
-              The material you're looking for doesn't exist or you don't have access to it.
+              The material you&apos;re looking for doesn&apos;t exist or you don&apos;t have access to it.
             </p>
             <Button onClick={() => router.push("/materials")} className="bg-surface-100 border border-border hover:bg-surface-100 text-foreground-light">
               <ArrowLeft className="h-4 w-4 mr-2" />

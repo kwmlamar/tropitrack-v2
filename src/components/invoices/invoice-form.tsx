@@ -992,7 +992,7 @@ export function InvoiceForm({ invoice, lineItems = [], mode }: InvoiceFormProps)
             {items.length === 0 && !showLineItemForm && (
               <div className="text-center py-8 text-muted-foreground">
                 <p>No line items added yet</p>
-                <p className="text-sm mt-1">Use the quick add buttons above or click "Add Item"</p>
+                <p className="text-sm mt-1">Use the quick add buttons above or click &quot;Add Item&quot;</p>
               </div>
             )}
           </CardContent>
