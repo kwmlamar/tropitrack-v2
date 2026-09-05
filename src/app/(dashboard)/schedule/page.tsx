@@ -1,296 +1,213 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Header } from "@/components/layout/header";
 import { ModernCalendar } from "@/components/calendar";
 import { useCalendarEvents } from "@/hooks/use-calendar-events";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import {
-  FolderKanban,
-  Flag,
-  Truck,
-  Receipt,
-  Clock,
-  Wrench,
-  Filter,
-  Loader2,
-} from "lucide-react";
+import { StatusDot, type Tone } from "@/components/ui/status";
+import { cn } from "@/lib/utils";
+import { Check, Loader2 } from "lucide-react";
 import type { CalendarFilters, CalendarEvent } from "@/types";
 
-// Kept in sync with eventTypeConfig in components/calendar/calendar-event.tsx —
-// more categories than status tokens, so several share a token by closest
-// semantic match rather than by the original hue.
-const filterOptions = [
-  { key: "showProjects" as keyof CalendarFilters, label: "Projects", icon: FolderKanban, color: "text-info" },
-  { key: "showMilestones" as keyof CalendarFilters, label: "Milestones", icon: Flag, color: "text-info" },
-  { key: "showInvoices" as keyof CalendarFilters, label: "Invoices Due", icon: Receipt, color: "text-destructive" },
-  { key: "showDeliveries" as keyof CalendarFilters, label: "Deliveries", icon: Truck, color: "text-warning" },
-  { key: "showTimesheets" as keyof CalendarFilters, label: "Timesheets", icon: Clock, color: "text-info" },
-  { key: "showEquipment" as keyof CalendarFilters, label: "Equipment", icon: Wrench, color: "text-warning" },
+// Tones mirror eventTypeConfig in components/calendar/calendar-event.tsx, so a
+// filter's dot is the same colour as the events it controls on the grid.
+const filterOptions: { key: keyof CalendarFilters; label: string; tone: Tone }[] = [
+  { key: "showProjects", label: "Projects", tone: "info" },
+  { key: "showMilestones", label: "Milestones", tone: "brand" },
+  { key: "showInvoices", label: "Invoices due", tone: "danger" },
+  { key: "showDeliveries", label: "Deliveries", tone: "warning" },
+  { key: "showTimesheets", label: "Timesheets", tone: "info" },
+  { key: "showEquipment", label: "Equipment", tone: "warning" },
 ];
+
+const SHORTCUTS: [string, string][] = [
+  ["Today", "T"],
+  ["Month view", "M"],
+  ["Week view", "W"],
+  ["Day view", "D"],
+  ["Agenda view", "A"],
+  ["Navigate", "← →"],
+];
+
+const ALL_ON: CalendarFilters = {
+  showProjects: true,
+  showMilestones: true,
+  showDeliveries: true,
+  showInvoices: true,
+  showTimesheets: true,
+  showEquipment: true,
+};
+const ALL_OFF: CalendarFilters = {
+  showProjects: false,
+  showMilestones: false,
+  showDeliveries: false,
+  showInvoices: false,
+  showTimesheets: false,
+  showEquipment: false,
+};
 
 export default function SchedulePage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [filters, setFilters] = useState<CalendarFilters>({
-    showProjects: true,
-    showMilestones: true,
-    showDeliveries: true,
-    showInvoices: true,
+    ...ALL_ON,
     showTimesheets: false,
     showEquipment: false,
   });
 
-  const { events, loading, error } = useCalendarEvents({
-    currentDate,
-    filters,
-  });
-
-  const handleFilterChange = (key: keyof CalendarFilters, checked: boolean) => {
-    setFilters((prev) => ({ ...prev, [key]: checked }));
-  };
-
-  const handleDateSelect = (date: Date) => {
-    setCurrentDate(date);
-  };
+  const { events, loading, error } = useCalendarEvents({ currentDate, filters });
 
   const handleEventClick = (event: CalendarEvent) => {
-    if (event.url) {
-      window.location.href = event.url;
-    }
+    if (event.url) window.location.href = event.url;
   };
 
-  // Calculate summary stats
   const stats = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const weekFromNow = new Date(today);
+    weekFromNow.setDate(weekFromNow.getDate() + 7);
 
-    const upcoming = events.filter((e) => new Date(e.date) >= today);
+    const upcoming = events.filter((e) => new Date(e.date) >= today).length;
     const overdueInvoices = events.filter(
       (e) => e.type === "invoice_due" && new Date(e.date) < today
-    );
-    const thisWeekMilestones = events.filter((e) => {
-      const eventDate = new Date(e.date);
-      const weekFromNow = new Date(today);
-      weekFromNow.setDate(weekFromNow.getDate() + 7);
-      return e.type === "milestone" && eventDate >= today && eventDate <= weekFromNow;
-    });
+    ).length;
+    const milestones = events.filter((e) => {
+      const d = new Date(e.date);
+      return e.type === "milestone" && d >= today && d <= weekFromNow;
+    }).length;
 
-    return {
-      total: events.length,
-      upcoming: upcoming.length,
-      overdueInvoices: overdueInvoices.length,
-      thisWeekMilestones: thisWeekMilestones.length,
-    };
+    return [
+      { label: "Total Events", value: String(events.length) },
+      { label: "Upcoming", value: String(upcoming) },
+      { label: "Overdue Invoices", value: String(overdueInvoices), danger: overdueInvoices > 0 },
+      { label: "Milestones This Week", value: String(milestones), accent: milestones > 0 },
+    ];
   }, [events]);
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <Header
-        title="Schedule"
-        description="View projects, milestones, and important dates"
-      />
+    <div className="flex flex-col h-full overflow-auto bg-background">
+      <Header eyebrow="Planning" title="Schedule" />
 
-      <div className="flex-1 p-6">
-        <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
-          {/* Main Calendar */}
-          <div className="space-y-4">
+      <div className="flex-1 p-6 space-y-5">
+        {/* Stats */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {stats.map((s) => (
+            <div key={s.label} className="rounded-lg border border-border bg-surface-100 px-4 py-3.5">
+              <p className="text-[11px] font-mono text-foreground-lighter uppercase tracking-wider">
+                {s.label}
+              </p>
+              <p
+                className={cn(
+                  "text-[22px] font-semibold tabular-nums mt-1 leading-none",
+                  s.danger ? "text-destructive" : s.accent ? "text-brand" : "text-foreground"
+                )}
+              >
+                {s.value}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid gap-5 lg:grid-cols-[1fr_240px] items-start">
+          {/* Calendar */}
+          <div>
             {loading ? (
-              <div className="flex items-center justify-center h-96 rounded-xl border bg-card">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  <span>Loading calendar...</span>
-                </div>
+              <div className="flex items-center justify-center h-96 rounded-lg border border-border bg-surface-100">
+                <Loader2 className="h-5 w-5 animate-spin text-foreground-lighter" />
               </div>
             ) : error ? (
-              <div className="flex items-center justify-center h-96 rounded-xl border bg-card">
-                <div className="text-center">
-                  <p className="text-destructive">{error}</p>
-                  <Button
-                    variant="outline"
-                    className="mt-4"
-                    onClick={() => window.location.reload()}
-                  >
-                    Try Again
-                  </Button>
-                </div>
+              <div className="flex flex-col items-center justify-center h-96 rounded-lg border border-border bg-surface-100 gap-3">
+                <p className="text-[13px] text-destructive">{error}</p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="px-4 py-2 rounded-md bg-surface-300 border border-strong text-[12px] text-brand hover:bg-surface-400 transition-colors"
+                >
+                  Try again
+                </button>
               </div>
             ) : (
               <ModernCalendar
                 events={events}
                 filters={filters}
-                onDateSelect={handleDateSelect}
+                onDateSelect={setCurrentDate}
                 onEventClick={handleEventClick}
                 highlightToday
               />
             )}
           </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Quick Stats */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Overview</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Total Events</span>
-                  <span className="font-semibold">{stats.total}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Upcoming</span>
-                  <span className="font-semibold">{stats.upcoming}</span>
-                </div>
-                {stats.overdueInvoices > 0 && (
-                  <div className="flex items-center justify-between text-destructive">
-                    <span className="text-sm">Overdue Invoices</span>
-                    <span className="font-semibold">{stats.overdueInvoices}</span>
-                  </div>
-                )}
-                {stats.thisWeekMilestones > 0 && (
-                  <div className="flex items-center justify-between text-info">
-                    <span className="text-sm">Milestones This Week</span>
-                    <span className="font-semibold">{stats.thisWeekMilestones}</span>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Filters */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Filter className="h-4 w-4" />
-                  Filters
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {filterOptions.map((option) => {
-                  const Icon = option.icon;
-                  const isChecked = filters[option.key] ?? false;
-
-                  return (
-                    <div key={option.key} className="flex items-center space-x-3">
-                      <Checkbox
-                        id={option.key}
-                        checked={isChecked}
-                        onCheckedChange={(checked) =>
-                          handleFilterChange(option.key, checked as boolean)
-                        }
-                      />
-                      <Label
-                        htmlFor={option.key}
-                        className="flex items-center gap-2 cursor-pointer"
-                      >
-                        <Icon className={`h-4 w-4 ${option.color}`} />
-                        <span className="text-sm">{option.label}</span>
-                      </Label>
-                    </div>
-                  );
-                })}
-
-                <Separator />
-
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() =>
-                      setFilters({
-                        showProjects: true,
-                        showMilestones: true,
-                        showDeliveries: true,
-                        showInvoices: true,
-                        showTimesheets: true,
-                        showEquipment: true,
-                      })
-                    }
+          {/* Sidebar — the filter rows double as the legend, so there's no
+              separate legend panel repeating the same six labels. */}
+          <div className="space-y-5">
+            <div className="rounded-lg border border-border bg-surface-100 overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
+                <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">
+                  Show
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setFilters(ALL_ON)}
+                    className="text-[11px] text-foreground-lighter hover:text-foreground-light transition-colors"
                   >
                     All
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() =>
-                      setFilters({
-                        showProjects: false,
-                        showMilestones: false,
-                        showDeliveries: false,
-                        showInvoices: false,
-                        showTimesheets: false,
-                        showEquipment: false,
-                      })
-                    }
+                  </button>
+                  <span className="text-border">·</span>
+                  <button
+                    onClick={() => setFilters(ALL_OFF)}
+                    className="text-[11px] text-foreground-lighter hover:text-foreground-light transition-colors"
                   >
                     None
-                  </Button>
+                  </button>
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* Legend */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Legend</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
+              </div>
+              <div className="py-1">
                 {filterOptions.map((option) => {
-                  const Icon = option.icon;
+                  const checked = filters[option.key] ?? false;
                   return (
-                    <div key={option.key} className="flex items-center gap-2">
-                      <div className={`p-1 rounded ${option.color.replace("text-", "bg-").replace("-600", "-100")}`}>
-                        <Icon className={`h-3 w-3 ${option.color}`} />
-                      </div>
-                      <span className="text-sm text-muted-foreground">
+                    <button
+                      key={option.key}
+                      onClick={() => setFilters((prev) => ({ ...prev, [option.key]: !checked }))}
+                      className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-surface-200 transition-colors"
+                    >
+                      <span
+                        className={cn(
+                          "flex h-3.5 w-3.5 items-center justify-center rounded-sm border flex-shrink-0",
+                          checked ? "bg-brand border-brand" : "border-strong"
+                        )}
+                      >
+                        {checked && <Check className="h-2.5 w-2.5 text-background" />}
+                      </span>
+                      <StatusDot tone={option.tone} />
+                      <span
+                        className={cn(
+                          "text-[12px] transition-colors",
+                          checked ? "text-foreground-light" : "text-foreground-lighter"
+                        )}
+                      >
                         {option.label}
                       </span>
-                    </div>
+                    </button>
                   );
                 })}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
-            {/* Keyboard shortcuts */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Shortcuts</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Today</span>
-                  <kbd className="px-2 py-0.5 bg-muted rounded-md text-xs">T</kbd>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Month view</span>
-                  <kbd className="px-2 py-0.5 bg-muted rounded-md text-xs">M</kbd>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Week view</span>
-                  <kbd className="px-2 py-0.5 bg-muted rounded-md text-xs">W</kbd>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Day view</span>
-                  <kbd className="px-2 py-0.5 bg-muted rounded-md text-xs">D</kbd>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Agenda view</span>
-                  <kbd className="px-2 py-0.5 bg-muted rounded-md text-xs">A</kbd>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Navigate</span>
-                  <span className="flex gap-1">
-                    <kbd className="px-2 py-0.5 bg-muted rounded-md text-xs">←</kbd>
-                    <kbd className="px-2 py-0.5 bg-muted rounded-md text-xs">→</kbd>
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="rounded-lg border border-border bg-surface-100 overflow-hidden">
+              <div className="px-4 py-2.5 border-b border-border">
+                <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">
+                  Shortcuts
+                </p>
+              </div>
+              <div className="px-4 py-3 space-y-2">
+                {SHORTCUTS.map(([label, key]) => (
+                  <div key={label} className="flex items-center justify-between">
+                    <span className="text-[12px] text-foreground-lighter">{label}</span>
+                    <kbd className="px-1.5 py-0.5 rounded-sm bg-surface-300 border border-border text-[10px] font-mono text-foreground-lighter">
+                      {key}
+                    </kbd>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>

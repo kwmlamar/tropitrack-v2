@@ -1,10 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Header } from "@/components/layout/header";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Status, type Tone } from "@/components/ui/status";
 import {
   Select,
   SelectContent,
@@ -12,31 +10,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Progress } from "@/components/ui/progress";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
-import { formatCurrency, formatDate, getProjectStatusColor, calculatePercentage } from "@/lib/utils";
-import {
-  BarChart3,
-  TrendingUp,
-  TrendingDown,
-  DollarSign,
-  Users,
-  Package,
-  FolderKanban,
-  Download,
-  Calendar,
-  PieChart,
-} from "lucide-react";
+import { cn, formatCurrency, calculatePercentage } from "@/lib/utils";
+import { Download } from "lucide-react";
 import type { Project } from "@/types";
 
 interface ProjectCostData {
@@ -62,6 +39,64 @@ interface WorkerHoursData {
   total_earnings: number;
 }
 
+type TabKey = "project-costs" | "cost-breakdown" | "worker-hours";
+type RangeKey = "this_week" | "this_month" | "this_quarter" | "this_year" | "all_time";
+
+const TABS: { key: TabKey; label: string }[] = [
+  { key: "project-costs", label: "Project Costs" },
+  { key: "cost-breakdown", label: "Cost Breakdown" },
+  { key: "worker-hours", label: "Worker Hours" },
+];
+
+const RANGES: { key: RangeKey; label: string }[] = [
+  { key: "this_week", label: "This Week" },
+  { key: "this_month", label: "This Month" },
+  { key: "this_quarter", label: "This Quarter" },
+  { key: "this_year", label: "This Year" },
+  { key: "all_time", label: "All Time" },
+];
+
+function isoOf(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** Inclusive [from, to] for a range key; null means no date bound. */
+function rangeBounds(range: RangeKey): { from: string; to: string } | null {
+  if (range === "all_time") return null;
+  const now = new Date();
+  const to = isoOf(now);
+  const start = new Date(now);
+  switch (range) {
+    case "this_week":
+      start.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+      break;
+    case "this_month":
+      start.setDate(1);
+      break;
+    case "this_quarter":
+      start.setMonth(Math.floor(now.getMonth() / 3) * 3, 1);
+      break;
+    case "this_year":
+      start.setMonth(0, 1);
+      break;
+  }
+  return { from: isoOf(start), to };
+}
+
+function downloadCsv(filename: string, rows: (string | number)[][]) {
+  const escape = (v: string | number) => {
+    const s = String(v ?? "");
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const csv = rows.map((r) => r.map(escape).join(",")).join("\n");
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function ReportsPage() {
   const { profile, loading: authLoading } = useAuth();
   const [projectCosts, setProjectCosts] = useState<ProjectCostData[]>([]);
@@ -69,33 +104,14 @@ export default function ReportsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProject, setSelectedProject] = useState<string>("all");
-  const [dateRange, setDateRange] = useState<string>("this_month");
+  const [dateRange, setDateRange] = useState<RangeKey>("this_month");
+  const [tab, setTab] = useState<TabKey>("project-costs");
   const supabase = createClient();
 
-  useEffect(() => {
-    // Wait for auth to finish loading
-    if (authLoading) return;
-    
-    // If profile exists but no company_id, stop loading
-    if (profile && !profile.company_id) {
-      setLoading(false);
-      return;
-    }
-    
-    // If profile has company_id, fetch data
-    if (profile?.company_id) {
-      fetchData();
-    } else if (profile === null) {
-      setLoading(false);
-    }
-  }, [selectedProject, dateRange, profile?.company_id, profile, authLoading]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!profile?.company_id) return;
-    
     setLoading(true);
     try {
-      // Fetch projects (filtered by company_id)
       const { data: projectsData } = await supabase
         .from("projects")
         .select("*")
@@ -103,461 +119,499 @@ export default function ReportsPage() {
         .order("name");
       setProjects(projectsData || []);
 
-      // Fetch project cost summary (filtered by company_id via projects join if needed, but for now we'll filter the result or assume the view includes company_id)
-      // Actually, let's filter by the projects we just fetched
-      const projectIds = projectsData?.map(p => p.id) || [];
-      
+      const projectIds = projectsData?.map((p) => p.id) || [];
       const { data: costData } = await supabase
         .from("project_cost_summary")
         .select("*")
-        .in("project_id", projectIds);
+        .in("project_id", selectedProject === "all" ? projectIds : [selectedProject]);
       setProjectCosts(costData || []);
 
-      // Fetch worker hours aggregated (filtered by company_id)
-      const { data: workersData } = await supabase
-        .from("workers")
-        .select(`
-          id,
-          first_name,
-          last_name,
-          hourly_rate
-        `)
+      // One query for every worker's hours in range, rather than a query per
+      // worker. The date bound is what makes the range selector mean anything.
+      let entriesQuery = supabase
+        .from("time_entries")
+        .select(
+          "worker_id, regular_hours, overtime_hours, workers!inner(id, first_name, last_name, hourly_rate, overtime_rate_multiplier, status)"
+        )
         .eq("company_id", profile.company_id)
-        .eq("status", "active");
+        .eq("workers.status", "active");
 
-      // Get time entries for each worker
-      if (workersData) {
-        const workerHoursData: WorkerHoursData[] = [];
+      const bounds = rangeBounds(dateRange);
+      if (bounds) entriesQuery = entriesQuery.gte("date", bounds.from).lte("date", bounds.to);
+      if (selectedProject !== "all") entriesQuery = entriesQuery.eq("project_id", selectedProject);
 
-        for (const worker of workersData) {
-          let query = supabase
-            .from("time_entries")
-            .select("regular_hours, overtime_hours")
-            .eq("worker_id", worker.id);
+      const { data: entries } = await entriesQuery;
 
-          if (selectedProject !== "all") {
-            query = query.eq("project_id", selectedProject);
-          }
+      const byWorker = new Map<string, WorkerHoursData>();
+      (entries || []).forEach((e: any) => {
+        const w = e.workers;
+        if (!w) return;
+        const existing =
+          byWorker.get(e.worker_id) ??
+          {
+            worker_id: e.worker_id,
+            first_name: w.first_name,
+            last_name: w.last_name,
+            total_regular_hours: 0,
+            total_overtime_hours: 0,
+            total_earnings: 0,
+          };
+        const rate = Number(w.hourly_rate) || 0;
+        const mult = Number(w.overtime_rate_multiplier) || 1.5;
+        const reg = Number(e.regular_hours) || 0;
+        const ot = Number(e.overtime_hours) || 0;
+        existing.total_regular_hours += reg;
+        existing.total_overtime_hours += ot;
+        existing.total_earnings += reg * rate + ot * rate * mult;
+        byWorker.set(e.worker_id, existing);
+      });
 
-          const { data: entries } = await query;
-
-          const totalRegular = entries?.reduce((sum, e) => sum + e.regular_hours, 0) || 0;
-          const totalOT = entries?.reduce((sum, e) => sum + e.overtime_hours, 0) || 0;
-          const earnings = (totalRegular * (worker.hourly_rate || 0)) +
-            (totalOT * (worker.hourly_rate || 0) * 1.5);
-
-          if (totalRegular > 0 || totalOT > 0) {
-            workerHoursData.push({
-              worker_id: worker.id,
-              first_name: worker.first_name,
-              last_name: worker.last_name,
-              total_regular_hours: totalRegular,
-              total_overtime_hours: totalOT,
-              total_earnings: earnings,
-            });
-          }
-        }
-
-        setWorkerHours(workerHoursData.sort((a, b) => b.total_earnings - a.total_earnings));
-      }
+      setWorkerHours([...byWorker.values()].sort((a, b) => b.total_earnings - a.total_earnings));
     } catch (error) {
       console.error("Error fetching report data:", error);
     } finally {
       setLoading(false);
     }
+  }, [profile?.company_id, selectedProject, dateRange]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (profile && !profile.company_id) {
+      setLoading(false);
+      return;
+    }
+    if (profile?.company_id) fetchData();
+    else if (profile === null) setLoading(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, profile, fetchData]);
+
+  const totals = useMemo(() => {
+    const revenue = projectCosts.reduce((s, p) => s + p.contract_value, 0);
+    const costs = projectCosts.reduce((s, p) => s + p.total_cost, 0);
+    return {
+      revenue,
+      costs,
+      profit: revenue - costs,
+      avgMargin:
+        projectCosts.length > 0
+          ? projectCosts.reduce((s, p) => s + p.profit_margin_percent, 0) / projectCosts.length
+          : 0,
+      labor: projectCosts.reduce((s, p) => s + p.labor_cost, 0),
+      material: projectCosts.reduce((s, p) => s + p.material_cost, 0),
+      equipment: projectCosts.reduce((s, p) => s + p.equipment_cost, 0),
+      overhead: projectCosts.reduce((s, p) => s + p.overhead_cost, 0),
+      workerHours: workerHours.reduce(
+        (s, w) => s + w.total_regular_hours + w.total_overtime_hours,
+        0
+      ),
+      workerOt: workerHours.reduce((s, w) => s + w.total_overtime_hours, 0),
+      workerRegular: workerHours.reduce((s, w) => s + w.total_regular_hours, 0),
+      workerEarnings: workerHours.reduce((s, w) => s + w.total_earnings, 0),
+    };
+  }, [projectCosts, workerHours]);
+
+  const hasCostData = projectCosts.length > 0;
+  const rangeLabel = RANGES.find((r) => r.key === dateRange)?.label ?? "";
+
+  const handleExport = () => {
+    if (tab === "worker-hours") {
+      downloadCsv(`worker-hours-${dateRange}.csv`, [
+        ["Worker", "Regular Hours", "Overtime Hours", "Total Hours", "Earnings"],
+        ...workerHours.map((w) => [
+          `${w.first_name} ${w.last_name}`,
+          w.total_regular_hours.toFixed(1),
+          w.total_overtime_hours.toFixed(1),
+          (w.total_regular_hours + w.total_overtime_hours).toFixed(1),
+          w.total_earnings.toFixed(2),
+        ]),
+      ]);
+      return;
+    }
+    downloadCsv(`project-costs-${dateRange}.csv`, [
+      ["Project", "Contract Value", "Labor", "Materials", "Equipment", "Overhead", "Total Cost", "Budget Variance", "Profit Margin %"],
+      ...projectCosts.map((p) => [
+        p.project_name,
+        p.contract_value.toFixed(2),
+        p.labor_cost.toFixed(2),
+        p.material_cost.toFixed(2),
+        p.equipment_cost.toFixed(2),
+        p.overhead_cost.toFixed(2),
+        p.total_cost.toFixed(2),
+        p.budget_variance.toFixed(2),
+        p.profit_margin_percent.toFixed(1),
+      ]),
+    ]);
   };
 
-  // Calculate totals
-  const totalRevenue = projectCosts.reduce((sum, p) => sum + p.contract_value, 0);
-  const totalCosts = projectCosts.reduce((sum, p) => sum + p.total_cost, 0);
-  const totalProfit = totalRevenue - totalCosts;
-  const avgProfitMargin = projectCosts.length > 0
-    ? projectCosts.reduce((sum, p) => sum + p.profit_margin_percent, 0) / projectCosts.length
-    : 0;
+  const stats = [
+    {
+      label: "Total Revenue",
+      value: hasCostData ? formatCurrency(totals.revenue) : "—",
+      sub: hasCostData ? `From ${projectCosts.length} projects` : "No cost data",
+    },
+    {
+      label: "Total Costs",
+      value: hasCostData ? formatCurrency(totals.costs) : "—",
+      sub: "Labour, materials, overhead",
+    },
+    {
+      label: "Net Profit",
+      value: hasCostData ? formatCurrency(totals.profit) : "—",
+      sub: hasCostData ? `Avg margin ${totals.avgMargin.toFixed(1)}%` : "Needs cost data",
+      tone: hasCostData ? (totals.profit >= 0 ? "success" : "danger") : undefined,
+    },
+    {
+      label: "Labour Hours",
+      value: totals.workerHours.toFixed(0),
+      sub: `${workerHours.length} workers · ${rangeLabel.toLowerCase()}`,
+      accent: true,
+    },
+  ];
 
-  const totalLaborCost = projectCosts.reduce((sum, p) => sum + p.labor_cost, 0);
-  const totalMaterialCost = projectCosts.reduce((sum, p) => sum + p.material_cost, 0);
-  const totalEquipmentCost = projectCosts.reduce((sum, p) => sum + p.equipment_cost, 0);
-  const totalOverheadCost = projectCosts.reduce((sum, p) => sum + p.overhead_cost, 0);
+  const th = "px-5 py-2.5 text-[10px] font-mono uppercase tracking-widest text-foreground-lighter";
 
-  const totalWorkerHours = workerHours.reduce((sum, w) => sum + w.total_regular_hours + w.total_overtime_hours, 0);
-  const totalWorkerEarnings = workerHours.reduce((sum, w) => sum + w.total_earnings, 0);
+  const costBars: { label: string; value: number; bar: string }[] = [
+    { label: "Labour", value: totals.labor, bar: "bg-info-solid" },
+    { label: "Materials", value: totals.material, bar: "bg-success-solid" },
+    { label: "Equipment", value: totals.equipment, bar: "bg-warning-solid" },
+    { label: "Overhead", value: totals.overhead, bar: "bg-foreground-lighter" },
+  ];
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <Header title="Reports" description="Analytics and business intelligence">
-        <Button variant="outline">
-          <Download className="h-4 w-4 mr-2" />
-          Export
-        </Button>
+    <div className="flex flex-col h-full overflow-auto bg-background">
+      <Header eyebrow="Insights" title="Reports">
+        <button
+          onClick={handleExport}
+          disabled={loading || (tab === "worker-hours" ? workerHours.length === 0 : !hasCostData)}
+          className="flex items-center gap-1.5 text-[12px] text-foreground-lighter hover:text-foreground-light transition-colors disabled:opacity-40"
+        >
+          <Download className="h-3.5 w-3.5" />
+          Export CSV
+        </button>
       </Header>
 
-      <div className="flex-1 p-6 space-y-6">
+      <div className="flex-1 p-6 space-y-5">
         {/* Filters */}
-        <Card>
-          <CardContent className="py-4">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Select value={selectedProject} onValueChange={setSelectedProject}>
-                <SelectTrigger className="w-full sm:w-[250px]">
-                  <FolderKanban className="h-4 w-4 mr-2" />
-                  <SelectValue placeholder="All Projects" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Projects</SelectItem>
-                  {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={dateRange} onValueChange={setDateRange}>
-                <SelectTrigger className="w-full sm:w-[180px]">
-                  <Calendar className="h-4 w-4 mr-2" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="this_week">This Week</SelectItem>
-                  <SelectItem value="this_month">This Month</SelectItem>
-                  <SelectItem value="this_quarter">This Quarter</SelectItem>
-                  <SelectItem value="this_year">This Year</SelectItem>
-                  <SelectItem value="all_time">All Time</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Key Metrics */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Revenue
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-success" />
-                <span className="text-2xl font-bold">{formatCurrency(totalRevenue)}</span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                From {projectCosts.length} projects
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Costs
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                <TrendingDown className="h-4 w-4 text-destructive" />
-                <span className="text-2xl font-bold">{formatCurrency(totalCosts)}</span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Labor, materials, overhead
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Net Profit
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                <TrendingUp className={`h-4 w-4 ${totalProfit >= 0 ? "text-success" : "text-destructive"}`} />
-                <span className={`text-2xl font-bold ${totalProfit >= 0 ? "text-success" : "text-destructive"}`}>
-                  {formatCurrency(totalProfit)}
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Avg margin: {avgProfitMargin.toFixed(1)}%
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Labor Hours
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-info" />
-                <span className="text-2xl font-bold">{totalWorkerHours.toFixed(0)}</span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {workerHours.length} workers
-              </p>
-            </CardContent>
-          </Card>
+        <div className="flex flex-wrap items-center gap-3">
+          <Select value={selectedProject} onValueChange={setSelectedProject}>
+            <SelectTrigger className="h-8 w-[260px] bg-surface-100 border-border text-foreground-light text-[13px] focus:ring-0">
+              <SelectValue placeholder="All projects" />
+            </SelectTrigger>
+            <SelectContent className="bg-surface-100 border-strong">
+              <SelectItem value="all" className="text-[13px] text-foreground-light">
+                All projects
+              </SelectItem>
+              {projects.map((project) => (
+                <SelectItem key={project.id} value={project.id} className="text-[13px] text-foreground-light">
+                  {project.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="flex items-center gap-1 flex-wrap">
+            {RANGES.map((r) => (
+              <button
+                key={r.key}
+                onClick={() => setDateRange(r.key)}
+                className={cn(
+                  "px-2.5 py-1.5 rounded-md text-[10px] font-mono uppercase tracking-wide transition-colors",
+                  dateRange === r.key
+                    ? "bg-surface-300 text-brand border border-strong"
+                    : "text-foreground-lighter hover:text-foreground-light"
+                )}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Detailed Reports Tabs */}
-        <Tabs defaultValue="project-costs" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="project-costs">Project Costs</TabsTrigger>
-            <TabsTrigger value="cost-breakdown">Cost Breakdown</TabsTrigger>
-            <TabsTrigger value="worker-hours">Worker Hours</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="project-costs" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Project Profitability</CardTitle>
-                <CardDescription>Cost analysis by project</CardDescription>
-              </CardHeader>
-              <CardContent className="p-0">
-                {loading ? (
-                  <div className="p-8 text-center">
-                    <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto"></div>
-                  </div>
-                ) : projectCosts.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Project</TableHead>
-                        <TableHead>Contract Value</TableHead>
-                        <TableHead>Total Cost</TableHead>
-                        <TableHead>Budget Variance</TableHead>
-                        <TableHead>Profit Margin</TableHead>
-                        <TableHead>Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {projectCosts.map((project) => (
-                        <TableRow key={project.project_id}>
-                          <TableCell className="font-medium">{project.project_name}</TableCell>
-                          <TableCell>{formatCurrency(project.contract_value)}</TableCell>
-                          <TableCell>{formatCurrency(project.total_cost)}</TableCell>
-                          <TableCell>
-                            <span className={project.budget_variance >= 0 ? "text-success" : "text-destructive"}>
-                              {formatCurrency(project.budget_variance)}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Progress
-                                value={Math.max(0, Math.min(100, project.profit_margin_percent))}
-                                className="w-16 h-2"
-                              />
-                              <span className={`text-sm ${project.profit_margin_percent >= 0 ? "text-success" : "text-destructive"}`}>
-                                {project.profit_margin_percent.toFixed(1)}%
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={project.profit_margin_percent >= 20 ? "success" : project.profit_margin_percent >= 0 ? "warning" : "destructive"}>
-                              {project.profit_margin_percent >= 20 ? "Healthy" : project.profit_margin_percent >= 0 ? "Marginal" : "Loss"}
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                ) : (
-                  <div className="p-12 text-center">
-                    <BarChart3 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground">No project data available</p>
-                  </div>
+        {/* Stats */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {stats.map((s) => (
+            <div key={s.label} className="rounded-lg border border-border bg-surface-100 px-4 py-3.5">
+              <p className="text-[11px] font-mono text-foreground-lighter uppercase tracking-wider">
+                {s.label}
+              </p>
+              <p
+                className={cn(
+                  "text-[22px] font-semibold tabular-nums mt-1 leading-none",
+                  s.tone === "danger"
+                    ? "text-destructive"
+                    : s.tone === "success"
+                      ? "text-success"
+                      : s.accent
+                        ? "text-brand"
+                        : "text-foreground"
                 )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="cost-breakdown" className="space-y-4">
-            <div className="grid gap-6 lg:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Cost Distribution</CardTitle>
-                  <CardDescription>Breakdown by category</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {/* Cost-breakdown legend: a 4-way chart series, not a status
-                      indicator. Labor/Materials line up with the info/success
-                      tokens; Equipment/Overhead have no status-token
-                      equivalent, so they keep fixed chart colors (orange/
-                      purple) rather than borrowing warning/destructive and
-                      implying a severity that isn't there. */}
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded bg-info-solid"></div>
-                          Labor
-                        </span>
-                        <span className="font-medium">{formatCurrency(totalLaborCost)}</span>
-                      </div>
-                      <Progress
-                        value={calculatePercentage(totalLaborCost, totalCosts)}
-                        className="h-2"
-                      />
-                      <p className="text-xs text-muted-foreground text-right">
-                        {calculatePercentage(totalLaborCost, totalCosts).toFixed(1)}%
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded bg-success-solid"></div>
-                          Materials
-                        </span>
-                        <span className="font-medium">{formatCurrency(totalMaterialCost)}</span>
-                      </div>
-                      <Progress
-                        value={calculatePercentage(totalMaterialCost, totalCosts)}
-                        className="h-2 [&>div]:bg-success-solid"
-                      />
-                      <p className="text-xs text-muted-foreground text-right">
-                        {calculatePercentage(totalMaterialCost, totalCosts).toFixed(1)}%
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded bg-warning-solid"></div>
-                          Equipment
-                        </span>
-                        <span className="font-medium">{formatCurrency(totalEquipmentCost)}</span>
-                      </div>
-                      <Progress
-                        value={calculatePercentage(totalEquipmentCost, totalCosts)}
-                        className="h-2 [&>div]:bg-warning-solid"
-                      />
-                      <p className="text-xs text-muted-foreground text-right">
-                        {calculatePercentage(totalEquipmentCost, totalCosts).toFixed(1)}%
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded bg-foreground-lighter"></div>
-                          Overhead
-                        </span>
-                        <span className="font-medium">{formatCurrency(totalOverheadCost)}</span>
-                      </div>
-                      <Progress
-                        value={calculatePercentage(totalOverheadCost, totalCosts)}
-                        className="h-2 [&>div]:bg-foreground-lighter"
-                      />
-                      <p className="text-xs text-muted-foreground text-right">
-                        {calculatePercentage(totalOverheadCost, totalCosts).toFixed(1)}%
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Financial Summary</CardTitle>
-                  <CardDescription>Overall business health</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-6">
-                    <div className="p-4 rounded-lg bg-muted">
-                      <p className="text-sm text-muted-foreground">Total Contract Value</p>
-                      <p className="text-3xl font-bold">{formatCurrency(totalRevenue)}</p>
-                    </div>
-                    <div className="p-4 rounded-lg bg-muted">
-                      <p className="text-sm text-muted-foreground">Total Expenses</p>
-                      <p className="text-3xl font-bold text-destructive">{formatCurrency(totalCosts)}</p>
-                    </div>
-                    <div className={`p-4 rounded-lg ${totalProfit >= 0 ? "bg-success-subtle" : "bg-destructive-subtle"}`}>
-                      <p className="text-sm text-muted-foreground">Net Profit/Loss</p>
-                      <p className={`text-3xl font-bold ${totalProfit >= 0 ? "text-success" : "text-destructive"}`}>
-                        {formatCurrency(totalProfit)}
-                      </p>
-                      <p className="text-sm mt-1">
-                        {totalRevenue > 0 ? `${((totalProfit / totalRevenue) * 100).toFixed(1)}% margin` : ""}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              >
+                {s.value}
+              </p>
+              <p className="text-[11px] text-foreground-lighter mt-1.5">{s.sub}</p>
             </div>
-          </TabsContent>
+          ))}
+        </div>
 
-          <TabsContent value="worker-hours" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Worker Hours Summary</CardTitle>
-                <CardDescription>Hours and earnings by worker</CardDescription>
-              </CardHeader>
-              <CardContent className="p-0">
-                {loading ? (
-                  <div className="p-8 text-center">
-                    <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto"></div>
-                  </div>
-                ) : workerHours.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Worker</TableHead>
-                        <TableHead>Regular Hours</TableHead>
-                        <TableHead>Overtime Hours</TableHead>
-                        <TableHead>Total Hours</TableHead>
-                        <TableHead>Earnings</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {workerHours.map((worker) => (
-                        <TableRow key={worker.worker_id}>
-                          <TableCell className="font-medium">
-                            {worker.first_name} {worker.last_name}
-                          </TableCell>
-                          <TableCell>{worker.total_regular_hours.toFixed(1)}</TableCell>
-                          <TableCell>
-                            {worker.total_overtime_hours > 0 ? (
-                              <Badge variant="warning">
-                                {worker.total_overtime_hours.toFixed(1)}
-                              </Badge>
-                            ) : (
-                              "0"
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {(worker.total_regular_hours + worker.total_overtime_hours).toFixed(1)}
-                          </TableCell>
-                          <TableCell className="font-medium">
-                            {formatCurrency(worker.total_earnings)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      <TableRow className="bg-muted/50 font-medium">
-                        <TableCell>Total</TableCell>
-                        <TableCell>
-                          {workerHours.reduce((sum, w) => sum + w.total_regular_hours, 0).toFixed(1)}
-                        </TableCell>
-                        <TableCell>
-                          {workerHours.reduce((sum, w) => sum + w.total_overtime_hours, 0).toFixed(1)}
-                        </TableCell>
-                        <TableCell>{totalWorkerHours.toFixed(1)}</TableCell>
-                        <TableCell>{formatCurrency(totalWorkerEarnings)}</TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                ) : (
-                  <div className="p-12 text-center">
-                    <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground">No worker hours data available</p>
-                  </div>
+        {/* Tabs */}
+        <div className="flex items-center gap-1">
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={cn(
+                "px-2.5 py-1.5 rounded-md text-[10px] font-mono uppercase tracking-wide transition-colors",
+                tab === t.key
+                  ? "bg-surface-300 text-brand border border-strong"
+                  : "text-foreground-lighter hover:text-foreground-light"
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Project costs */}
+        {tab === "project-costs" && (
+          <div className="rounded-lg border border-border bg-surface-100 overflow-hidden">
+            <div className="flex items-baseline justify-between px-5 py-2.5 border-b border-border">
+              <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">
+                Project Profitability
+              </p>
+              <p className="text-[11px] text-foreground-lighter">
+                Project to date — not limited by the date range
+              </p>
+            </div>
+            {loading ? (
+              <div className="divide-y divide-border">
+                {Array(5).fill(0).map((_, i) => <div key={i} className="h-[52px] animate-pulse" />)}
+              </div>
+            ) : projectCosts.length === 0 ? (
+              <div className="py-16 text-center">
+                <p className="text-[13px] text-foreground-lighter">No cost data for these projects</p>
+                <p className="text-[11px] text-foreground-lighter mt-1.5">
+                  Costs roll up from logged time, materials and receipts.
+                </p>
+              </div>
+            ) : (
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className={cn(th, "text-left")}>Project</th>
+                    <th className={cn(th, "text-right")}>Contract</th>
+                    <th className={cn(th, "text-right")}>Cost</th>
+                    <th className={cn(th, "text-right")}>Variance</th>
+                    <th className={cn(th, "text-right")}>Margin</th>
+                    <th className={cn(th, "text-left")}>Health</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {projectCosts.map((project) => {
+                    const margin = project.profit_margin_percent;
+                    const tone: Tone = margin >= 20 ? "success" : margin >= 0 ? "warning" : "danger";
+                    const label = margin >= 20 ? "healthy" : margin >= 0 ? "marginal" : "loss";
+                    return (
+                      <tr key={project.project_id} className="group hover:bg-surface-200 transition-colors">
+                        <td className="px-5 py-3 text-[13px] text-foreground-light max-w-[260px] truncate">
+                          {project.project_name}
+                        </td>
+                        <td className="px-5 py-3 text-right text-[13px] tabular-nums text-foreground-light">
+                          {formatCurrency(project.contract_value)}
+                        </td>
+                        <td className="px-5 py-3 text-right text-[13px] tabular-nums text-foreground-lighter">
+                          {formatCurrency(project.total_cost)}
+                        </td>
+                        <td className="px-5 py-3 text-right text-[13px] tabular-nums">
+                          <span className={project.budget_variance >= 0 ? "text-foreground-light" : "text-destructive"}>
+                            {formatCurrency(project.budget_variance)}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <span className="h-1 w-14 rounded-full bg-surface-300 overflow-hidden">
+                              <span
+                                className={cn(
+                                  "block h-full rounded-full",
+                                  margin >= 20 ? "bg-success-solid" : margin >= 0 ? "bg-warning-solid" : "bg-destructive-solid"
+                                )}
+                                style={{ width: `${Math.max(0, Math.min(100, margin))}%` }}
+                              />
+                            </span>
+                            <span className="text-[12px] tabular-nums text-foreground-lighter w-12 text-right">
+                              {margin.toFixed(1)}%
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-5 py-3">
+                          <Status tone={tone} label={label} muted={tone === "success"} />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+
+        {/* Cost breakdown */}
+        {tab === "cost-breakdown" && (
+          <div className="grid gap-5 lg:grid-cols-2 items-start">
+            <div className="rounded-lg border border-border bg-surface-100 overflow-hidden">
+              <div className="px-5 py-2.5 border-b border-border">
+                <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">
+                  Cost Distribution
+                </p>
+              </div>
+              <div className="px-5 py-4 space-y-4">
+                {costBars.map((c) => {
+                  const pct = calculatePercentage(c.value, totals.costs);
+                  return (
+                    <div key={c.label} className="space-y-1.5">
+                      <div className="flex items-baseline justify-between">
+                        <span className="flex items-center gap-2 text-[12px] text-foreground-light">
+                          <span className={cn("h-1.5 w-1.5 rounded-full", c.bar)} />
+                          {c.label}
+                        </span>
+                        <span className="text-[12px] tabular-nums text-foreground-light">
+                          {formatCurrency(c.value)}
+                          <span className="text-foreground-lighter ml-2">{pct.toFixed(1)}%</span>
+                        </span>
+                      </div>
+                      <span className="block h-1 rounded-full bg-surface-300 overflow-hidden">
+                        <span className={cn("block h-full rounded-full", c.bar)} style={{ width: `${pct}%` }} />
+                      </span>
+                    </div>
+                  );
+                })}
+                {!hasCostData && (
+                  <p className="text-[12px] text-foreground-lighter pt-1">
+                    Nothing to break down yet — no project cost data.
+                  </p>
                 )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-border bg-surface-100 overflow-hidden">
+              <div className="px-5 py-2.5 border-b border-border">
+                <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">
+                  Financial Summary
+                </p>
+              </div>
+              <div className="divide-y divide-border">
+                {[
+                  { label: "Total contract value", value: formatCurrency(totals.revenue) },
+                  { label: "Total expenses", value: formatCurrency(totals.costs) },
+                ].map((row) => (
+                  <div key={row.label} className="flex items-center justify-between px-5 py-3.5">
+                    <span className="text-[12px] text-foreground-lighter">{row.label}</span>
+                    <span className="text-[15px] tabular-nums font-semibold text-foreground">
+                      {row.value}
+                    </span>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between px-5 py-3.5">
+                  <div>
+                    <span className="text-[12px] text-foreground-lighter">Net profit / loss</span>
+                    {totals.revenue > 0 && (
+                      <p className="text-[11px] tabular-nums text-foreground-lighter mt-0.5">
+                        {((totals.profit / totals.revenue) * 100).toFixed(1)}% margin
+                      </p>
+                    )}
+                  </div>
+                  <span
+                    className={cn(
+                      "text-[20px] tabular-nums font-semibold",
+                      totals.profit >= 0 ? "text-success" : "text-destructive"
+                    )}
+                  >
+                    {formatCurrency(totals.profit)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Worker hours */}
+        {tab === "worker-hours" && (
+          <div className="rounded-lg border border-border bg-surface-100 overflow-hidden">
+            <div className="flex items-baseline justify-between px-5 py-2.5 border-b border-border">
+              <p className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">
+                Worker Hours
+              </p>
+              <p className="text-[11px] text-foreground-lighter">{rangeLabel}</p>
+            </div>
+            {loading ? (
+              <div className="divide-y divide-border">
+                {Array(6).fill(0).map((_, i) => <div key={i} className="h-[52px] animate-pulse" />)}
+              </div>
+            ) : workerHours.length === 0 ? (
+              <div className="py-16 text-center">
+                <p className="text-[13px] text-foreground-lighter">
+                  No hours logged in {rangeLabel.toLowerCase()}
+                </p>
+              </div>
+            ) : (
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className={cn(th, "text-left")}>Worker</th>
+                    <th className={cn(th, "text-right")}>Regular</th>
+                    <th className={cn(th, "text-right")}>Overtime</th>
+                    <th className={cn(th, "text-right")}>Total</th>
+                    <th className={cn(th, "text-right")}>Earnings</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {workerHours.map((worker) => (
+                    <tr key={worker.worker_id} className="group hover:bg-surface-200 transition-colors">
+                      <td className="px-5 py-3 text-[13px] text-foreground-light">
+                        {worker.first_name} {worker.last_name}
+                      </td>
+                      <td className="px-5 py-3 text-right text-[13px] tabular-nums text-foreground-lighter">
+                        {worker.total_regular_hours.toFixed(1)}
+                      </td>
+                      <td className="px-5 py-3 text-right text-[13px] tabular-nums">
+                        {worker.total_overtime_hours > 0 ? (
+                          <span className="text-brand">{worker.total_overtime_hours.toFixed(1)}</span>
+                        ) : (
+                          <span className="text-foreground-lighter">—</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-3 text-right text-[13px] tabular-nums text-foreground-light">
+                        {(worker.total_regular_hours + worker.total_overtime_hours).toFixed(1)}
+                      </td>
+                      <td className="px-5 py-3 text-right text-[13px] tabular-nums text-foreground-light">
+                        {formatCurrency(worker.total_earnings)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t border-border">
+                    <td className="px-5 py-2.5">
+                      <span className="text-[10px] font-mono text-foreground-lighter uppercase tracking-widest">
+                        Total
+                      </span>
+                    </td>
+                    <td className="px-5 py-2.5 text-right text-[12px] tabular-nums text-foreground-lighter">
+                      {totals.workerRegular.toFixed(1)}
+                    </td>
+                    <td className="px-5 py-2.5 text-right text-[12px] tabular-nums text-brand">
+                      {totals.workerOt > 0 ? totals.workerOt.toFixed(1) : "—"}
+                    </td>
+                    <td className="px-5 py-2.5 text-right text-[12px] tabular-nums text-foreground-light">
+                      {totals.workerHours.toFixed(1)}
+                    </td>
+                    <td className="px-5 py-2.5 text-right text-[13px] tabular-nums font-semibold text-brand">
+                      {formatCurrency(totals.workerEarnings)}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
