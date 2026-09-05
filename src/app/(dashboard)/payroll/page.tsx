@@ -125,6 +125,24 @@ export default function PayrollPage() {
     setSelectedPeriod({ ...period, entries: data || [] });
   };
 
+  /** Suggests the next Sat-Fri period right after the latest non-voided one, so a
+   *  manual entry naturally continues the existing cadence instead of guessing dates
+   *  that the overlap trigger would then reject. */
+  const openCreateDialog = () => {
+    const latest = payPeriods
+      .filter(p => !p.voided_at)
+      .reduce<string | null>((max, p) => (!max || p.end_date > max ? p.end_date : max), null);
+    if (latest) {
+      const start = new Date(`${latest}T12:00:00`);
+      start.setDate(start.getDate() + 1);
+      const end = new Date(start);
+      end.setDate(end.getDate() + 6);
+      const toISO = (d: Date) => d.toISOString().split("T")[0];
+      setPeriodForm({ start_date: toISO(start), end_date: toISO(end) });
+    }
+    setCreateDialogOpen(true);
+  };
+
   const handleCreatePeriod = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -360,7 +378,7 @@ export default function PayrollPage() {
           <h1 className="text-[16px] font-semibold text-foreground mt-0.5">Pay Periods</h1>
         </div>
         <button
-          onClick={() => setCreateDialogOpen(true)}
+          onClick={openCreateDialog}
           className="text-[12px] font-medium text-brand hover:opacity-80 transition-opacity"
         >
           + New Period
@@ -382,7 +400,7 @@ export default function PayrollPage() {
             ) : payPeriods.length === 0 ? (
               <div className="px-4 py-8 text-center">
                 <p className="text-[12px] text-foreground-lighter">No pay periods yet</p>
-                <button onClick={() => setCreateDialogOpen(true)} className="mt-2 text-[11px] text-brand hover:opacity-80">
+                <button onClick={openCreateDialog} className="mt-2 text-[11px] text-brand hover:opacity-80">
                   Create first →
                 </button>
               </div>
@@ -417,7 +435,7 @@ export default function PayrollPage() {
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
                 <p className="text-[13px] text-foreground-lighter">Select a pay period</p>
-                <button onClick={() => setCreateDialogOpen(true)} className="mt-3 text-[12px] text-brand hover:opacity-80">
+                <button onClick={openCreateDialog} className="mt-3 text-[12px] text-brand hover:opacity-80">
                   or create one →
                 </button>
               </div>

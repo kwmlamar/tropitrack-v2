@@ -79,6 +79,8 @@ function attentionSentence(row: AttentionRow): string {
       }`;
     case "invoice_numbering":
       return `${n} ${plural(n, "invoice")} outside the numbering sequence`;
+    case "time_no_pay_period":
+      return `${n} ${plural(n, "week")} of logged time with no pay period`;
     default:
       return `${n} items need attention`;
   }
@@ -106,6 +108,8 @@ function attentionShort(row: AttentionRow): string {
       return `${n} crew unlogged`;
     case "invoice_numbering":
       return `${n} invoices misnumbered`;
+    case "time_no_pay_period":
+      return `${n} ${plural(n, "week")} unpaid`;
     default:
       return `${n} items`;
   }
