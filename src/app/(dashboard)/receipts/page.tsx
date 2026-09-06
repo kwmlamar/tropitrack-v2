@@ -190,6 +190,9 @@ export default function ReceiptsPage() {
     const totalAmt = items.filter((_, i) => selected[i]).reduce((s, it) => s + (it.totalCost ?? 0), 0);
     await supabase.from("receipts").insert({
       company_id: profile!.company_id,
+      // Who scanned it. Left unset until now, so every receipt in the table
+      // is anonymous and a later "which job was this for?" has nobody to ask.
+      submitted_by: profile!.id,
       image_url: "uploaded",
       vendor,
       receipt_date: receiptDate,
