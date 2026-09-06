@@ -69,7 +69,8 @@ import {
   Settings2,
   Wand2,
 } from "lucide-react";
-import { ClaudeIcon } from "@/components/icons/claude-icon";
+import { BedrockIcon } from "@/components/icons/bedrock-icon";
+import { APP_NAME } from "@/lib/brand";
 import type {
   Client,
   CostCode,
@@ -950,7 +951,7 @@ export default function CreateEstimateBuilderPage() {
           {/* Panel header */}
           <div className="px-4 pt-3 pb-2 flex items-center gap-2.5">
             <div className="flex items-center gap-1.5">
-              <ClaudeIcon
+              <BedrockIcon
                 className="h-3.5 w-3.5 text-warning"
               />
               <span
@@ -964,7 +965,7 @@ export default function CreateEstimateBuilderPage() {
               className="text-xs"
               style={{ color: "hsl(var(--muted-foreground))" }}
             >
-              — describe the job, Claude fills in trade sections with real Eleuthera prices
+              — describe the job, {APP_NAME} fills in trade sections with real Eleuthera prices
             </span>
             <button
               onClick={() => { setAiPanelOpen(false); setAiDescription(""); }}
@@ -1021,7 +1022,7 @@ export default function CreateEstimateBuilderPage() {
                 {aiGenerating ? (
                   <>
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    <span>Claude is analyzing…</span>
+                    <span>{APP_NAME} is analyzing…</span>
                   </>
                 ) : (
                   <>

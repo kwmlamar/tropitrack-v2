@@ -4,7 +4,7 @@ import { classifyOpenAIError, openAiHeaders, OPENAI_API_URL, OPENAI_CHAT_MODEL }
 /**
  * POST /api/estimates/generate
  *
- * Issue #8 — Claude → structured estimate JSON. Pure prompt + response shape;
+ * Issue #8 — model → structured estimate JSON. Pure prompt + response shape;
  * no DB writes. The companion endpoint `/api/estimates/[id]/apply-scope` (#7)
  * takes this output and persists it.
  *

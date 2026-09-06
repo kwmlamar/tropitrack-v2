@@ -1,4 +1,5 @@
 "use client";
+import { APP_NAME } from "@/lib/brand";
 
 import { useState } from "react";
 import { Header } from "@/components/layout/header";
@@ -29,7 +30,7 @@ export default function NotificationsTestPage() {
   const [formData, setFormData] = useState({
     type: "low_stock" as NotificationType,
     title: "Test Notification",
-    message: "This is a test notification from the TropiTrack system.",
+    message: `This is a test notification from the ${APP_NAME} system.`,
     priority: "normal" as NotificationPriority,
   });
 
@@ -66,7 +67,7 @@ export default function NotificationsTestPage() {
       setFormData({
         type: "low_stock",
         title: "Test Notification",
-        message: "This is a test notification from the TropiTrack system.",
+        message: `This is a test notification from the ${APP_NAME} system.`,
         priority: "normal",
       });
     } catch (error) {

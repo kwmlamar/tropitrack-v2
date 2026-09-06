@@ -1,6 +1,6 @@
 {
-  "name": "TropiTrack - Construction Management",
-  "short_name": "TropiTrack",
+  "name": "Bedrock \u2014 ODS Management",
+  "short_name": "Bedrock",
   "description": "Construction project management, time tracking, and payroll for Caribbean businesses",
   "start_url": "/",
   "display": "standalone",
@@ -117,7 +117,11 @@
       "purpose": "monochrome"
     }
   ],
-  "categories": ["business", "productivity", "utilities"],
+  "categories": [
+    "business",
+    "productivity",
+    "utilities"
+  ],
   "screenshots": [
     {
       "src": "/screenshots/mobile-dashboard.png",

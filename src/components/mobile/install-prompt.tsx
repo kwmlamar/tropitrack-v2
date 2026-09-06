@@ -1,4 +1,5 @@
 "use client";
+import { APP_NAME } from "@/lib/brand";
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -103,7 +104,7 @@ export function InstallPrompt() {
               </div>
               <div className="flex-1">
                 <h3 className="font-semibold text-sm mb-1">
-                  Install TropiTrack
+                  Install {APP_NAME}
                 </h3>
                 <p className="text-xs text-muted-foreground mb-3">
                   Tap <span className="inline-flex items-center mx-1 text-primary">
@@ -141,7 +142,7 @@ export function InstallPrompt() {
               <Download className="h-5 w-5 text-primary" />
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold text-sm mb-1">Install TropiTrack</h3>
+              <h3 className="font-semibold text-sm mb-1">Install {APP_NAME}</h3>
               <p className="text-xs text-muted-foreground mb-3">
                 Install our app for faster access and offline support
               </p>

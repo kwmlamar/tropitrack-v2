@@ -1,4 +1,5 @@
 "use client";
+import { APP_NAME } from "@/lib/brand";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -180,7 +181,7 @@ export default function EstimatesPage() {
           <h1 className="text-[16px] font-semibold text-foreground mt-0.5">Register</h1>
         </div>
         <p className="text-[11px] text-foreground-lighter max-w-[320px] text-right">
-          Estimates are authored outside TropiTrack. This is the record of what was quoted — not a builder.
+          Estimates are authored outside {APP_NAME}. This is the record of what was quoted — not a builder.
         </p>
       </div>
 

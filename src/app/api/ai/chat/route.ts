@@ -14,17 +14,16 @@ import {
   OPENAI_MAX_TOKENS,
   type AiFailure,
 } from "@/lib/ai-config";
+import { APP_NAME, ASSISTANT_NAME } from "@/lib/brand";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-// NOTE: this no longer says "You are Claude". As of the 2026-09-06 provider
-// port the model answering is OpenAI's, and instructing it to introduce itself
-// as Claude would have it assert a false identity to the crew every time
-// somebody asked what it was. The product surface is still branded Claude —
-// that is a naming decision for the owner — but the model is not told to lie
-// about what it is.
-const BASE_SYSTEM = `You are the AI assistant built into Bedrock — the business OS for ODS Construction (also trading as Whelsco), a construction company based at Palmetto Point, Eleuthera, Bahamas. ODS works the length of Eleuthera.
+// This deliberately does not say "You are Claude". The model answering is
+// OpenAI's as of the 2026-09-06 provider port, so the assistant introduces
+// itself by the name on the button the user pressed rather than by a provider
+// it is not. The name lives in one place — see @/lib/brand.
+const BASE_SYSTEM = `You are the ${ASSISTANT_NAME} built into ${APP_NAME} — the business OS for ODS Construction (also trading as Whelsco), a construction company based at Palmetto Point, Eleuthera, Bahamas. ODS works the length of Eleuthera.
 
 Tagline: "Built Right, Built to Last."
 
@@ -94,7 +93,7 @@ Builders, not executives. Direct, useful, no theater. When you can't do somethin
 /**
  * Four skills, all ledger operations.
  *
- * `estimate` and `client_update` were retired on 2026-09-06. TropiTrack holds
+ * `estimate` and `client_update` were retired on 2026-09-06. Bedrock holds
  * facts, so its in-app skills are ledger skills; anything that produces a
  * document is authored in Claude/Cowork where the house rate card and formats
  * already live. `estimate` in particular carried its own pricing brain whose
@@ -326,7 +325,7 @@ export async function POST(request: NextRequest) {
     //   - Reads (scope='read') with skills including 'core' are ALWAYS loaded.
     //   - Reads scoped to a specific skill are loaded when that skill is active.
     //   - Writes (scope='write') are loaded ONLY when their skill is active.
-    //   - Default mode (no active skill) = reads only. Claude must ask the user to
+    //   - Default mode (no active skill) = reads only. The model must ask the user to
     //     switch skills before doing any write.
     const activeSkillForTools = activeSkillId ?? null;
     const visibleTools = TOOL_REGISTRY.filter((t) => {
@@ -391,7 +390,7 @@ export async function POST(request: NextRequest) {
       if (!res) {
         return offline({
           reason: "network",
-          message: "Claude is unreachable — the request to the provider failed.",
+          message: `${ASSISTANT_NAME} is unreachable — the request to the provider failed.`,
         });
       }
 
@@ -506,7 +505,7 @@ export async function POST(request: NextRequest) {
       // leave the user's message sitting in a thread with no reply.
       return offline({
         reason: "unknown",
-        message: "Claude returned an empty response. Try asking again.",
+        message: `${ASSISTANT_NAME} returned an empty response. Try asking again.`,
       });
     }
 
@@ -554,7 +553,7 @@ export async function POST(request: NextRequest) {
       companyId: profile.company_id,
       userId: user.id,
       source: "ai",
-      toolName: "claude_chat",
+      toolName: "bedrock_chat",
       toolVersion: 1,
       scope: "read",
       tier: "none",

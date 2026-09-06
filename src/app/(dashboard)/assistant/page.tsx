@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { ArrowUp, Square, X, Plus, Share2, Trash2, PanelLeftClose, PanelLeftOpen, MessageSquare } from "lucide-react";
 import { format, isToday, isYesterday, isThisWeek } from "date-fns";
+import { APP_NAME, ASSISTANT_NAME, ASSISTANT_NAME_LOWER } from "@/lib/brand";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -51,7 +52,7 @@ interface Skill {
 /**
  * Four skills, all ledger operations.
  *
- * `estimate` and `client_update` were retired on 2026-09-06. TropiTrack holds
+ * `estimate` and `client_update` were retired on 2026-09-06. Bedrock holds
  * facts, so its in-app skills are ledger skills; anything that produces a
  * document is authored in Claude/Cowork, where the house rate card and formats
  * already live. Two threads ever used `estimate`; `client_update` had none.
@@ -242,7 +243,7 @@ function SkillBadge({ skill }: { skill: Skill }) {
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
-export default function ClaudePage() {
+export default function AssistantPage() {
   const { user, profile, session } = useAuth();
   const supabase = useMemo(() => createClient(), []);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -440,7 +441,7 @@ export default function ClaudePage() {
         setInput(trimmed);
         setOffline({
           reason: data.failure?.reason ?? "unknown",
-          message: data.failure?.message ?? "Claude is offline.",
+          message: data.failure?.message ?? `The ${ASSISTANT_NAME_LOWER} is offline.`,
         });
         return;
       }
@@ -735,7 +736,7 @@ export default function ClaudePage() {
               {/* Greeting */}
               <div>
                 <p className="text-[11px] font-mono text-foreground-lighter uppercase tracking-[0.2em] mb-3">
-                  Bedrock · Claude
+                  {APP_NAME} · {ASSISTANT_NAME}
                 </p>
                 <h1 className="text-[28px] font-semibold text-foreground leading-tight tracking-tight">
                   Good {timeOfDay}, {firstName}.
@@ -828,7 +829,7 @@ export default function ClaudePage() {
                   ) : (
                     <div className="max-w-[90%]">
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="text-[10px] font-mono text-foreground-lighter uppercase tracking-wider">Claude</span>
+                        <span className="text-[10px] font-mono text-foreground-lighter uppercase tracking-wider">{ASSISTANT_NAME}</span>
                       </div>
                       {renderContent(msg.content)}
                     </div>
@@ -841,7 +842,7 @@ export default function ClaudePage() {
               <div className="flex justify-start">
                 <div>
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="text-[10px] font-mono text-foreground-lighter uppercase tracking-wider">Claude</span>
+                    <span className="text-[10px] font-mono text-foreground-lighter uppercase tracking-wider">{ASSISTANT_NAME}</span>
                     {activeSkill && <SkillBadge skill={activeSkill} />}
                   </div>
                   <TypingDots />
@@ -1071,7 +1072,7 @@ function InputBox({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={onKeyDown}
-        placeholder={activeSkill?.placeholder ?? "Message Claude..."}
+        placeholder={activeSkill?.placeholder ?? `Message the ${ASSISTANT_NAME_LOWER}...`}
         rows={1}
         disabled={loading}
         className="w-full bg-transparent px-4 py-3.5 pr-12 text-[13px] text-foreground placeholder:text-foreground-lighter resize-none focus:outline-none leading-relaxed"

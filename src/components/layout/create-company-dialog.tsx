@@ -1,4 +1,5 @@
 "use client";
+import { APP_NAME } from "@/lib/brand";
 
 import { useState } from "react";
 import {
@@ -129,7 +130,7 @@ export function CreateCompanyDialog({
             <div>
               <DialogTitle>Create Your Company</DialogTitle>
               <DialogDescription>
-                To get started with TropiTrack, you need to create a company.
+                To get started with {APP_NAME}, you need to create a company.
                 Only the company name is required - you can add more details
                 later in settings.
               </DialogDescription>
