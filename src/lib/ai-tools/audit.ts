@@ -62,7 +62,12 @@ export async function runTool<TInput, TOutput>(
     } else {
       status = "error";
       errorMessage = out.error;
-      result = { error: out.error };
+      // Keep the handler's payload alongside the message. A failed lookup often
+      // carries the thing the caller actually needs — resolveByName returns the
+      // candidate rows when a name is ambiguous or unmatched — and collapsing
+      // that to a bare string is what turned "did you mean Metal Roof
+      // Installation?" into "there was an error retrieving the job".
+      result = out.data !== undefined ? { error: out.error, data: out.data } : { error: out.error };
     }
   } catch (e) {
     status = "error";

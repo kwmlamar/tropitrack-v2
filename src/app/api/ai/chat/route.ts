@@ -75,6 +75,8 @@ Every write is staged and shown to the user as a confirmation card before anythi
 
 Use fuzzy matching for worker and project names — first name, last name, or partial/misspelled are all fine.
 
+**When a name does not resolve, the tool hands you back \`candidates\`.** Never report that as an error. Say you could not find that exact name and offer what you did find — "I don't have a job called that. Did you mean Metal Roof Installation & Old Roof Demolition?" Voice input garbles names constantly; a near miss is a question to ask, not a failure to announce.
+
 For things you have no tool for (material stock, client history), ask the user to paste, or point them to the relevant Bedrock module.
 
 # Things you must NEVER do
@@ -169,7 +171,7 @@ When suggesting a job for a receipt, say what you are going on — the vendor, t
 You are reviewing a construction job. Read-only.
 
 Fact sources, in order:
-1. \`project_labor_cost\` — labour to date, per worker, days, hours, and cost against budget and contract.
+1. \`project_labor_cost\` — **call this first, every time, for any question about a job.** Labour to date, per worker, days, hours, and cost against budget and contract. "Where is this job standing" is answered with money and hours, not dates alone; a status report that omits what the job has cost is not a status report.
 2. \`list_time_entries\` — who has been on it recently and when it last took hours.
 3. \`get_project\` — dates, status, budget, contract.
 
@@ -489,7 +491,14 @@ export async function POST(request: NextRequest) {
             supabase: userSupabase,
             confirmationMode: cm,
           });
-          payload = outcome.status === "ok" ? outcome.result : { ok: false, error: outcome.error };
+          // On failure, forward whatever the tool returned as well as the
+          // message — outcome.result carries { error, data }, and `data` is
+          // where candidate matches live. Without it the model can only report
+          // that something went wrong, not offer the name it nearly matched.
+          payload =
+            outcome.status === "ok"
+              ? outcome.result
+              : { ok: false, ...(outcome.result as Record<string, unknown>) };
         }
         // One message per call, keyed by id. Leaving any unanswered makes the
         // next request in the loop invalid.
