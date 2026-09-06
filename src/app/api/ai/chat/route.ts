@@ -6,19 +6,25 @@ import { TOOL_REGISTRY, getTool } from "@/lib/ai-tools/registry";
 import { createPendingWrite, type ProposedWritePayload } from "@/lib/ai-tools/pending-writes";
 import {
   AI_PROVIDER,
-  ANTHROPIC_API_URL,
-  ANTHROPIC_MAX_TOKENS,
-  ANTHROPIC_MODEL,
-  ANTHROPIC_VERSION,
-  classifyAnthropicError,
+  classifyOpenAIError,
   MISSING_KEY_FAILURE,
+  openAiHeaders,
+  OPENAI_API_URL,
+  OPENAI_CHAT_MODEL,
+  OPENAI_MAX_TOKENS,
   type AiFailure,
 } from "@/lib/ai-config";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-const BASE_SYSTEM = `You are Claude, the AI assistant built into Bedrock — the business OS for ODS Construction (also trading as Whelsco), a construction company based at Palmetto Point, Eleuthera, Bahamas. ODS works the length of Eleuthera.
+// NOTE: this no longer says "You are Claude". As of the 2026-09-06 provider
+// port the model answering is OpenAI's, and instructing it to introduce itself
+// as Claude would have it assert a false identity to the crew every time
+// somebody asked what it was. The product surface is still branded Claude —
+// that is a naming decision for the owner — but the model is not told to lie
+// about what it is.
+const BASE_SYSTEM = `You are the AI assistant built into Bedrock — the business OS for ODS Construction (also trading as Whelsco), a construction company based at Palmetto Point, Eleuthera, Bahamas. ODS works the length of Eleuthera.
 
 Tagline: "Built Right, Built to Last."
 
@@ -207,7 +213,7 @@ function offline(failure: AiFailure) {
 
 export async function POST(request: NextRequest) {
   const startedAt = Date.now();
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY;
 
   try {
     const authHeader = request.headers.get("authorization");
@@ -288,19 +294,33 @@ export async function POST(request: NextRequest) {
     const skillAddon = activeSkillId && SKILL_PROMPTS[activeSkillId] ? SKILL_PROMPTS[activeSkillId] : "";
     const systemPrompt = BASE_SYSTEM + skillAddon;
 
-    // Tool-use loop. Each iteration: call Claude → if it asked for a tool, run it,
-    // append the result, and loop. Cap iterations to keep latency bounded.
-    type ContentBlock =
-      | { type: "text"; text: string }
-      | { type: "tool_use"; id: string; name: string; input: Record<string, unknown> }
-      | { type: "tool_result"; tool_use_id: string; content: string };
-    type Msg = { role: "user" | "assistant"; content: string | ContentBlock[] };
+    // Tool-calling loop. Each iteration: call the model → if it asked for tools,
+    // run them, append the results, and loop. Cap iterations to bound latency.
+    //
+    // OpenAI's shape, which is not Anthropic's: the system prompt is the first
+    // MESSAGE rather than a top-level field; a tool request comes back as
+    // `message.tool_calls[]` with its arguments as a JSON *string*; and each
+    // result goes back as its own `role: "tool"` message keyed by
+    // `tool_call_id`, rather than as content blocks inside a user turn.
+    interface ToolCall {
+      id: string;
+      type: "function";
+      function: { name: string; arguments: string };
+    }
+    type Msg =
+      | { role: "system" | "user"; content: string }
+      | { role: "assistant"; content: string | null; tool_calls?: ToolCall[] }
+      | { role: "tool"; tool_call_id: string; content: string };
 
-    const messages: Msg[] = orderedHistory.map((m) => ({
-      role: m.role as "user" | "assistant",
-      content: m.content,
-    }));
-    messages.push({ role: "user", content: message });
+    const messages: Msg[] = [
+      { role: "system", content: systemPrompt },
+      ...orderedHistory.map((m) =>
+        m.role === "assistant"
+          ? ({ role: "assistant", content: m.content } as Msg)
+          : ({ role: "user", content: m.content } as Msg),
+      ),
+      { role: "user", content: message },
+    ];
 
     // Skill-scoped tool filtering (#21).
     //   - Reads (scope='read') with skills including 'core' are ALWAYS loaded.
@@ -317,10 +337,16 @@ export async function POST(request: NextRequest) {
       // write
       return inActiveSkill;
     });
+    // Same registry, same skill scoping — only the envelope differs. Our
+    // `input_schema` is already plain JSON Schema, so it drops straight into
+    // `parameters`.
     const tools = visibleTools.map((t) => ({
-      name: t.name,
-      description: t.description,
-      input_schema: t.input_schema,
+      type: "function" as const,
+      function: {
+        name: t.name,
+        description: t.description,
+        parameters: t.input_schema,
+      },
     }));
 
     let responseText = "";
@@ -347,22 +373,18 @@ export async function POST(request: NextRequest) {
 
     for (let step = 0; step < 4; step++) {
       steps++;
-      const res = await fetch(ANTHROPIC_API_URL, {
+      const res = await fetch(OPENAI_API_URL, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": ANTHROPIC_VERSION,
-        },
+        headers: openAiHeaders(apiKey),
         body: JSON.stringify({
-          model: ANTHROPIC_MODEL,
-          max_tokens: ANTHROPIC_MAX_TOKENS,
-          system: systemPrompt,
-          tools,
+          model: OPENAI_CHAT_MODEL,
+          max_tokens: OPENAI_MAX_TOKENS,
+          // System prompt is messages[0]; there is no top-level `system` here.
           messages,
+          ...(tools.length ? { tools, tool_choice: "auto" } : {}),
         }),
       }).catch((netErr: unknown) => {
-        console.error("Anthropic request failed:", netErr);
+        console.error("OpenAI request failed:", netErr);
         return null;
       });
 
@@ -375,40 +397,64 @@ export async function POST(request: NextRequest) {
 
       if (!res.ok) {
         const err = await res.text();
-        const failure = classifyAnthropicError(res.status, err);
-        console.error(`Anthropic ${res.status} (${failure.reason}):`, err);
+        const failure = classifyOpenAIError(res.status, err);
+        console.error(`OpenAI ${res.status} (${failure.reason}):`, err);
         return offline(failure);
       }
 
       const data = await res.json();
-      inputTokens += data?.usage?.input_tokens ?? 0;
-      outputTokens += data?.usage?.output_tokens ?? 0;
+      inputTokens += data?.usage?.prompt_tokens ?? 0;
+      outputTokens += data?.usage?.completion_tokens ?? 0;
 
-      const content = (data.content ?? []) as ContentBlock[];
-      const toolUses = content.filter((b): b is Extract<ContentBlock, { type: "tool_use" }> => b.type === "tool_use");
+      const choice = data?.choices?.[0];
+      const assistantMsg = choice?.message as
+        | { content: string | null; tool_calls?: ToolCall[] }
+        | undefined;
+      const toolCalls = (assistantMsg?.tool_calls ?? []) as ToolCall[];
 
-      if (toolUses.length === 0 || data.stop_reason !== "tool_use") {
-        responseText = content.find((b): b is Extract<ContentBlock, { type: "text" }> => b.type === "text")?.text?.trim() ?? "";
+      if (toolCalls.length === 0 || choice?.finish_reason !== "tool_calls") {
+        responseText = (assistantMsg?.content ?? "").trim();
         break;
       }
 
-      messages.push({ role: "assistant", content });
+      // Echoed back verbatim — OpenAI requires the assistant turn carrying the
+      // tool_calls to precede their results, and every call must be answered.
+      messages.push({
+        role: "assistant",
+        content: assistantMsg?.content ?? null,
+        tool_calls: toolCalls,
+      });
+
+      // Arguments arrive as a JSON string, not an object. A model that emits
+      // malformed JSON must not take the whole turn down — that failure is fed
+      // back as a tool result so it can correct itself.
+      const parsed = toolCalls.map((call) => {
+        let args: Record<string, unknown> = {};
+        let parseError: string | null = null;
+        try {
+          args = call.function.arguments ? JSON.parse(call.function.arguments) : {};
+        } catch {
+          parseError = `arguments for ${call.function.name} were not valid JSON`;
+        }
+        return { call, args, parseError };
+      });
 
       // Identify the first write that needs staging. In bypass mode, tier='confirm'
       // skips the card; tier='double-confirm' still stages (irreversible ops never auto-run).
-      const firstWrite = toolUses.find((u) => {
-        const t = getTool(u.name);
+      const firstWrite = parsed.find(({ call, parseError }) => {
+        if (parseError) return false;
+        const t = getTool(call.function.name);
         if (!t || t.tier === "none") return false;
         if (t.tier === "confirm" && mode === "bypass") return false;
         return true;
       });
 
       if (firstWrite) {
-        const tool = getTool(firstWrite.name)!;
+        const tool = getTool(firstWrite.call.function.name)!;
         if (!tool.preview) {
           throw new Error(`tool ${tool.name} is tier ${tool.tier} but has no preview()`);
         }
-        const preview = await tool.preview(firstWrite.input, {
+        const preview = await tool.preview(firstWrite.args, {
           ...baseCtx,
           supabase: userSupabase,
         });
@@ -416,7 +462,7 @@ export async function POST(request: NextRequest) {
         // needs a thread id to attach to.
         pendingWriteInput = {
           tool,
-          input: firstWrite.input,
+          input: firstWrite.args,
           summary: preview.summary,
           doubleConfirmAnswer: preview.doubleConfirmAnswer,
         };
@@ -424,19 +470,20 @@ export async function POST(request: NextRequest) {
         break;
       }
 
-      const toolResults: ContentBlock[] = [];
-      for (const use of toolUses) {
-        const tool = getTool(use.name);
+      for (const { call, args, parseError } of parsed) {
+        const tool = getTool(call.function.name);
         let payload: unknown;
-        if (!tool) {
-          payload = { ok: false, error: `unknown tool: ${use.name}` };
+        if (parseError) {
+          payload = { ok: false, error: parseError };
+        } else if (!tool) {
+          payload = { ok: false, error: `unknown tool: ${call.function.name}` };
         } else {
           const cm = tool.tier === "none"
             ? "auto"
             : mode === "bypass"
             ? "bypass"
             : "auto"; // shouldn't reach: confirm/double-confirm in default mode is staged above
-          const outcome = await runTool(tool, use.input, {
+          const outcome = await runTool(tool, args, {
             ...baseCtx,
             threadId: activeThreadId,
             supabase: userSupabase,
@@ -444,9 +491,14 @@ export async function POST(request: NextRequest) {
           });
           payload = outcome.status === "ok" ? outcome.result : { ok: false, error: outcome.error };
         }
-        toolResults.push({ type: "tool_result", tool_use_id: use.id, content: JSON.stringify(payload) });
+        // One message per call, keyed by id. Leaving any unanswered makes the
+        // next request in the loop invalid.
+        messages.push({
+          role: "tool",
+          tool_call_id: call.id,
+          content: JSON.stringify(payload),
+        });
       }
-      messages.push({ role: "user", content: toolResults });
     }
 
     if (!responseText) {
@@ -507,7 +559,7 @@ export async function POST(request: NextRequest) {
       scope: "read",
       tier: "none",
       confirmationMode: mode,
-      input: { provider: AI_PROVIDER, model: ANTHROPIC_MODEL, skill_id: activeSkillId, steps },
+      input: { provider: AI_PROVIDER, model: OPENAI_CHAT_MODEL, skill_id: activeSkillId, steps },
       result: { input_tokens: inputTokens, output_tokens: outputTokens, steps },
       status: "ok",
       threadId: activeThreadId,
@@ -519,7 +571,7 @@ export async function POST(request: NextRequest) {
       thread_id: activeThreadId,
       message: responseText,
       pending_write: pendingWrite,
-      usage: { input_tokens: inputTokens, output_tokens: outputTokens, model: ANTHROPIC_MODEL },
+      usage: { input_tokens: inputTokens, output_tokens: outputTokens, model: OPENAI_CHAT_MODEL },
     });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "Chat failed";

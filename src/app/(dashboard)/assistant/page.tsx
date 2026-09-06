@@ -705,9 +705,9 @@ export default function ClaudePage() {
               <p className="text-[13px] font-medium text-destructive">{offline.message}</p>
               <p className="mt-0.5 text-[11px] text-destructive/80">
                 {offline.reason === "billing"
-                  ? "The Anthropic account needs topping up. Nothing you typed was lost or saved to a thread."
+                  ? "The OpenAI account needs topping up. Nothing you typed was lost or saved to a thread."
                   : offline.reason === "auth" || offline.reason === "config"
-                  ? "ANTHROPIC_API_KEY needs attention. Nothing you typed was lost or saved to a thread."
+                  ? "OPENAI_API_KEY needs attention. Nothing you typed was lost or saved to a thread."
                   : "Nothing you typed was lost or saved to a thread — your message is back in the box."}
               </p>
             </div>

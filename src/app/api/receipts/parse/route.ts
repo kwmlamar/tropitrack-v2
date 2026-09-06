@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { classifyOpenAIError, openAiHeaders, OPENAI_API_URL, OPENAI_VISION_MODEL } from "@/lib/ai-config";
 
 interface Material {
   id: string;
@@ -22,9 +23,9 @@ interface ParsedLineItem {
 }
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    return NextResponse.json({ error: "ANTHROPIC_API_KEY not configured" }, { status: 500 });
+    return NextResponse.json({ error: "OPENAI_API_KEY not configured" }, { status: 500 });
   }
 
   let body: { image: string; mediaType: string; materials: Material[] };
@@ -68,20 +69,18 @@ IMPORTANT: Return ONLY a raw JSON array. No markdown fences. No explanation. Exa
 [{"receiptName":"2x4x8 PT","qty":20,"unit":"EA","unitCost":13.50,"totalCost":270,"vendor":"Thompson Hardware","receiptDate":"2026-05-15","matchId":"S019","matchConfidence":"high","suggestedDiv":null,"suggestedCat":null}]`;
 
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    // OpenAI takes an image as a data: URI in an image_url part, where
+    // Anthropic took a base64 source block with a separate media_type.
+    const res = await fetch(OPENAI_API_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
+      headers: openAiHeaders(apiKey),
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
+        model: OPENAI_VISION_MODEL,
         max_tokens: 2000,
         messages: [{
           role: "user",
           content: [
-            { type: "image", source: { type: "base64", media_type: mediaType, data: image } },
+            { type: "image_url", image_url: { url: `data:${mediaType};base64,${image}` } },
             { type: "text", text: prompt },
           ],
         }],
@@ -90,11 +89,12 @@ IMPORTANT: Return ONLY a raw JSON array. No markdown fences. No explanation. Exa
 
     if (!res.ok) {
       const err = await res.text();
-      return NextResponse.json({ error: `Anthropic API error: ${err}` }, { status: 502 });
+      const failure = classifyOpenAIError(res.status, err);
+      return NextResponse.json({ error: failure.message, reason: failure.reason }, { status: 502 });
     }
 
     const data = await res.json();
-    const text: string = data.content?.find((b: { type: string }) => b.type === "text")?.text ?? "[]";
+    const text: string = data.choices?.[0]?.message?.content ?? "[]";
     const items: ParsedLineItem[] = JSON.parse(text.replace(/```json|```/g, "").trim());
     return NextResponse.json({ items });
   } catch (e: unknown) {
