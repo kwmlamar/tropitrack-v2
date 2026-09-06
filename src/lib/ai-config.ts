@@ -64,7 +64,7 @@ export function classifyOpenAIError(status: number, body: string): AiFailure {
   if (isQuota) {
     return {
       reason: "billing",
-      message: "Claude is offline — the OpenAI account is out of credit.",
+      message: "Bedrock AI is offline — the OpenAI account is out of credit.",
       status,
     };
   }
@@ -78,7 +78,7 @@ export function classifyOpenAIError(status: number, body: string): AiFailure {
   ) {
     return {
       reason: "auth",
-      message: "Claude is offline — the API key was rejected.",
+      message: "Bedrock AI is offline — the API key was rejected.",
       status,
     };
   }
@@ -86,7 +86,7 @@ export function classifyOpenAIError(status: number, body: string): AiFailure {
   if (status === 429) {
     return {
       reason: "rate_limit",
-      message: "Claude is rate limited right now. Try again shortly.",
+      message: "Bedrock AI is rate limited right now. Try again shortly.",
       status,
     };
   }
@@ -94,21 +94,21 @@ export function classifyOpenAIError(status: number, body: string): AiFailure {
   if (status >= 500) {
     return {
       reason: "network",
-      message: "Claude is unreachable — the provider returned an error.",
+      message: "Bedrock AI is unreachable — the provider returned an error.",
       status,
     };
   }
 
   return {
     reason: "unknown",
-    message: `Claude returned an unexpected error (${status}).`,
+    message: `Bedrock AI returned an unexpected error (${status}).`,
     status,
   };
 }
 
 export const MISSING_KEY_FAILURE: AiFailure = {
   reason: "config",
-  message: "Claude is offline — OPENAI_API_KEY is not configured.",
+  message: "Bedrock AI is offline — OPENAI_API_KEY is not configured.",
 };
 
 /** Standard auth header for every OpenAI REST call in this app. */

@@ -6,12 +6,12 @@ import { computeLaborCost } from "@/types";
 /**
  * POST /api/estimates/[id]/apply-scope
  *
- * Issue #7 — write Claude's structured scope JSON into the two-grain model:
+ * Issue #7 — write the model's structured scope JSON into the two-grain model:
  *   estimate_sections, estimate_line_items (labor-only),
  *   estimate_section_materials (takeoff).
  *
  * Server-side responsibilities:
- *   - Chain section dates from `project_start_date` (durations from Claude)
+ *   - Chain section dates from `project_start_date` (durations from the model)
  *   - Compute labor_cost = man_days × rate (via computeLaborCost)
  *   - Store material/equipment unit costs RAW — markup applies on read by
  *     computeSectionMaterialSell. Do NOT pre-multiply.

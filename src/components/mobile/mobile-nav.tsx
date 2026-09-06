@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Home, FolderKanban, Plus, Menu } from "lucide-react";
-import { ClaudeIcon } from "@/components/icons/claude-icon";
+import { BedrockIcon } from "@/components/icons/bedrock-icon";
 import { cn } from "@/lib/utils";
 
 /**
@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
  * assistant appeared in neither the bar nor /more — the feature simply did not
  * exist on mobile, which is where site work happens.
  *
- * Claude takes the Invoices slot rather than becoming a sixth item: five is what
+ * The assistant takes the Invoices slot rather than becoming a sixth item: five is what
  * fits on a 375px bar without crowding, and billing a client is a desk task
  * while asking what a job has cost is not. Invoices is still one tap away under
  * More → Workspace. Swapping them back is a one-line change.
@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 interface NavItem {
   label: string;
   href: string;
-  /** Lucide icons and the Claude mark are both plain className-taking components. */
+  /** Lucide icons and the Bedrock mark are both plain className-taking components. */
   icon: React.ComponentType<{ className?: string }>;
   isCenter?: boolean;
 }
@@ -42,9 +42,12 @@ const navItems: NavItem[] = [
     isCenter: true,
   },
   {
-    label: "Claude",
+    // "Bedrock AI" wraps to two lines at 10px inside a 56px slot and breaks the
+    // row's alignment, so the bar says "AI". Inside Bedrock the "Bedrock" half
+    // is redundant anyway; every other surface uses the full name.
+    label: "AI",
     href: "/assistant",
-    icon: ClaudeIcon,
+    icon: BedrockIcon,
   },
   {
     label: "More",

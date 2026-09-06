@@ -97,7 +97,10 @@ export function AiStatusPanel() {
     let outputTokens = 0;
     let toolCalls = 0;
     for (const row of data ?? []) {
-      if (row.tool_name === "claude_chat") {
+      // "claude_chat" is what conversation turns were logged as before the
+      // 2026-09-06 rename. Both names count, or every turn logged this month
+      // before the rename would silently reclassify as a tool call.
+      if (row.tool_name === "bedrock_chat" || row.tool_name === "claude_chat") {
         calls += 1;
         const r = row.result as { input_tokens?: number; output_tokens?: number } | null;
         inputTokens += Number(r?.input_tokens ?? 0);

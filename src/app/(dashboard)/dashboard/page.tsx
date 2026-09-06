@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { cn, formatCurrency } from "@/lib/utils";
 import { ArrowRight, Clock, ScanLine } from "lucide-react";
-import { ClaudeIcon } from "@/components/icons/claude-icon";
+import { BedrockIcon } from "@/components/icons/bedrock-icon";
 import { SearchModal } from "@/components/search/search-modal";
 import type {
   AttentionRow,
@@ -85,7 +85,7 @@ function attentionSentence(row: AttentionRow): string {
     case "ai_offline":
       // The assistant died silently on 2026-08-31 and nobody was told for six
       // days. This row exists so that can never be true again.
-      return `Claude is offline${
+      return `Bedrock AI is offline${
         row.date_ref ? ` — last worked ${shortDate(row.date_ref)}` : ""
       }`;
     default:
@@ -118,7 +118,7 @@ function attentionShort(row: AttentionRow): string {
     case "time_no_pay_period":
       return `${n} ${plural(n, "week")} unpaid`;
     case "ai_offline":
-      return "Claude is offline";
+      return "Bedrock AI is offline";
     default:
       return `${n} items`;
   }
@@ -238,8 +238,8 @@ export default function DashboardPage() {
             href="/assistant"
             className="flex items-center gap-1.5 px-1 text-[12px] font-medium text-foreground-lighter transition-colors hover:text-foreground-light"
           >
-            <ClaudeIcon className="h-3.5 w-3.5" />
-            <span>Ask Claude</span>
+            <BedrockIcon className="h-3.5 w-3.5" />
+            <span>Ask Bedrock AI</span>
           </Link>
         </div>
       </div>

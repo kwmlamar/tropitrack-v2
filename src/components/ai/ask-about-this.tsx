@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ClaudeIcon } from "@/components/icons/claude-icon";
+import { BedrockIcon } from "@/components/icons/bedrock-icon";
 import { cn } from "@/lib/utils";
 
 /**
@@ -41,7 +41,7 @@ export function AskAboutThis({
         className
       )}
     >
-      <ClaudeIcon className="h-3.5 w-3.5" />
+      <BedrockIcon className="h-3.5 w-3.5" />
       <span>{label}</span>
     </Link>
   );

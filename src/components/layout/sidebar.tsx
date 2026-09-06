@@ -23,7 +23,7 @@ import {
   CalendarDays,
   BarChart3,
 } from "lucide-react";
-import { ClaudeIcon } from "@/components/icons/claude-icon";
+import { BedrockIcon } from "@/components/icons/bedrock-icon";
 import { getInitials } from "@/lib/utils";
 import { useEffect, useState } from "react";
 
@@ -37,7 +37,7 @@ type NavItem = {
   name: string;
   href: string;
   // Wide enough for both lucide icons (strokeWidth: string | number) and the
-  // local ClaudeIcon, which takes className only.
+  // local BedrockIcon, which takes className only.
   icon: React.ComponentType<{ className?: string; strokeWidth?: string | number }>;
 };
 
@@ -56,7 +56,7 @@ const NAV_GROUPS: { label: string | null; items: NavItem[] }[] = [
     label: null,
     items: [
       { name: "Today", href: "/dashboard", icon: LayoutDashboard },
-      { name: "Claude", href: "/assistant", icon: ClaudeIcon },
+      { name: "Bedrock AI", href: "/assistant", icon: BedrockIcon },
     ],
   },
   {

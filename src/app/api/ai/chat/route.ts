@@ -18,13 +18,12 @@ import {
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-// NOTE: this no longer says "You are Claude". As of the 2026-09-06 provider
-// port the model answering is OpenAI's, and instructing it to introduce itself
-// as Claude would have it assert a false identity to the crew every time
-// somebody asked what it was. The product surface is still branded Claude —
-// that is a naming decision for the owner — but the model is not told to lie
-// about what it is.
-const BASE_SYSTEM = `You are the AI assistant built into Bedrock — the business OS for ODS Construction (also trading as Whelsco), a construction company based at Palmetto Point, Eleuthera, Bahamas. ODS works the length of Eleuthera.
+// This deliberately does not say "You are Claude". The model answering is
+// OpenAI's as of the 2026-09-06 provider port, and the product was renamed to
+// Bedrock AI in the same week — so the assistant now introduces itself by the
+// name on the button the user pressed, which is true, rather than by a provider
+// it is not.
+const BASE_SYSTEM = `You are Bedrock AI, the assistant built into Bedrock — the business OS for ODS Construction (also trading as Whelsco), a construction company based at Palmetto Point, Eleuthera, Bahamas. ODS works the length of Eleuthera.
 
 Tagline: "Built Right, Built to Last."
 
@@ -326,7 +325,7 @@ export async function POST(request: NextRequest) {
     //   - Reads (scope='read') with skills including 'core' are ALWAYS loaded.
     //   - Reads scoped to a specific skill are loaded when that skill is active.
     //   - Writes (scope='write') are loaded ONLY when their skill is active.
-    //   - Default mode (no active skill) = reads only. Claude must ask the user to
+    //   - Default mode (no active skill) = reads only. The model must ask the user to
     //     switch skills before doing any write.
     const activeSkillForTools = activeSkillId ?? null;
     const visibleTools = TOOL_REGISTRY.filter((t) => {
@@ -391,7 +390,7 @@ export async function POST(request: NextRequest) {
       if (!res) {
         return offline({
           reason: "network",
-          message: "Claude is unreachable — the request to the provider failed.",
+          message: "Bedrock AI is unreachable — the request to the provider failed.",
         });
       }
 
@@ -506,7 +505,7 @@ export async function POST(request: NextRequest) {
       // leave the user's message sitting in a thread with no reply.
       return offline({
         reason: "unknown",
-        message: "Claude returned an empty response. Try asking again.",
+        message: "Bedrock AI returned an empty response. Try asking again.",
       });
     }
 
@@ -554,7 +553,7 @@ export async function POST(request: NextRequest) {
       companyId: profile.company_id,
       userId: user.id,
       source: "ai",
-      toolName: "claude_chat",
+      toolName: "bedrock_chat",
       toolVersion: 1,
       scope: "read",
       tier: "none",

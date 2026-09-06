@@ -22,7 +22,7 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
  * back, including WHY it failed — billing, auth, config, rate limit or network.
  *
  * Every run writes an audit_logs row (tool_name 'ai_health_check'). That is what
- * dashboard_extra_checks() reads to raise "Claude is offline" on the dashboard
+ * dashboard_extra_checks() reads to raise "Bedrock AI is offline" on the dashboard
  * once the failure is more than 24 hours old.
  *
  * Authenticated: this reports operational state and consumes a token of quota,
@@ -128,7 +128,7 @@ export async function GET(request: NextRequest) {
   } catch (err) {
     const failure = {
       reason: "network" as const,
-      message: "Claude is unreachable — the request to the provider failed.",
+      message: "Bedrock AI is unreachable — the request to the provider failed.",
     };
     await record(false, { ...base, failure }, err instanceof Error ? err.message : String(err));
     return NextResponse.json(
