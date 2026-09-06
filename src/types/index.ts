@@ -1542,7 +1542,9 @@ export type AttentionKey =
   | "receipts_not_itemised"
   | "crew_no_hours"
   | "invoice_numbering"
-  | "time_no_pay_period";
+  | "time_no_pay_period"
+  /** From dashboard_extra_checks(), not dashboard_summary(). */
+  | "ai_offline";
 
 export interface AttentionRow {
   key: AttentionKey;
@@ -1619,3 +1621,158 @@ export interface DashboardSummary {
   week: DashboardWeek;
   generated_at: string;
 }
+
+// ─── Crew balances ────────────────────────────────────────────────────────────
+// Payload shape of crew_balances(p_company_id).
+// See supabase/migrations/20260906120000_crew_balances.sql.
+//
+// This answers "how much do we owe everyone" — the single most-asked question of
+// the assistant, and previously answerable only by a language model adding up a
+// column. The dashboard tile, the payroll panel and the AI tool all read this
+// same payload, so they cannot disagree.
+
+export interface CrewOutstanding {
+  entries: number;
+  gross_pay: number;
+  total_paid: number;
+  /** gross_pay - total_paid. What the AI tools historically reported. */
+  balance_gross: number;
+  /** net_pay - total_paid, after NIB. What the payroll screen pays against. */
+  balance_net: number;
+  oldest_period_start: string | null;
+  /** Entries inside a period already marked 'paid'. A balance is still a balance. */
+  in_closed_periods: number;
+}
+
+/** Hours logged into a gap no pay period covers — never turned into payroll. */
+export interface CrewUncoveredTime {
+  since: string | null;
+  regular_hours: number;
+  overtime_hours: number;
+  entries: number;
+  value: number;
+}
+
+export interface CrewWorkerBalance {
+  worker_id: string;
+  name: string;
+  hourly_rate: number | null;
+  overtime_multiplier: number;
+  status: string;
+  nib_enabled: boolean;
+  outstanding: CrewOutstanding;
+  uncovered_time: CrewUncoveredTime;
+  total_owed_gross: number;
+  total_owed_net: number;
+}
+
+export interface CrewBalancesTotals {
+  outstanding_payroll_gross: number;
+  outstanding_payroll_net: number;
+  gross_pay: number;
+  total_paid: number;
+  entry_count: number;
+  period_count: number;
+  oldest_unpaid_period_start: string | null;
+  uncovered_time_value: number;
+  uncovered_regular_hours: number;
+  uncovered_overtime_hours: number;
+  uncovered_since: string | null;
+  total_owed_gross: number;
+  total_owed_net: number;
+  workers_owed: number;
+  roster_size: number;
+  terminated_owed_count: number;
+  terminated_owed_gross: number;
+  terminated_owed_net: number;
+  grand_total_gross: number;
+  grand_total_net: number;
+}
+
+export interface CrewBalances {
+  as_of: string;
+  currency: "BSD";
+  totals: CrewBalancesTotals;
+  workers: CrewWorkerBalance[];
+  /** Terminated workers still carrying a balance. Never silently dropped. */
+  terminated_with_balance: CrewWorkerBalance[];
+  basis: {
+    gross_minus_paid: number;
+    net_minus_paid: number;
+    difference: number;
+    nib_workers: number;
+  };
+  /** The gross-vs-net question, stated rather than resolved. Always render it. */
+  basis_note: string;
+  notes: string[];
+  generated_at: string;
+}
+
+// ─── Project labour cost ──────────────────────────────────────────────────────
+// Payload shape of project_labor_cost(p_project_id).
+// See supabase/migrations/20260906120100_project_labor_cost.sql.
+
+export interface ProjectLabourWorker {
+  worker_id: string;
+  name: string;
+  hourly_rate: number | null;
+  overtime_multiplier: number;
+  days: number;
+  entries: number;
+  zero_hour_entries: number;
+  regular_hours: number;
+  overtime_hours: number;
+  cost: number;
+  first_date: string | null;
+  last_date: string | null;
+}
+
+export interface ProjectLabourCost {
+  ok: true;
+  as_of: string;
+  currency: "BSD";
+  project: {
+    id: string;
+    name: string;
+    client: string | null;
+    location: string | null;
+    status: string;
+    budget: number;
+    contract_value: number;
+    no_fixed_contract: boolean;
+    start_date: string | null;
+    estimated_end_date: string | null;
+  };
+  workers: ProjectLabourWorker[];
+  totals: {
+    labour_cost: number;
+    regular_hours: number;
+    overtime_hours: number;
+    total_hours: number;
+    workers: number;
+    crew_days: number;
+    entries: number;
+    zero_hour_entries: number;
+    first_date: string | null;
+    last_date: string | null;
+  };
+  against_budget: {
+    budget: number;
+    has_budget: boolean;
+    /** null whenever budget is 0 — never render this as 0%. */
+    labour_pct: number | null;
+    remaining: number | null;
+  };
+  against_contract: {
+    contract_value: number;
+    no_fixed_contract: boolean;
+    labour_pct: number | null;
+  };
+  /** Rate-history and zero-hour caveats. Render these, do not swallow them. */
+  notes: string[];
+  generated_at: string;
+}
+
+export type ProjectLabourCostResult =
+  | ProjectLabourCost
+  | { ok: false; error: string; as_of: string; generated_at: string };

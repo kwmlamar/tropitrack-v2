@@ -36,8 +36,17 @@ export async function POST(request: NextRequest) {
 
     const token = authHeader.replace("Bearer ", "");
 
-    // Create authenticated Supabase client
+    // Admin client: auth.getUser, the rate-limit RPC and search history only.
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // User-scoped client: everything the MODEL chose runs through this, so RLS
+    // applies as the caller. Nothing a language model picks touches the
+    // service-role client.
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+    const userSupabase = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
 
     // Verify the user
     const {
@@ -147,7 +156,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Execute the query against Supabase (with company scoping when available)
-    const results = await executeSupabaseQuery(supabase, parsed, companyId);
+    const results = await executeSupabaseQuery(userSupabase, parsed, companyId);
 
     const executionTimeMs = Date.now() - startTime;
 
@@ -220,6 +229,31 @@ export async function POST(request: NextRequest) {
   }
 }
 
+/**
+ * The ONLY tables a model-chosen query may touch.
+ *
+ * This used to be a "which tables get company scoping" list, applied over a
+ * service-role client. Anything outside it — payroll_entries, receipts,
+ * profiles, companies, all named in the schema prompt the model was given —
+ * ran unscoped with RLS off. ODS is effectively the only tenant today, so it
+ * was latent rather than exploited, but it was a hole.
+ *
+ * Two changes close it. The query now runs on the caller's own client, so RLS
+ * applies whatever the model picks; and a table outside this list is REJECTED
+ * rather than quietly run without a company filter.
+ */
+const ALLOWED_TABLES = new Set([
+  "time_entries",
+  "workers",
+  "projects",
+  "invoices",
+  "estimates",
+  "materials",
+  "clients",
+  "vendors",
+]);
+
+/** Of the allowlist, those carrying company_id get an explicit filter on top of RLS. */
 const TABLES_WITH_COMPANY_ID = new Set([
   "time_entries",
   "workers",
@@ -228,6 +262,7 @@ const TABLES_WITH_COMPANY_ID = new Set([
   "estimates",
   "materials",
   "clients",
+  "vendors",
 ]);
 
 async function executeSupabaseQuery(
@@ -236,11 +271,21 @@ async function executeSupabaseQuery(
   companyId: string | null
 ): Promise<unknown[]> {
   const { table, select, filters, order, limit } = parsed.supabase_query;
+
+  // Refuse rather than un-scope. A model that picks payroll_entries gets an
+  // error, not a query that happens to run without a company filter.
+  if (!ALLOWED_TABLES.has(table)) {
+    throw new Error(
+      `Search cannot read "${table}". Ask the assistant instead — it has audited tools for payroll, receipts and time.`
+    );
+  }
+
   const safeSelect = sanitizeSupabaseSelect(select);
 
   let query = supabase.from(table).select(safeSelect);
 
-  // Scope by company when table has company_id and user has a company
+  // Belt and braces: RLS already scopes this client to the caller's company,
+  // and this filter states the same intent in the query.
   if (companyId && TABLES_WITH_COMPANY_ID.has(table)) {
     query = query.eq("company_id", companyId);
   }

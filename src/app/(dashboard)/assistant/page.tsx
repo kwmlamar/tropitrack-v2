@@ -48,15 +48,21 @@ interface Skill {
 
 // ─── Skills ───────────────────────────────────────────────────────────────────
 
+/**
+ * Four skills, all ledger operations.
+ *
+ * `estimate` and `client_update` were retired on 2026-09-06. TropiTrack holds
+ * facts, so its in-app skills are ledger skills; anything that produces a
+ * document is authored in Claude/Cowork, where the house rate card and formats
+ * already live. Two threads ever used `estimate`; `client_update` had none.
+ *
+ * Threads created under a retired skill still open — the lookup below simply
+ * finds nothing, the pill shows as unset, and the thread reads back normally on
+ * the default read-only prompt.
+ *
+ * Keep this list in step with SKILL_PROMPTS in src/app/api/ai/chat/route.ts.
+ */
 const SKILLS: Skill[] = [
-  {
-    id: "estimate",
-    label: "Estimate",
-    tag: "ESTIMATE",
-    description: "Build a priced estimate with Eleuthera trade sections",
-    placeholder: "Describe the job — e.g. 'repair hurricane damage at Governor's Harbour, replace roof sections and repaint exterior'",
-    color: "brand",
-  },
   {
     id: "timesheet",
     label: "Timesheets",
@@ -69,24 +75,24 @@ const SKILLS: Skill[] = [
     id: "payroll",
     label: "Payroll",
     tag: "PAYROLL",
-    description: "Calculate pay, NIB deductions, and net amounts",
-    placeholder: "Give me hours and rates — e.g. 'Marcus worked 42 hours this week at $18/hr'",
+    description: "See what is owed and record payments",
+    placeholder: "e.g. 'how much do we owe everyone' or 'we have $9,000 — how should I split it'",
     color: "success",
   },
   {
-    id: "client_update",
-    label: "Client Update",
-    tag: "CLIENT MSG",
-    description: "Draft a professional update or message for a client",
-    placeholder: "Rough notes are fine — e.g. 'framing done, plumbing starts Monday, need client to pick tile by Friday'",
-    color: "destructive",
+    id: "receipts",
+    label: "Receipts",
+    tag: "RECEIPTS",
+    description: "Put unattributed receipts against the right job",
+    placeholder: "e.g. 'which receipts have no job on them' or 'put the Tuesday Kelly's receipt on the metal roof job'",
+    color: "brand",
   },
   {
     id: "job_status",
     label: "Job Status",
     tag: "JOB STATUS",
-    description: "Review progress and flag blockers on active jobs",
-    placeholder: "Which job? — e.g. 'Sotheby's caretaking properties' or 'laundromat build-out'",
+    description: "Labour, schedule and blockers on a job",
+    placeholder: "Which job? — e.g. 'where is the metal roof job standing' or 'labour on the laundromat'",
     color: "warning",
   },
 ];
@@ -244,6 +250,10 @@ export default function ClaudePage() {
   const [doubleConfirmInput, setDoubleConfirmInput] = useState("");
   const [resolvingWrite, setResolvingWrite] = useState(false);
   const [mode, setMode] = useState<"default" | "bypass">("default");
+  // Set when the provider is unreachable — dead key, no credit, network. Stays
+  // on screen until a message succeeds. The whole reason this feature was dead
+  // for six days is that this state did not exist.
+  const [offline, setOffline] = useState<{ reason: string; message: string } | null>(null);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -272,6 +282,23 @@ export default function ClaudePage() {
 
   useEffect(() => {
     setMounted(true);
+
+    // "Ask about this" seeding. A payroll period or a job page hands over
+    // ?skill=payroll&ask=<question with ids in it>, and the composer opens with
+    // that already written and the right pill lit.
+    //
+    // Read off window rather than useSearchParams so this page needs no Suspense
+    // boundary. The text is placed, not sent — navigating to a page should never
+    // spend money on a call the user did not press enter on.
+    const params = new URLSearchParams(window.location.search);
+    const seededSkill = params.get("skill");
+    const seededAsk = params.get("ask");
+    if (seededSkill) {
+      const match = SKILLS.find((sk) => sk.id === seededSkill);
+      if (match) setActiveSkill(match);
+    }
+    if (seededAsk) setInput(seededAsk);
+
     setTimeout(() => textareaRef.current?.focus(), 100);
   }, []);
 
@@ -317,6 +344,7 @@ export default function ClaudePage() {
     setMessages([]);
     setActiveSkill(null);
     setInput("");
+    setPendingWrite(null);
     setTimeout(() => textareaRef.current?.focus(), 50);
   }
 
@@ -403,6 +431,21 @@ export default function ClaudePage() {
       });
 
       const data = await res.json();
+
+      // Provider unreachable. The server wrote nothing, so neither do we: pull
+      // the optimistic bubble back out and hand the user their text back rather
+      // than leaving it sitting in a thread that will never get a reply.
+      if (data.offline) {
+        setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
+        setInput(trimmed);
+        setOffline({
+          reason: data.failure?.reason ?? "unknown",
+          message: data.failure?.message ?? "Claude is offline.",
+        });
+        return;
+      }
+
+      setOffline(null);
       setMessages((prev) => [
         ...prev,
         {
@@ -417,17 +460,20 @@ export default function ClaudePage() {
         setDoubleConfirmInput("");
       }
 
-      // Server creates a thread on first send — adopt its id and refresh the list
+      // Server creates a thread on first successful answer — adopt its id and
+      // refresh the list.
       if (data.thread_id) {
         if (!activeThreadId) setActiveThreadId(data.thread_id);
         loadThreads();
       }
     } catch (e: unknown) {
       if ((e as Error)?.name === "AbortError") return;
-      setMessages((prev) => [
-        ...prev,
-        { id: (Date.now() + 1).toString(), role: "assistant", content: "Connection error. Try again." },
-      ]);
+      setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
+      setInput(trimmed);
+      setOffline({
+        reason: "network",
+        message: "Could not reach Bedrock. Check your connection and try again.",
+      });
     } finally {
       setLoading(false);
       abortRef.current = null;
@@ -641,6 +687,36 @@ export default function ClaudePage() {
                 </button>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Offline banner ──
+          The single most damning fact in the audit of this feature: the
+          Anthropic key ran out of credit on 2026-08-31, the UI said nothing,
+          and the same question was asked into a dead box nine times over six
+          days. This banner is the fix. It is persistent, it names the cause,
+          and it sits above the conversation until a message actually goes
+          through. */}
+      {offline && (
+        <div className="flex-shrink-0 border-b border-destructive-border bg-destructive-subtle px-6 py-3">
+          <div className="mx-auto flex max-w-[680px] flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[13px] font-medium text-destructive">{offline.message}</p>
+              <p className="mt-0.5 text-[11px] text-destructive/80">
+                {offline.reason === "billing"
+                  ? "The Anthropic account needs topping up. Nothing you typed was lost or saved to a thread."
+                  : offline.reason === "auth" || offline.reason === "config"
+                  ? "ANTHROPIC_API_KEY needs attention. Nothing you typed was lost or saved to a thread."
+                  : "Nothing you typed was lost or saved to a thread — your message is back in the box."}
+              </p>
+            </div>
+            <button
+              onClick={() => setOffline(null)}
+              className="flex-shrink-0 text-[11px] font-mono uppercase tracking-wider text-destructive/70 transition-opacity hover:opacity-80"
+            >
+              Dismiss
+            </button>
           </div>
         </div>
       )}
