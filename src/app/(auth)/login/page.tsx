@@ -1,4 +1,5 @@
 "use client";
+import { APP_NAME } from "@/lib/brand";
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -107,7 +108,7 @@ function LoginForm() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">TropiTrack v2</CardTitle>
+          <CardTitle className="text-2xl font-bold">{APP_NAME}</CardTitle>
           <CardDescription>
             Construction Project Management System
           </CardDescription>
@@ -119,7 +120,7 @@ function LoginForm() {
               <Input
                 id="email"
                 type="email"
-                placeholder="admin@tropitrack.bs"
+                placeholder="you@company.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required

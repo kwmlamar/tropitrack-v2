@@ -1,4 +1,5 @@
 "use client";
+import { APP_NAME } from "@/lib/brand";
 
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,7 +17,7 @@ export function NoCompanyMessage() {
           <div className="flex-1">
             <h3 className="text-lg font-semibold mb-2">Company Setup Required</h3>
             <p className="text-muted-foreground mb-4">
-              You need to join or create a company to use TropiTrack. You can either join an existing company with a join code or create a new company.
+              You need to join or create a company to use {APP_NAME}. You can either join an existing company with a join code or create a new company.
             </p>
             <div className="flex gap-3">
               <Link href="/settings">

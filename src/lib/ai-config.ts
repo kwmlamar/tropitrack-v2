@@ -1,3 +1,5 @@
+import { ASSISTANT_NAME } from "./brand";
+
 /**
  * One place that knows which provider and model the app's AI runs on.
  *
@@ -64,7 +66,7 @@ export function classifyOpenAIError(status: number, body: string): AiFailure {
   if (isQuota) {
     return {
       reason: "billing",
-      message: "Bedrock AI is offline — the OpenAI account is out of credit.",
+      message: `${ASSISTANT_NAME} is offline — the OpenAI account is out of credit.`,
       status,
     };
   }
@@ -78,7 +80,7 @@ export function classifyOpenAIError(status: number, body: string): AiFailure {
   ) {
     return {
       reason: "auth",
-      message: "Bedrock AI is offline — the API key was rejected.",
+      message: `${ASSISTANT_NAME} is offline — the API key was rejected.`,
       status,
     };
   }
@@ -86,7 +88,7 @@ export function classifyOpenAIError(status: number, body: string): AiFailure {
   if (status === 429) {
     return {
       reason: "rate_limit",
-      message: "Bedrock AI is rate limited right now. Try again shortly.",
+      message: `${ASSISTANT_NAME} is rate limited right now. Try again shortly.`,
       status,
     };
   }
@@ -94,21 +96,21 @@ export function classifyOpenAIError(status: number, body: string): AiFailure {
   if (status >= 500) {
     return {
       reason: "network",
-      message: "Bedrock AI is unreachable — the provider returned an error.",
+      message: `${ASSISTANT_NAME} is unreachable — the provider returned an error.`,
       status,
     };
   }
 
   return {
     reason: "unknown",
-    message: `Bedrock AI returned an unexpected error (${status}).`,
+    message: `${ASSISTANT_NAME} returned an unexpected error (${status}).`,
     status,
   };
 }
 
 export const MISSING_KEY_FAILURE: AiFailure = {
   reason: "config",
-  message: "Bedrock AI is offline — OPENAI_API_KEY is not configured.",
+  message: `${ASSISTANT_NAME} is offline — OPENAI_API_KEY is not configured.`,
 };
 
 /** Standard auth header for every OpenAI REST call in this app. */

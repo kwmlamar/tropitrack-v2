@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { APP_NAME } from "@/lib/brand";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -163,13 +164,13 @@ export async function POST(request: NextRequest) {
             <p>Hi there,</p>
             <p>
               <strong>${inviter_name}</strong> has invited you to join
-              <strong>${company_name}</strong> on TropiTrack as an
+              <strong>${company_name}</strong> on ${APP_NAME} as an
               <span class="role-badge">${role}</span>
             </p>
 
             <div class="info-box">
-              <strong>📋 What is TropiTrack?</strong><br>
-              TropiTrack helps construction companies manage projects, track time, handle payroll,
+              <strong>📋 What is ${APP_NAME}?</strong><br>
+              ${APP_NAME} helps construction companies manage projects, track time, handle payroll,
               and generate invoices efficiently. Everything you need to run your construction business
               in one place.
             </div>
@@ -192,8 +193,8 @@ export async function POST(request: NextRequest) {
           </div>
           <div class="footer">
             <p>
-              © ${new Date().getFullYear()} TropiTrack. All rights reserved.<br>
-              <a href="${appUrl}">Visit TropiTrack</a>
+              © ${new Date().getFullYear()} ${APP_NAME}. All rights reserved.<br>
+              <a href="${appUrl}">Visit ${APP_NAME}</a>
             </p>
           </div>
         </body>
@@ -202,13 +203,13 @@ export async function POST(request: NextRequest) {
 
     // Plain text version
     const emailText = `
-You've been invited to join ${company_name} on TropiTrack
+You've been invited to join ${company_name} on ${APP_NAME}
 
 Hi there,
 
-${inviter_name} has invited you to join ${company_name} on TropiTrack as an ${role}.
+${inviter_name} has invited you to join ${company_name} on ${APP_NAME} as an ${role}.
 
-TropiTrack helps construction companies manage projects, track time, and handle payroll efficiently.
+${APP_NAME} helps construction companies manage projects, track time, and handle payroll efficiently.
 
 Accept your invitation:
 ${inviteUrl}
@@ -218,7 +219,7 @@ This invitation will expire in 7 days.
 If you didn't expect this invitation, you can safely ignore this email.
 
 ---
-© ${new Date().getFullYear()} TropiTrack
+© ${new Date().getFullYear()} ${APP_NAME}
     `.trim();
 
     // Validate email format
@@ -232,9 +233,9 @@ If you didn't expect this invitation, you can safely ignore this email.
 
     // Send email via Resend
     const resendPayload = {
-      from: "TropiTrack <onboarding@resend.dev>",
+      from: `${APP_NAME} <onboarding@resend.dev>`,
       to: [email],
-      subject: `You've been invited to join ${company_name} on TropiTrack`,
+      subject: `You've been invited to join ${company_name} on ${APP_NAME}`,
       html: emailHtml,
       text: emailText,
     };

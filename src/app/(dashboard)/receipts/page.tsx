@@ -1,4 +1,5 @@
 "use client";
+import { APP_NAME, ASSISTANT_NAME } from "@/lib/brand";
 
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -277,7 +278,7 @@ export default function ReceiptsPage() {
                 disabled={!imgBase64}
                 className="w-full py-2.5 text-[13px] font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/80 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               >
-                Parse with Bedrock AI
+                Parse with {ASSISTANT_NAME}
               </button>
             </>
           )}
@@ -286,7 +287,7 @@ export default function ReceiptsPage() {
             <div className="flex flex-col items-center justify-center py-16 gap-4">
               <div className="h-6 w-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
               <p className="text-[13px] text-foreground-lighter">Reading receipt...</p>
-              <p className="text-[11px] text-foreground-lighter">Bedrock AI is extracting line items</p>
+              <p className="text-[11px] text-foreground-lighter">{APP_NAME} is extracting line items</p>
             </div>
           )}
 

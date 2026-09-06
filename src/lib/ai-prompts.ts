@@ -2,7 +2,7 @@ import type { AITone, AIContentType } from "@/types";
 
 // Database schema context for Smart Search
 export const DATABASE_SCHEMA_CONTEXT = `
-You are a database query assistant for TropiTrack, a Bahamian construction management system.
+You are a database query assistant for Bedrock, a Bahamian construction management system.
 
 DATABASE TABLES:
 1. projects - Construction projects

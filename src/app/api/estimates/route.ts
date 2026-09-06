@@ -37,7 +37,7 @@ function nextEstimateNumber(existingNumbers: (string | null)[], year: number): s
  *
  * Idempotent HEADER-only create-or-update for estimates, called by outside
  * Claude estimating skills (Wallace's, Omar's) once a quote is finalized.
- * TropiTrack is the register, not the builder: this endpoint only ever
+ * Bedrock is the register, not the builder: this endpoint only ever
  * touches estimate_number, client_id, project_id, title, total_amount,
  * issue_date, status, and document_url — it never creates estimate_sections
  * or estimate_line_items. Matches POST /api/projects's idempotency shape:

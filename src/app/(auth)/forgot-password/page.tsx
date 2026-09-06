@@ -1,4 +1,5 @@
 "use client";
+import { APP_NAME } from "@/lib/brand";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -60,7 +61,7 @@ export default function ForgotPasswordPage() {
             <div className="h-16 w-16 rounded-full bg-background flex items-center justify-center overflow-hidden">
               <Image
                 src="/logo.png"
-                alt="TropiTrack Logo"
+                alt={`${APP_NAME} logo`}
                 width={64}
                 height={64}
                 className="object-contain"
@@ -95,7 +96,7 @@ export default function ForgotPasswordPage() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="admin@tropitrack.bs"
+                  placeholder="you@company.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required

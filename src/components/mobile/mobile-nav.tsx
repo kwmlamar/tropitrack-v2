@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Home, FolderKanban, Plus, Menu } from "lucide-react";
 import { BedrockIcon } from "@/components/icons/bedrock-icon";
+import { ASSISTANT_NAME } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 
 /**
@@ -42,10 +43,7 @@ const navItems: NavItem[] = [
     isCenter: true,
   },
   {
-    // "Bedrock AI" wraps to two lines at 10px inside a 56px slot and breaks the
-    // row's alignment, so the bar says "AI". Inside Bedrock the "Bedrock" half
-    // is redundant anyway; every other surface uses the full name.
-    label: "AI",
+    label: ASSISTANT_NAME,
     href: "/assistant",
     icon: BedrockIcon,
   },

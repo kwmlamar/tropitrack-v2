@@ -1,4 +1,5 @@
 "use client";
+import { APP_NAME } from "@/lib/brand";
 
 import { Fragment, useEffect, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
@@ -539,7 +540,7 @@ export default function EstimateDetailPage() {
         {sections.length === 0 && costsVisible && estimate.status === "draft" && (
           <div className="rounded-lg border border-dashed border-border bg-background px-6 py-10 text-center mb-4">
             <p className="text-[13px] text-foreground-lighter mb-3">
-              This estimate is empty. Describe the job and Bedrock AI will scope it for you — sections, tasks, and a materials takeoff.
+              This estimate is empty. Describe the job and {APP_NAME} will scope it for you — sections, tasks, and a materials takeoff.
             </p>
             <div className="flex justify-center">
               <ScopeThisButton

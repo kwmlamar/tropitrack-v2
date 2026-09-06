@@ -24,6 +24,7 @@ import {
   BarChart3,
 } from "lucide-react";
 import { BedrockIcon } from "@/components/icons/bedrock-icon";
+import { ASSISTANT_NAME } from "@/lib/brand";
 import { getInitials } from "@/lib/utils";
 import { useEffect, useState } from "react";
 
@@ -56,7 +57,7 @@ const NAV_GROUPS: { label: string | null; items: NavItem[] }[] = [
     label: null,
     items: [
       { name: "Today", href: "/dashboard", icon: LayoutDashboard },
-      { name: "Bedrock AI", href: "/assistant", icon: BedrockIcon },
+      { name: ASSISTANT_NAME, href: "/assistant", icon: BedrockIcon },
     ],
   },
   {

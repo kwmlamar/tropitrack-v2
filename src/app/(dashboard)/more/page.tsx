@@ -31,6 +31,7 @@ import {
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { BedrockIcon } from "@/components/icons/bedrock-icon";
+import { APP_NAME, ASSISTANT_NAME } from "@/lib/brand";
 
 interface MenuItem {
   label: string;
@@ -48,7 +49,7 @@ const menuSections: { title: string; items: MenuItem[] }[] = [
     items: [
       // The assistant had no entry point on mobile at all — not in the bottom
       // bar, not in this list. On a phone the feature did not exist.
-      { label: "Bedrock AI", description: "Ask about payroll, jobs and time", icon: BedrockIcon, href: "/assistant" },
+      { label: ASSISTANT_NAME, description: "Ask about payroll, jobs and time", icon: BedrockIcon, href: "/assistant" },
       { label: "Jobs", description: "Active projects", icon: FolderKanban, href: "/projects" },
       { label: "Estimates", description: "Price work", icon: FileText, href: "/estimates" },
       { label: "Invoices", description: "Bill clients", icon: Receipt, href: "/invoices" },
@@ -238,7 +239,7 @@ export default function MorePage() {
 
           {/* App version */}
           <p className="text-center text-xs text-muted-foreground">
-            TropiTrack v2.0.0
+            {APP_NAME} v2.0.0
           </p>
         </div>
       </div>

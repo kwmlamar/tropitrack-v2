@@ -1,7 +1,8 @@
 "use client";
+import { APP_NAME } from "@/lib/brand";
 
 /**
- * Issue #9 — "Scope this with Bedrock AI" button + intake modal + review modal.
+ * Issue #9 — "Scope this" button + intake modal + review modal.
  *
  * Lives on the estimate summary view (`/estimates/[id]/page.tsx`) empty state.
  * Calls /api/estimates/generate to produce the model's structured scope, lets the
@@ -117,7 +118,7 @@ export function ScopeThisButton({
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: res.statusText }));
         toast({
-          title: "Bedrock AI couldn't generate",
+          title: `${APP_NAME} couldn't generate`,
           description: err.error || "Unknown error",
           variant: "destructive",
         });
@@ -128,7 +129,7 @@ export function ScopeThisButton({
       if (!json.sections || json.sections.length === 0) {
         toast({
           title: "Empty response",
-          description: "Bedrock AI returned no sections. Try a more detailed description.",
+          description: `${APP_NAME} returned no sections. Try a more detailed description.`,
           variant: "destructive",
         });
         setPhase("intake");
@@ -199,16 +200,16 @@ export function ScopeThisButton({
         className="gap-2"
       >
         <Sparkles className="h-3.5 w-3.5" />
-        Scope this with Bedrock AI
+        Scope this with {APP_NAME}
       </Button>
 
       {/* Intake modal */}
       <Dialog open={phase === "intake" || phase === "generating"} onOpenChange={(o) => !o && phase !== "generating" && close()}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>Scope this estimate with Bedrock AI</DialogTitle>
+            <DialogTitle>Scope this estimate with {APP_NAME}</DialogTitle>
             <DialogDescription>
-              Describe the job and Bedrock AI will propose sections, tasks, and a materials takeoff. You&apos;ll review before anything writes to the estimate.
+              Describe the job and {APP_NAME} will propose sections, tasks, and a materials takeoff. You&apos;ll review before anything writes to the estimate.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -254,7 +255,7 @@ export function ScopeThisButton({
             </Button>
             <Button onClick={generate} disabled={phase === "generating"} className="gap-2">
               {phase === "generating" && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-              {phase === "generating" ? "Bedrock AI is scoping…" : "Generate"}
+              {phase === "generating" ? `${APP_NAME} is scoping…` : "Generate"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -264,7 +265,7 @@ export function ScopeThisButton({
       <Dialog open={phase === "review" || phase === "applying"} onOpenChange={(o) => !o && phase !== "applying" && close()}>
         <DialogContent className="sm:max-w-[760px] max-h-[80vh] flex flex-col">
           <DialogHeader>
-            <DialogTitle>Review Bedrock AI&apos;s proposal</DialogTitle>
+            <DialogTitle>Review the proposal</DialogTitle>
             <DialogDescription>
               {proposal?.property_name && <span>Detected: {proposal.property_name}. </span>}
               {proposal?.sections.length ?? 0} sections, dates chain from {startDate}. Apply writes everything to the estimate; Discard cancels.

@@ -1,5 +1,5 @@
 /**
- * Bedrock AI mark — three strata, narrowing downward.
+ * Bedrock mark — three strata, narrowing downward.
  *
  * Replaces the previous icon, which was a recreation of the Claude (Anthropic)
  * asterisk. The assistant runs on OpenAI as of 2026-09-06, so shipping
