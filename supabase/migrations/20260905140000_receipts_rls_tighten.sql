@@ -81,3 +81,42 @@ CREATE POLICY "Users can update receipts"
       SELECT profiles.company_id FROM public.profiles WHERE profiles.id = auth.uid()
     )
   );
+
+-- ---------------------------------------------------------------------------
+-- 2026-09-06 addendum: the DELETE policy, same class of hole.
+--
+-- The live DELETE policy reads:
+--
+--   auth.role() = 'authenticated'
+--   AND ( EXISTS (SELECT 1 FROM profiles
+--                  WHERE profiles.id = auth.uid() AND profiles.role = 'admin')
+--         OR company_id = (SELECT profiles.company_id
+--                            FROM profiles WHERE profiles.id = auth.uid()) )
+--
+-- The admin branch is OR-ed in with no company scoping at all, so any user
+-- whose profile has role = 'admin' could delete ANY company's receipts, not
+-- just their own. That is cross-tenant destruction from a single flag.
+--
+-- The fix drops the admin branch entirely rather than scoping it, because
+-- scoping it would make it redundant: an admin is already covered by the
+-- company_id match below. This is strictly TIGHTER and cannot remove access
+-- from anyone legitimately deleting their own company's receipts -- the
+-- second branch already granted exactly that, to admins and non-admins alike.
+--
+-- Verified against production and the app tree 2026-09-06:
+--   - There is no DELETE path to `receipts` anywhere in the application.
+--     The only two references to the table in src/ are the SELECT at
+--     receipts/page.tsx:88 and the INSERT at receipts/page.tsx:191.
+--   - `receipts.company_id` is NOT NULL with zero null rows, so no row is
+--     rendered undeletable by requiring the company match.
+--   - Service-role callers (Caye) bypass RLS and are unaffected.
+DROP POLICY IF EXISTS "Users can delete receipts" ON public.receipts;
+
+CREATE POLICY "Users can delete receipts"
+  ON public.receipts FOR DELETE
+  USING (
+    auth.role() = 'authenticated'
+    AND company_id = (
+      SELECT profiles.company_id FROM public.profiles WHERE profiles.id = auth.uid()
+    )
+  );
