@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { classifyOpenAIError, openAiHeaders, OPENAI_API_URL, OPENAI_CHAT_MODEL } from "@/lib/ai-config";
 
 /**
  * POST /api/estimates/generate
@@ -98,9 +99,9 @@ For LINE ITEMS and MATERIALS, leave "client_name" null UNLESS the internal descr
 - Don't return Markdown or commentary. Return ONLY raw JSON.`;
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    return NextResponse.json({ error: "ANTHROPIC_API_KEY not configured" }, { status: 500 });
+    return NextResponse.json({ error: "OPENAI_API_KEY not configured" }, { status: 500 });
   }
 
   const body = await req.json();
@@ -160,33 +161,33 @@ Return a JSON object with this exact structure:
 
 Return ONLY the raw JSON. No markdown. No explanation. No preamble.`;
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+  // The system prompt is messages[0] here, not a top-level `system` field.
+  const res = await fetch(OPENAI_API_URL, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
+    headers: openAiHeaders(apiKey),
     body: JSON.stringify({
-      model: "claude-sonnet-4-6",
+      model: OPENAI_CHAT_MODEL,
       max_tokens: 8192,
-      system: SYSTEM,
-      messages: [{ role: "user", content: prompt }],
+      messages: [
+        { role: "system", content: SYSTEM },
+        { role: "user", content: prompt },
+      ],
     }),
   });
 
   if (!res.ok) {
     const err = await res.text();
-    return NextResponse.json({ error: err }, { status: 502 });
+    const failure = classifyOpenAIError(res.status, err);
+    return NextResponse.json({ error: failure.message, reason: failure.reason }, { status: 502 });
   }
 
   const data = await res.json();
-  const text: string = data.content?.find((b: { type: string }) => b.type === "text")?.text ?? "{}";
+  const text: string = data.choices?.[0]?.message?.content ?? "{}";
 
   try {
     const result = JSON.parse(text.replace(/```json|```/g, "").trim());
     return NextResponse.json(result);
   } catch {
-    return NextResponse.json({ error: "Failed to parse Claude response", raw: text }, { status: 500 });
+    return NextResponse.json({ error: "Failed to parse the model response", raw: text }, { status: 500 });
   }
 }

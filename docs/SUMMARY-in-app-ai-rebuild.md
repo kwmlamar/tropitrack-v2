@@ -1,5 +1,18 @@
 # Summary — the in-app AI, rebuilt as an answer engine
 
+> **Addendum, 2026-09-06:** after the work below was committed, the assistant was
+> **ported from Anthropic to OpenAI** at the owner's request, so the whole app runs
+> on one provider and one key. All four Anthropic consumers moved: `/api/ai/chat`
+> (a real rewrite — OpenAI's tool calling uses `tool_calls` + `role:"tool"`
+> messages, not Anthropic's `tool_use` content blocks), `/api/ai/health`,
+> `/api/receipts/parse` (vision) and `/api/estimates/generate`. `ANTHROPIC_API_KEY`
+> is gone; `OPENAI_API_KEY` powers everything. Two things to know: the error
+> classifier now discriminates OpenAI's **429-for-both-rate-limit-and-empty-quota**
+> on `insufficient_quota`, since "out of credit" is the exact failure this work
+> exists to surface; and `BASE_SYSTEM` no longer says "You are Claude", because
+> the model answering is not. The product surface is still branded Claude — that
+> naming is an open decision. **None of the port is build-tested either.**
+
 **Branch:** `feat/ai-answer-engine` · **DB:** Supabase `rrqpwtggiirexptnhyqy` · **Date:** 2026-09-06
 **Reads on from:** `docs/FINDINGS-in-app-ai.md`, `docs/AGENT-BRIEF-in-app-ai.md`
 

@@ -41,9 +41,9 @@ interface Spend {
  * would be a worse lie than an honest approximation.
  */
 
-/** Published Sonnet pricing, USD per million tokens. Approximate by design. */
-const RATE_INPUT_PER_MTOK = 3;
-const RATE_OUTPUT_PER_MTOK = 15;
+/** Published gpt-4o pricing, USD per million tokens. Approximate by design. */
+const RATE_INPUT_PER_MTOK = 2.5;
+const RATE_OUTPUT_PER_MTOK = 10;
 
 export function AiStatusPanel() {
   const { profile, session } = useAuth();
@@ -62,7 +62,7 @@ export function AiStatusPanel() {
     } catch {
       setHealth({
         ok: false,
-        provider: "anthropic",
+        provider: "openai",
         model: "unknown",
         key_present: false,
         latency_ms: 0,
@@ -126,7 +126,7 @@ export function AiStatusPanel() {
           Assistant status
         </h3>
         <p className="mt-1 text-[11px] text-foreground-lighter">
-          The assistant runs on Anthropic. This makes a real call to check it is actually
+          The assistant runs on OpenAI. This makes a real call to check it is actually
           answering — a key with no credit looks identical to a quiet day until you ask.
         </p>
       </div>
@@ -218,7 +218,7 @@ export function AiStatusPanel() {
       </div>
 
       <p className="text-[10px] leading-relaxed text-foreground-lighter">
-        Spend is an estimate at published Sonnet list pricing (${RATE_INPUT_PER_MTOK}/M input, $
+        Spend is an estimate at published gpt-4o list pricing (${RATE_INPUT_PER_MTOK}/M input, $
         {RATE_OUTPUT_PER_MTOK}/M output) and is not a bill. Token counts before this change
         shipped were never recorded, so conversations from earlier in the month count as calls
         but contribute no tokens.
