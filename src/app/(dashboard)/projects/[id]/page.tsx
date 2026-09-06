@@ -11,6 +11,7 @@ import {
   formatDate,
   calculatePercentage,
 } from "@/lib/utils";
+import { ProjectLabourPanel } from "@/components/projects/project-labour-panel";
 import type { Project, ProjectMilestone, TimeEntry, MaterialAllocation, PurchaseOrder } from "@/types";
 
 const STATUS_DOT: Record<string, string> = {
@@ -305,6 +306,12 @@ export default function ProjectDetailPage() {
         {/* COSTS */}
         {activeTab === "costs" && (
           <div className="space-y-4">
+            {/* Labour, from project_labor_cost() — the same function the
+                assistant calls, so "labour on this job" gives one answer
+                wherever it is asked. The project_cost_summary tiles below are
+                left as they were. */}
+            <ProjectLabourPanel projectId={project.id} />
+
             <div className="grid grid-cols-5 gap-3">
               {[
                 { label: "Labor",     value: costSummary.labor },

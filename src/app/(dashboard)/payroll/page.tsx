@@ -23,6 +23,8 @@ import {
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { CrewOwedPanel } from "@/components/payroll/crew-owed-panel";
+import { AskAboutThis } from "@/components/ai/ask-about-this";
 import type { PayPeriod, Worker, PayrollAdjustment, PayrollAdjustmentType } from "@/types";
 
 // NIB Constants
@@ -385,6 +387,11 @@ export default function PayrollPage() {
         </button>
       </div>
 
+      {/* Owed to crew. Driven by crew_balances() — the same function behind the
+          dashboard tile and the assistant's tool, so all three agree by
+          construction rather than by luck. */}
+      <CrewOwedPanel companyId={profile?.company_id} />
+
       {/* Two-panel layout */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left: periods list */}
@@ -460,6 +467,13 @@ export default function PayrollPage() {
                 </div>
 
                 <div className="flex items-center gap-4">
+                  {/* Seeds a payroll thread with this period's id and dates, so
+                      the first message is a real question about a real period
+                      rather than a blank box beside a screen full of context. */}
+                  <AskAboutThis
+                    skill="payroll"
+                    question={`Pay period ${selectedPeriod.id} (${selectedPeriod.start_date} to ${selectedPeriod.end_date}, status ${selectedPeriod.status}). Who is still owed money on this period, and how much?`}
+                  />
                   {selectedPeriod.status === "open" && (
                     <button onClick={() => setProcessDialogOpen(true)} className="text-[12px] text-brand hover:opacity-80">
                       Process payroll

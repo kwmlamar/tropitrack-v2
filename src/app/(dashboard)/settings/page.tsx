@@ -28,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { AiStatusPanel } from "@/components/ai/ai-status-panel";
 import type { AITone } from "@/types";
 import { useRouter } from "next/navigation";
 
@@ -939,6 +940,12 @@ export default function SettingsPage() {
               <h2 className="text-[14px] font-semibold text-foreground uppercase tracking-wider font-mono">AI Features</h2>
               <p className="text-[11px] text-foreground-lighter mt-1">Configure AI-powered search and content generation</p>
             </div>
+
+            {/* Health and spend first. Preferences below matter only if the
+                thing is actually answering, and for six days it was not. */}
+            <AiStatusPanel />
+
+            <div className="border-b border-border" />
 
             <div className="space-y-4 max-w-md">
               <div className="space-y-1.5">

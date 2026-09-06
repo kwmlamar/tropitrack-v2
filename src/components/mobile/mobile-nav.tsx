@@ -2,10 +2,29 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { Home, FolderKanban, Plus, FileText, Menu } from "lucide-react";
+import { Home, FolderKanban, Plus, Menu } from "lucide-react";
+import { ClaudeIcon } from "@/components/icons/claude-icon";
 import { cn } from "@/lib/utils";
 
-const navItems = [
+/**
+ * On a phone this app was Home / Projects / Quick Add / Invoices / More, and the
+ * assistant appeared in neither the bar nor /more — the feature simply did not
+ * exist on mobile, which is where site work happens.
+ *
+ * Claude takes the Invoices slot rather than becoming a sixth item: five is what
+ * fits on a 375px bar without crowding, and billing a client is a desk task
+ * while asking what a job has cost is not. Invoices is still one tap away under
+ * More → Workspace. Swapping them back is a one-line change.
+ */
+interface NavItem {
+  label: string;
+  href: string;
+  /** Lucide icons and the Claude mark are both plain className-taking components. */
+  icon: React.ComponentType<{ className?: string }>;
+  isCenter?: boolean;
+}
+
+const navItems: NavItem[] = [
   {
     label: "Home",
     href: "/",
@@ -23,9 +42,9 @@ const navItems = [
     isCenter: true,
   },
   {
-    label: "Invoices",
-    href: "/invoices",
-    icon: FileText,
+    label: "Claude",
+    href: "/assistant",
+    icon: ClaudeIcon,
   },
   {
     label: "More",

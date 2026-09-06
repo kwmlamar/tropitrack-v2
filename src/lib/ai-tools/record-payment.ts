@@ -65,8 +65,24 @@ export const recordPaymentTool: ToolDescriptor<Input, Output> = {
     if (input.amount <= 0) return { summary: `⚠ Amount must be positive (got ${input.amount}).` };
     if (input.amount > e.balance + 0.005) return { summary: `⚠ Amount $${input.amount.toFixed(2)} exceeds outstanding balance $${e.balance.toFixed(2)}.` };
     const method = input.payment_method ?? "cash";
+    const after = e.balance - input.amount;
+    // Worker, amount, period, and the balance on both sides of the payment.
+    // "Record $500" tells the user nothing about whether it clears the entry.
     return {
-      summary: `Record $${input.amount.toFixed(2)} ${method} payment to ${e.worker_name} for period ${e.period_start}–${e.period_end} (balance after: $${(e.balance - input.amount).toFixed(2)}).`,
+      summary: [
+        `Record BSD $${input.amount.toFixed(2)} ${method} payment`,
+        ``,
+        `Worker:   ${e.worker_name}`,
+        `Period:   ${e.period_start} – ${e.period_end}`,
+        `Balance:  $${e.balance.toFixed(2)} → $${after.toFixed(2)}${
+          after <= 0.005 ? " (clears this entry)" : ""
+        }`,
+        input.reference_number ? `Ref:      ${input.reference_number}` : null,
+        ``,
+        `Gross $${e.gross.toFixed(2)}, already paid $${e.paid.toFixed(2)}. Balances here are on the gross basis.`,
+      ]
+        .filter((l): l is string => l !== null)
+        .join("\n"),
     };
   },
 

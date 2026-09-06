@@ -11,6 +11,7 @@ import { SearchModal } from "@/components/search/search-modal";
 import type {
   AttentionRow,
   AttentionSeverity,
+  CrewBalances,
   DashboardJob,
   DashboardSummary,
 } from "@/types";
@@ -81,6 +82,12 @@ function attentionSentence(row: AttentionRow): string {
       return `${n} ${plural(n, "invoice")} outside the numbering sequence`;
     case "time_no_pay_period":
       return `${n} ${plural(n, "week")} of logged time with no pay period`;
+    case "ai_offline":
+      // The assistant died silently on 2026-08-31 and nobody was told for six
+      // days. This row exists so that can never be true again.
+      return `Claude is offline${
+        row.date_ref ? ` — last worked ${shortDate(row.date_ref)}` : ""
+      }`;
     default:
       return `${n} items need attention`;
   }
@@ -110,6 +117,8 @@ function attentionShort(row: AttentionRow): string {
       return `${n} invoices misnumbered`;
     case "time_no_pay_period":
       return `${n} ${plural(n, "week")} unpaid`;
+    case "ai_offline":
+      return "Claude is offline";
     default:
       return `${n} items`;
   }
@@ -118,6 +127,7 @@ function attentionShort(row: AttentionRow): string {
 export default function DashboardPage() {
   const { profile } = useAuth();
   const [data, setData] = useState<DashboardSummary | null>(null);
+  const [crew, setCrew] = useState<CrewBalances | null>(null);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
 
@@ -135,9 +145,9 @@ export default function DashboardPage() {
     }
     setLoading(true);
     setFailed(false);
+    const supabase = createClient();
     try {
       // One RPC replaces the fifteen-odd aggregates this page needs.
-      const supabase = createClient();
       const { data: payload, error } = await supabase.rpc("dashboard_summary", {
         p_company_id: profile.company_id,
       });
@@ -146,9 +156,36 @@ export default function DashboardPage() {
     } catch (err) {
       console.error("dashboard_summary failed:", err);
       setFailed(true);
-    } finally {
-      setLoading(false);
     }
+
+    // Owed-to-crew and the post-hoc attention checks are separate RPCs so that
+    // dashboard_summary stays frozen. Each fails on its own — a dead crew
+    // figure must not blank the invoices tile beside it.
+    try {
+      const { data: payload, error } = await supabase.rpc("crew_balances", {
+        p_company_id: profile.company_id,
+      });
+      if (error) throw error;
+      setCrew(payload as CrewBalances);
+    } catch (err) {
+      console.error("crew_balances failed:", err);
+      setCrew(null);
+    }
+
+    try {
+      const { data: extra, error } = await supabase.rpc("dashboard_extra_checks", {
+        p_company_id: profile.company_id,
+      });
+      if (error) throw error;
+      const rows = (extra ?? []) as AttentionRow[];
+      if (rows.length) {
+        setData((prev) => (prev ? { ...prev, attention: [...prev.attention, ...rows] } : prev));
+      }
+    } catch (err) {
+      console.error("dashboard_extra_checks failed:", err);
+    }
+
+    setLoading(false);
   }, [profile?.company_id]);
 
   useEffect(() => {
@@ -211,7 +248,7 @@ export default function DashboardPage() {
           entire point of the page. */}
       <div className="flex flex-1 flex-col gap-5 p-6 pb-24 md:pb-6">
         <div className="order-2 md:order-1">
-          <MoneyBand data={data} loading={loading} />
+          <MoneyBand data={data} crew={crew} loading={loading} />
         </div>
         <div className="order-1 md:order-2">
           <AttentionBand rows={attention} loading={loading} failed={failed} />
@@ -254,11 +291,19 @@ function Tile({
   );
 }
 
-function MoneyBand({ data, loading }: { data: DashboardSummary | null; loading: boolean }) {
+function MoneyBand({
+  data,
+  crew,
+  loading,
+}: {
+  data: DashboardSummary | null;
+  crew: CrewBalances | null;
+  loading: boolean;
+}) {
   if (loading) {
     return (
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-        {Array(3)
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+        {Array(4)
           .fill(0)
           .map((_, i) => (
             <div key={i} className="h-[92px] animate-pulse rounded-lg bg-surface-100" />
@@ -270,6 +315,27 @@ function MoneyBand({ data, loading }: { data: DashboardSummary | null; loading: 
   const owed = data?.money?.owed ?? null;
   const period = data?.money?.open_period ?? null;
   const month = data?.money?.month;
+  const crewTotals = crew?.totals ?? null;
+
+  // Age the payable the same way the receivable is aged: how long the oldest
+  // unpaid period has been sitting, not how many workers are waiting.
+  const crewOldestDays =
+    crewTotals?.oldest_unpaid_period_start && data?.week?.today
+      ? Math.round(
+          (parseLocalDate(data.week.today).getTime() -
+            parseLocalDate(crewTotals.oldest_unpaid_period_start).getTime()) /
+            86_400_000
+        )
+      : null;
+
+  const crewTone =
+    crewOldestDays == null
+      ? "text-foreground"
+      : crewOldestDays > 60
+      ? "text-destructive"
+      : crewOldestDays >= 30
+      ? "text-warning"
+      : "text-foreground";
 
   // Age the receivable, not the invoice count — 65 days out is a different
   // problem from 6 days out.
@@ -283,7 +349,7 @@ function MoneyBand({ data, loading }: { data: DashboardSummary | null; loading: 
       : "text-foreground";
 
   return (
-    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
       <Tile
         label="Owed to us"
         href="/invoices"
@@ -300,6 +366,50 @@ function MoneyBand({ data, loading }: { data: DashboardSummary | null; loading: 
       >
         <p className={cn("mt-1 text-[24px] font-semibold leading-none tabular-nums", owedTone)}>
           {owed ? <Money value={owed.total} /> : "—"}
+        </p>
+      </Tile>
+
+      {/* Owed to crew. Two-thirds of every question ever put to the assistant
+          was this figure, and until now no screen carried it — the only way to
+          get it was to ask a language model to add up a column, which on
+          2026-08-21 produced two different answers in one day.
+
+          The headline is the NET basis, matching what /payroll actually pays
+          against. The gross basis sits underneath rather than being hidden:
+          which one is truly "owed" is an open question for the owner, and this
+          tile states the difference instead of quietly resolving it. */}
+      <Tile
+        label="Owed to crew"
+        href="/payroll"
+        sub={
+          crewTotals ? (
+            <>
+              {crewTotals.workers_owed} {plural(crewTotals.workers_owed, "worker")} ·{" "}
+              {crewTotals.period_count} {plural(crewTotals.period_count, "period")}
+              {crewOldestDays != null && ` · oldest ${crewOldestDays} days`}
+              <div className="mt-0.5">
+                gross basis {money(crewTotals.total_owed_gross)}
+              </div>
+              {crewTotals.uncovered_time_value > 0 && (
+                <div className="mt-0.5 text-destructive">
+                  + {money(crewTotals.uncovered_time_value)} logged time with no pay period
+                </div>
+              )}
+              {crewTotals.terminated_owed_count > 0 && (
+                <div className="mt-0.5 text-warning">
+                  + {money(crewTotals.terminated_owed_net)} owed to{" "}
+                  {crewTotals.terminated_owed_count} terminated{" "}
+                  {plural(crewTotals.terminated_owed_count, "worker")}
+                </div>
+              )}
+            </>
+          ) : (
+            "could not be calculated"
+          )
+        }
+      >
+        <p className={cn("mt-1 text-[24px] font-semibold leading-none tabular-nums", crewTone)}>
+          {crewTotals ? <Money value={crewTotals.total_owed_net} /> : "—"}
         </p>
       </Tile>
 
