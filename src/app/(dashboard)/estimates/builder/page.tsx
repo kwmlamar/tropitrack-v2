@@ -408,7 +408,7 @@ export default function CreateEstimateBuilderPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ description: aiDescription, materials: materials || [] }),
       });
-      if (!res.ok) throw new Error("Generation failed — check ANTHROPIC_API_KEY");
+      if (!res.ok) throw new Error("Generation failed — check OPENAI_API_KEY");
 
       const generated = await res.json();
       if (generated.error) throw new Error(generated.error);

@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import {
   AI_PROVIDER,
-  ANTHROPIC_API_URL,
-  ANTHROPIC_MODEL,
-  ANTHROPIC_VERSION,
-  classifyAnthropicError,
+  classifyOpenAIError,
   MISSING_KEY_FAILURE,
+  openAiHeaders,
+  OPENAI_API_URL,
+  OPENAI_CHAT_MODEL,
 } from "@/lib/ai-config";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -55,10 +55,10 @@ export async function GET(request: NextRequest) {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY;
   const base = {
     provider: AI_PROVIDER,
-    model: ANTHROPIC_MODEL,
+    model: OPENAI_CHAT_MODEL,
     key_present: Boolean(apiKey),
     checked_at: new Date().toISOString(),
   };
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
       tool_version: 1,
       scope: "read",
       tier: "none",
-      input: { provider: AI_PROVIDER, model: ANTHROPIC_MODEL },
+      input: { provider: AI_PROVIDER, model: OPENAI_CHAT_MODEL },
       result: detail,
       status: ok ? "ok" : "error",
       error_message: errorMessage ?? null,
@@ -92,15 +92,11 @@ export async function GET(request: NextRequest) {
   try {
     // The smallest call that still proves the whole path: key accepted, model
     // name valid, credit available, network reachable.
-    const res = await fetch(ANTHROPIC_API_URL, {
+    const res = await fetch(OPENAI_API_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": ANTHROPIC_VERSION,
-      },
+      headers: openAiHeaders(apiKey),
       body: JSON.stringify({
-        model: ANTHROPIC_MODEL,
+        model: OPENAI_CHAT_MODEL,
         max_tokens: 1,
         messages: [{ role: "user", content: "ping" }],
       }),
@@ -108,7 +104,7 @@ export async function GET(request: NextRequest) {
 
     if (!res.ok) {
       const body = await res.text();
-      const failure = classifyAnthropicError(res.status, body);
+      const failure = classifyOpenAIError(res.status, body);
       await record(false, { ...base, failure }, failure.message);
       return NextResponse.json(
         { ...base, ok: false, failure, latency_ms: Date.now() - startedAt },
@@ -118,8 +114,8 @@ export async function GET(request: NextRequest) {
 
     const data = await res.json();
     const usage = {
-      input_tokens: data?.usage?.input_tokens ?? null,
-      output_tokens: data?.usage?.output_tokens ?? null,
+      input_tokens: data?.usage?.prompt_tokens ?? null,
+      output_tokens: data?.usage?.completion_tokens ?? null,
     };
     await record(true, { ...base, usage });
 
